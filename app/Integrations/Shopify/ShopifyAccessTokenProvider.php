@@ -62,12 +62,10 @@ class ShopifyAccessTokenProvider
         }
 
         if (! $response->successful()) {
-            throw new ShopifyException(
-                ShopifyOAuthErrorParser::messageFromResponse(
-                    $response,
-                    'Failed to obtain Shopify access token',
-                )
-            );
+            throw new ShopifyException(sprintf(
+                'Failed to obtain Shopify access token (HTTP %d).',
+                $response->status(),
+            ));
         }
 
         $body = $response->json();

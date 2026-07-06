@@ -12,8 +12,6 @@ class ShopifyConfig
 
     public readonly string $clientSecret;
 
-    public readonly string $appUrl;
-
     public readonly string $apiVersion;
 
     public function __construct()
@@ -21,7 +19,6 @@ class ShopifyConfig
         $this->shop = (string) config('services.shopify.shop');
         $this->clientId = (string) config('services.shopify.client_id');
         $this->clientSecret = (string) config('services.shopify.client_secret');
-        $this->appUrl = (string) config('services.shopify.app_url');
         $this->apiVersion = (string) config('services.shopify.api_version');
 
         $this->validate();

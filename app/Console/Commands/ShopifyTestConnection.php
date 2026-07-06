@@ -23,8 +23,6 @@ class ShopifyTestConnection extends Command
 
     public function handle(ShopifyConnector $connector): int
     {
-        $this->info('Testing Shopify connection...');
-
         try {
             $response = $connector->query([
                 'query' => self::TEST_QUERY,
@@ -44,11 +42,7 @@ class ShopifyTestConnection extends Command
 
             return self::SUCCESS;
         } catch (ShopifyException $exception) {
-            $this->components->error('Connection failed:');
-
-            foreach (explode(' | ', $exception->getMessage()) as $line) {
-                $this->line('  '.$line);
-            }
+            $this->components->error('Connection failed: '.$exception->getMessage());
 
             return self::FAILURE;
         }

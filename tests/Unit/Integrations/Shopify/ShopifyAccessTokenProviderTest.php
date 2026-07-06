@@ -78,7 +78,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
         ]);
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('Failed to obtain Shopify access token: app_not_installed');
+        $this->expectExceptionMessage('Failed to obtain Shopify access token (HTTP 400).');
 
         app(ShopifyAccessTokenProvider::class)->getAccessToken();
     }

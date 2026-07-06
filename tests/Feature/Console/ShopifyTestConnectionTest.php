@@ -35,7 +35,6 @@ class ShopifyTestConnectionTest extends TestCase
         ]);
 
         $this->artisan('shopify:test-connection')
-            ->expectsOutputToContain('Testing Shopify connection...')
             ->expectsOutputToContain('Connected to Test Shop (test-shop.myshopify.com)')
             ->assertSuccessful();
     }
@@ -47,7 +46,7 @@ class ShopifyTestConnectionTest extends TestCase
         ]);
 
         $this->artisan('shopify:test-connection')
-            ->expectsOutputToContain('Connection failed:')
+            ->expectsOutputToContain('Connection failed: Failed to obtain Shopify access token (HTTP 400).')
             ->assertFailed();
     }
 
@@ -69,8 +68,7 @@ class ShopifyTestConnectionTest extends TestCase
         ]);
 
         $this->artisan('shopify:test-connection')
-            ->expectsOutputToContain('Connection failed:')
-            ->expectsOutputToContain('[ACCESS_DENIED] Access denied for shop field.')
+            ->expectsOutputToContain('Connection failed: Shopify GraphQL request failed: Access denied for shop field.')
             ->assertFailed();
     }
 }

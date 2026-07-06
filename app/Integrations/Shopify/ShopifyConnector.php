@@ -3,7 +3,6 @@
 namespace App\Integrations\Shopify;
 
 use App\Exceptions\Shopify\ShopifyException;
-use App\Exceptions\Shopify\ShopifyRetryableException;
 use App\Exceptions\Shopify\ShopifyThrottledException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -44,7 +43,7 @@ class ShopifyConnector
                 ->timeout(self::REQUEST_TIMEOUT_SECONDS)
                 ->post($this->config->graphqlUrl(), $body);
         } catch (ConnectionException) {
-            throw new ShopifyRetryableException('Shopify GraphQL request failed due to a network error.');
+            throw new ShopifyException('Shopify GraphQL request failed due to a network error.');
         }
 
         if ($response->status() === 401 && ! $hasRetriedAuthentication) {
@@ -58,9 +57,10 @@ class ShopifyConnector
         }
 
         if ($response->serverError()) {
-            throw new ShopifyRetryableException(
-                'Shopify GraphQL request failed with a server error (HTTP '.$response->status().').'
-            );
+            throw new ShopifyException(sprintf(
+                'Shopify GraphQL request failed with a server error (HTTP %d).',
+                $response->status(),
+            ));
         }
 
         if (! $response->successful()) {
@@ -110,9 +110,15 @@ class ShopifyConnector
         $errors = $decoded['errors'] ?? null;
 
         if (is_array($errors) && $errors !== []) {
+            $firstErrorMessage = null;
+
             foreach ($errors as $error) {
                 if (! is_array($error)) {
                     continue;
+                }
+
+                if ($firstErrorMessage === null && is_string($error['message'] ?? null) && $error['message'] !== '') {
+                    $firstErrorMessage = $error['message'];
                 }
 
                 $code = $error['extensions']['code'] ?? null;
@@ -131,7 +137,11 @@ class ShopifyConnector
                 }
             }
 
-            throw new ShopifyException(ShopifyGraphQlErrorParser::messageFromErrors($errors));
+            throw new ShopifyException(
+                $firstErrorMessage === null
+                    ? 'Shopify GraphQL request returned errors.'
+                    : 'Shopify GraphQL request failed: '.$firstErrorMessage
+            );
         }
 
         $data = $decoded['data'] ?? null;

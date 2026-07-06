@@ -3,7 +3,6 @@
 namespace Tests\Unit\Integrations\Shopify;
 
 use App\Exceptions\Shopify\ShopifyException;
-use App\Exceptions\Shopify\ShopifyRetryableException;
 use App\Exceptions\Shopify\ShopifyThrottledException;
 use App\Integrations\Shopify\ShopifyConnector;
 use Illuminate\Support\Facades\Cache;
@@ -76,7 +75,7 @@ class ShopifyConnectorTest extends TestCase
         );
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('[ACCESS_DENIED] Field error (path: shop.name)');
+        $this->expectExceptionMessage('Shopify GraphQL request failed: Field error');
 
         app(ShopifyConnector::class)->query([
             'query' => 'query { shop { name } }',
@@ -157,7 +156,7 @@ class ShopifyConnectorTest extends TestCase
         Http::assertSentCount(4);
     }
 
-    public function test_it_throws_retryable_exception_for_server_errors(): void
+    public function test_it_throws_shopify_exception_for_server_errors(): void
     {
         Http::fake([
             'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
@@ -167,7 +166,7 @@ class ShopifyConnectorTest extends TestCase
             'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response('error', 503),
         ]);
 
-        $this->expectException(ShopifyRetryableException::class);
+        $this->expectException(ShopifyException::class);
 
         app(ShopifyConnector::class)->query(['query' => 'query { shop { name } }']);
     }

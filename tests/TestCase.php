@@ -21,7 +21,6 @@ abstract class TestCase extends BaseTestCase
                 'client_id' => 'test-client-id',
                 'client_secret' => 'test-client-secret',
                 'shop' => 'test-shop.myshopify.com',
-                'app_url' => 'https://example.test',
                 'api_version' => '2026-07',
             ], $overrides),
         ]);
