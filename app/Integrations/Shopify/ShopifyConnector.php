@@ -115,7 +115,7 @@ class ShopifyConnector
                 }
             }
 
-            throw new ShopifyException('Shopify GraphQL request returned errors.');
+            throw new ShopifyException(ShopifyGraphQlErrorParser::messageFromErrors($errors));
         }
 
         $data = $decoded['data'] ?? null;

@@ -50,4 +50,27 @@ class ShopifyTestConnectionTest extends TestCase
             ->expectsOutputToContain('Connection failed:')
             ->assertFailed();
     }
+
+    public function test_command_reports_graphql_failure_details(): void
+    {
+        Http::fake([
+            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+                'access_token' => 'shpat_test',
+                'expires_in' => 3600,
+            ]),
+            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response([
+                'errors' => [
+                    [
+                        'message' => 'Access denied for shop field.',
+                        'extensions' => ['code' => 'ACCESS_DENIED'],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->artisan('shopify:test-connection')
+            ->expectsOutputToContain('Connection failed:')
+            ->expectsOutputToContain('[ACCESS_DENIED] Access denied for shop field.')
+            ->assertFailed();
+    }
 }

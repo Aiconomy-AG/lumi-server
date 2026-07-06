@@ -45,7 +45,11 @@ class ShopifyTestConnection extends Command
 
             return self::SUCCESS;
         } catch (ShopifyException $exception) {
-            $this->components->error('Connection failed: '.$exception->getMessage());
+            $this->components->error('Connection failed:');
+
+            foreach (explode(' | ', $exception->getMessage()) as $line) {
+                $this->line('  '.$line);
+            }
 
             return self::FAILURE;
         }

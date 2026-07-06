@@ -71,11 +71,14 @@ class ShopifyAccessTokenProviderTest extends TestCase
     public function test_it_throws_when_token_acquisition_fails(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response('invalid', 400),
+            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+                'error' => 'app_not_installed',
+                'error_description' => 'The application is not installed on this shop.',
+            ], 400),
         ]);
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('Failed to obtain Shopify access token (HTTP 400).');
+        $this->expectExceptionMessage('Failed to obtain Shopify access token: app_not_installed');
 
         app(ShopifyAccessTokenProvider::class)->getAccessToken();
     }

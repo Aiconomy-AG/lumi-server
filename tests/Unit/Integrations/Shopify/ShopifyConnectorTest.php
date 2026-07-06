@@ -66,13 +66,17 @@ class ShopifyConnectorTest extends TestCase
         $this->fakeTokenAndGraphql(
             graphQlResponse: [
                 'errors' => [
-                    ['message' => 'Field error'],
+                    [
+                        'message' => 'Field error',
+                        'path' => ['shop', 'name'],
+                        'extensions' => ['code' => 'ACCESS_DENIED'],
+                    ],
                 ],
             ],
         );
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('Shopify GraphQL request returned errors.');
+        $this->expectExceptionMessage('[ACCESS_DENIED] Field error (path: shop.name)');
 
         app(ShopifyConnector::class)->query([
             'query' => 'query { shop { name } }',
