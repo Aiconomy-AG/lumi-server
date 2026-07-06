@@ -172,6 +172,26 @@ class ShopifyConnectorTest extends TestCase
         app(ShopifyConnector::class)->query(['query' => 'query { shop { name } }']);
     }
 
+    public function test_it_omits_empty_variables_from_graphql_request(): void
+    {
+        $this->fakeTokenAndGraphql(
+            graphQlResponse: [
+                'data' => ['shop' => ['name' => 'Test Shop']],
+                'extensions' => [],
+            ],
+        );
+
+        app(ShopifyConnector::class)->query([
+            'query' => 'query { shop { name } }',
+        ]);
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return ! array_key_exists('variables', $body);
+        });
+    }
+
     /**
      * @param  array<string, mixed>  $graphQlResponse
      */

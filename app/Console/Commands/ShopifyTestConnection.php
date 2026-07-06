@@ -28,7 +28,6 @@ class ShopifyTestConnection extends Command
         try {
             $response = $connector->query([
                 'query' => self::TEST_QUERY,
-                'variables' => [],
                 'operation_name' => 'TestShopifyConnection',
             ]);
 

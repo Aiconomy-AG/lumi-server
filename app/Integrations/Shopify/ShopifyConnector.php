@@ -33,14 +33,7 @@ class ShopifyConnector
      */
     private function sendGraphQlRequest(array $payload, bool $hasRetriedAuthentication): ShopifyResponse
     {
-        $body = [
-            'query' => $payload['query'],
-            'variables' => $payload['variables'] ?? [],
-        ];
-
-        if (! empty($payload['operation_name'])) {
-            $body['operationName'] = $payload['operation_name'];
-        }
+        $body = $this->buildGraphQlBody($payload);
 
         try {
             $response = Http::withHeaders([
@@ -83,6 +76,29 @@ class ShopifyConnector
         }
 
         return $this->parseGraphQlResponse($decoded);
+    }
+
+    /**
+     * @param  array{query: string, variables?: array<string, mixed>, operation_name?: string|null}  $payload
+     * @return array<string, mixed>
+     */
+    private function buildGraphQlBody(array $payload): array
+    {
+        $body = [
+            'query' => $payload['query'],
+        ];
+
+        $variables = $payload['variables'] ?? [];
+
+        if ($variables !== []) {
+            $body['variables'] = $variables;
+        }
+
+        if (! empty($payload['operation_name'])) {
+            $body['operationName'] = $payload['operation_name'];
+        }
+
+        return $body;
     }
 
     /**
