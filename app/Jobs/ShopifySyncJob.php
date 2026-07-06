@@ -15,9 +15,6 @@ class ShopifySyncJob implements ShouldQueue
 
     public int $timeout = 55;
 
-    /**
-     * @param  array{query: string, variables?: array<string, mixed>, operation_name?: string|null}  $payload
-     */
     public function __construct(
         private readonly array $payload,
     ) {
@@ -25,9 +22,6 @@ class ShopifySyncJob implements ShouldQueue
         $this->onQueue('shopify-sync');
     }
 
-    /**
-     * @return array<int, int>
-     */
     public function backoff(): array
     {
         return [30, 60, 120, 300, 600];

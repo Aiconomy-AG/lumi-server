@@ -9,7 +9,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('shopify:test-connection')]
-#[Description('Test the Shopify API connection using configured credentials')]
+#[Description('Test Shopify API credentials')]
 class ShopifyTestConnection extends Command
 {
     private const string TEST_QUERY = <<<'GRAPHQL'
@@ -32,7 +32,7 @@ class ShopifyTestConnection extends Command
             $shop = $response->data['shop'] ?? null;
 
             if (! is_array($shop)) {
-                throw new ShopifyException('Shopify connection test did not return shop data.');
+                throw new ShopifyException('No shop data in response.');
             }
 
             $name = (string) ($shop['name'] ?? 'unknown');
@@ -42,7 +42,7 @@ class ShopifyTestConnection extends Command
 
             return self::SUCCESS;
         } catch (ShopifyException $exception) {
-            $this->components->error('Connection failed: '.$exception->getMessage());
+            $this->components->error($exception->getMessage());
 
             return self::FAILURE;
         }

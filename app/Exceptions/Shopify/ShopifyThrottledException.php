@@ -16,18 +16,15 @@ class ShopifyThrottledException extends ShopifyException
         return $this->retryAfterSeconds;
     }
 
-    /**
-     * @param  array<string, mixed>  $throttleStatus
-     */
-    public static function calculateRetryDelay(array $throttleStatus, int $requestedQueryCost = 0): int
+    public static function retryDelay(array $throttleStatus, int $requestedQueryCost = 0): int
     {
-        $currentlyAvailable = (int) ($throttleStatus['currentlyAvailable'] ?? 0);
+        $available = (int) ($throttleStatus['currentlyAvailable'] ?? 0);
         $restoreRate = (float) ($throttleStatus['restoreRate'] ?? 0);
-        $requestedQueryCost = $requestedQueryCost > 0
+        $cost = $requestedQueryCost > 0
             ? $requestedQueryCost
             : (int) ($throttleStatus['requestedQueryCost'] ?? 1);
 
-        if ($currentlyAvailable >= $requestedQueryCost) {
+        if ($available >= $cost) {
             return 1;
         }
 
@@ -35,8 +32,6 @@ class ShopifyThrottledException extends ShopifyException
             return 2;
         }
 
-        $deficit = $requestedQueryCost - $currentlyAvailable;
-
-        return max(1, (int) ceil($deficit / $restoreRate));
+        return max(1, (int) ceil(($cost - $available) / $restoreRate));
     }
 }

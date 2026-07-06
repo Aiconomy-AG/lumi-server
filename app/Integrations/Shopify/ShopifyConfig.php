@@ -37,23 +37,19 @@ class ShopifyConfig
     private function validate(): void
     {
         if ($this->clientId === '' || $this->clientSecret === '') {
-            throw new ShopifyException(
-                'Shopify credentials are not configured. Set SHOPIFY_ADMIN_ID and SHOPIFY_ADMIN_SECRET.'
-            );
+            throw new ShopifyException('Missing Shopify credentials.');
         }
 
         if ($this->shop === '') {
-            throw new ShopifyException('Shopify shop is not configured. Set SHOPIFY_SHOP.');
+            throw new ShopifyException('Missing SHOPIFY_SHOP.');
         }
 
         if (! preg_match('/^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/', $this->shop)) {
-            throw new ShopifyException(
-                'SHOPIFY_SHOP must be a plain .myshopify.com hostname without protocol or path.'
-            );
+            throw new ShopifyException('Invalid SHOPIFY_SHOP format.');
         }
 
         if ($this->apiVersion === '') {
-            throw new ShopifyException('Shopify API version is not configured. Set SHOPIFY_API_VERSION.');
+            throw new ShopifyException('Missing SHOPIFY_API_VERSION.');
         }
     }
 }

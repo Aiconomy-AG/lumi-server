@@ -5,6 +5,7 @@ namespace App\Integrations\Shopify;
 use App\Exceptions\Shopify\ShopifyException;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class ShopifyAccessTokenProvider
@@ -58,34 +59,44 @@ class ShopifyAccessTokenProvider
                     'client_secret' => $this->config->clientSecret,
                 ]);
         } catch (ConnectionException) {
-            throw new ShopifyException('Failed to obtain Shopify access token due to a network error.');
+            throw new ShopifyException('Shopify token network error.');
         }
 
         if (! $response->successful()) {
-            throw new ShopifyException(sprintf(
-                'Failed to obtain Shopify access token (HTTP %d).',
-                $response->status(),
-            ));
+            throw new ShopifyException($this->tokenErrorMessage($response));
         }
 
         $body = $response->json();
 
         if (! is_array($body)) {
-            throw new ShopifyException('Shopify token response was not valid JSON.');
+            throw new ShopifyException('Invalid token response.');
         }
 
         $token = $body['access_token'] ?? null;
         $expiresIn = $body['expires_in'] ?? null;
 
         if (! is_string($token) || $token === '' || ! is_numeric($expiresIn)) {
-            throw new ShopifyException('Shopify token response is missing required fields.');
+            throw new ShopifyException('Invalid token response.');
         }
 
-        $ttl = max(1, (int) $expiresIn - 300);
-
-        $this->cache->put($this->cacheKey(), $token, $ttl);
+        $this->cache->put($this->cacheKey(), $token, max(1, (int) $expiresIn - 300));
 
         return $token;
+    }
+
+    private function tokenErrorMessage(Response $response): string
+    {
+        $error = $response->json('error');
+
+        if (is_string($error) && $error !== '') {
+            return $error;
+        }
+
+        if (preg_match('/Oauth error ([a-z_]+)/i', $response->body(), $matches) === 1) {
+            return $matches[1];
+        }
+
+        return 'Token request failed (HTTP '.$response->status().').';
     }
 
     private function cacheKey(): string

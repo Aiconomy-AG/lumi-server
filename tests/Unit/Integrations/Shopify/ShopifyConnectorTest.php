@@ -75,7 +75,7 @@ class ShopifyConnectorTest extends TestCase
         );
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('Shopify GraphQL request failed: Field error');
+        $this->expectExceptionMessage('Field error');
 
         app(ShopifyConnector::class)->query([
             'query' => 'query { shop { name } }',
@@ -191,9 +191,6 @@ class ShopifyConnectorTest extends TestCase
         });
     }
 
-    /**
-     * @param  array<string, mixed>  $graphQlResponse
-     */
     private function fakeTokenAndGraphql(array $graphQlResponse): void
     {
         Http::fake([

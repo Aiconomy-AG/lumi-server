@@ -4,7 +4,4 @@ namespace App\Exceptions\Shopify;
 
 use Exception;
 
-class ShopifyException extends Exception
-{
-    //
-}
+class ShopifyException extends Exception {}

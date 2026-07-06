@@ -10,83 +10,60 @@ use Illuminate\Support\Facades\Http;
 
 class ShopifyConnector
 {
-    private const int CONNECT_TIMEOUT_SECONDS = 10;
-
-    private const int REQUEST_TIMEOUT_SECONDS = 30;
-
     public function __construct(
         private readonly ShopifyConfig $config,
         private readonly ShopifyAccessTokenProvider $tokenProvider,
     ) {}
 
-    /**
-     * @param  array{query: string, variables?: array<string, mixed>, operation_name?: string|null}  $payload
-     */
     public function query(array $payload): ShopifyResponse
     {
-        return $this->sendGraphQlRequest($payload, hasRetriedAuthentication: false);
+        return $this->sendGraphQlRequest($payload, false);
     }
 
-    /**
-     * @param  array{query: string, variables?: array<string, mixed>, operation_name?: string|null}  $payload
-     */
-    private function sendGraphQlRequest(array $payload, bool $hasRetriedAuthentication): ShopifyResponse
+    private function sendGraphQlRequest(array $payload, bool $retried): ShopifyResponse
     {
-        $body = $this->buildGraphQlBody($payload);
-
         try {
             $response = Http::withHeaders([
                 'X-Shopify-Access-Token' => $this->tokenProvider->getAccessToken(),
                 'Content-Type' => 'application/json',
             ])
-                ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
-                ->timeout(self::REQUEST_TIMEOUT_SECONDS)
-                ->post($this->config->graphqlUrl(), $body);
+                ->connectTimeout(10)
+                ->timeout(30)
+                ->post($this->config->graphqlUrl(), $this->graphQlBody($payload));
         } catch (ConnectionException) {
-            throw new ShopifyException('Shopify GraphQL request failed due to a network error.');
+            throw new ShopifyException('GraphQL network error.');
         }
 
-        if ($response->status() === 401 && ! $hasRetriedAuthentication) {
+        if ($response->status() === 401 && ! $retried) {
             $this->tokenProvider->invalidate();
 
-            return $this->sendGraphQlRequest($payload, hasRetriedAuthentication: true);
+            return $this->sendGraphQlRequest($payload, true);
         }
 
         if ($response->status() === 429) {
-            throw $this->buildThrottledException($response);
+            throw $this->throttledException($response);
         }
 
         if ($response->serverError()) {
-            throw new ShopifyException(sprintf(
-                'Shopify GraphQL request failed with a server error (HTTP %d).',
-                $response->status(),
-            ));
+            throw new ShopifyException('GraphQL server error (HTTP '.$response->status().').');
         }
 
         if (! $response->successful()) {
-            throw new ShopifyException(
-                'Shopify GraphQL request failed (HTTP '.$response->status().').'
-            );
+            throw new ShopifyException('GraphQL request failed (HTTP '.$response->status().').');
         }
 
         $decoded = $response->json();
 
         if (! is_array($decoded)) {
-            throw new ShopifyException('Shopify GraphQL response was not valid JSON.');
+            throw new ShopifyException('Invalid GraphQL response.');
         }
 
         return $this->parseGraphQlResponse($decoded);
     }
 
-    /**
-     * @param  array{query: string, variables?: array<string, mixed>, operation_name?: string|null}  $payload
-     * @return array<string, mixed>
-     */
-    private function buildGraphQlBody(array $payload): array
+    private function graphQlBody(array $payload): array
     {
-        $body = [
-            'query' => $payload['query'],
-        ];
+        $body = ['query' => $payload['query']];
 
         $variables = $payload['variables'] ?? [];
 
@@ -101,35 +78,30 @@ class ShopifyConnector
         return $body;
     }
 
-    /**
-     * @param  array<string, mixed>  $decoded
-     */
     private function parseGraphQlResponse(array $decoded): ShopifyResponse
     {
         $extensions = is_array($decoded['extensions'] ?? null) ? $decoded['extensions'] : [];
         $errors = $decoded['errors'] ?? null;
 
         if (is_array($errors) && $errors !== []) {
-            $firstErrorMessage = null;
+            $message = null;
 
             foreach ($errors as $error) {
                 if (! is_array($error)) {
                     continue;
                 }
 
-                if ($firstErrorMessage === null && is_string($error['message'] ?? null) && $error['message'] !== '') {
-                    $firstErrorMessage = $error['message'];
+                if ($message === null && is_string($error['message'] ?? null) && $error['message'] !== '') {
+                    $message = $error['message'];
                 }
 
-                $code = $error['extensions']['code'] ?? null;
-
-                if ($code === 'THROTTLED') {
+                if (($error['extensions']['code'] ?? null) === 'THROTTLED') {
                     $throttleStatus = $extensions['cost']['throttleStatus'] ?? [];
                     $requestedQueryCost = (int) ($extensions['cost']['requestedQueryCost'] ?? 0);
 
                     throw new ShopifyThrottledException(
-                        'Shopify GraphQL request was throttled.',
-                        ShopifyThrottledException::calculateRetryDelay(
+                        'Throttled.',
+                        ShopifyThrottledException::retryDelay(
                             is_array($throttleStatus) ? $throttleStatus : [],
                             $requestedQueryCost,
                         ),
@@ -137,11 +109,7 @@ class ShopifyConnector
                 }
             }
 
-            throw new ShopifyException(
-                $firstErrorMessage === null
-                    ? 'Shopify GraphQL request returned errors.'
-                    : 'Shopify GraphQL request failed: '.$firstErrorMessage
-            );
+            throw new ShopifyException($message ?? 'GraphQL error.');
         }
 
         $data = $decoded['data'] ?? null;
@@ -152,7 +120,7 @@ class ShopifyConnector
         );
     }
 
-    private function buildThrottledException(Response $response): ShopifyThrottledException
+    private function throttledException(Response $response): ShopifyThrottledException
     {
         $retryAfter = (int) $response->header('Retry-After');
 
@@ -165,21 +133,11 @@ class ShopifyConnector
                 $requestedQueryCost = (int) ($extensions['cost']['requestedQueryCost'] ?? 0);
 
                 if (is_array($throttleStatus) && $throttleStatus !== []) {
-                    $retryAfter = ShopifyThrottledException::calculateRetryDelay(
-                        $throttleStatus,
-                        $requestedQueryCost,
-                    );
+                    $retryAfter = ShopifyThrottledException::retryDelay($throttleStatus, $requestedQueryCost);
                 }
             }
         }
 
-        if ($retryAfter <= 0) {
-            $retryAfter = 2;
-        }
-
-        return new ShopifyThrottledException(
-            'Shopify GraphQL request was rate limited (HTTP 429).',
-            $retryAfter,
-        );
+        return new ShopifyThrottledException('Rate limited.', max($retryAfter, 2));
     }
 }

@@ -78,7 +78,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
         ]);
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('Failed to obtain Shopify access token (HTTP 400).');
+        $this->expectExceptionMessage('app_not_installed');
 
         app(ShopifyAccessTokenProvider::class)->getAccessToken();
     }
@@ -88,7 +88,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
         $this->configureShopify(['shop' => 'https://bad-shop.myshopify.com']);
 
         $this->expectException(ShopifyException::class);
-        $this->expectExceptionMessage('SHOPIFY_SHOP must be a plain .myshopify.com hostname');
+        $this->expectExceptionMessage('Invalid SHOPIFY_SHOP format.');
 
         new ShopifyConfig;
     }

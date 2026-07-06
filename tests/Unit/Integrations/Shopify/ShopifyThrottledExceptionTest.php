@@ -9,7 +9,7 @@ class ShopifyThrottledExceptionTest extends TestCase
 {
     public function test_it_calculates_retry_delay_from_throttle_status(): void
     {
-        $delay = ShopifyThrottledException::calculateRetryDelay([
+        $delay = ShopifyThrottledException::retryDelay([
             'currentlyAvailable' => 10,
             'restoreRate' => 50,
             'requestedQueryCost' => 100,
@@ -20,7 +20,7 @@ class ShopifyThrottledExceptionTest extends TestCase
 
     public function test_it_returns_minimum_delay_when_points_are_available(): void
     {
-        $delay = ShopifyThrottledException::calculateRetryDelay([
+        $delay = ShopifyThrottledException::retryDelay([
             'currentlyAvailable' => 200,
             'restoreRate' => 50,
             'requestedQueryCost' => 100,

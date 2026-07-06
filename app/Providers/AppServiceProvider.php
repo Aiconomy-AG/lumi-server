@@ -3,18 +3,15 @@
 namespace App\Providers;
 
 use App\Integrations\Shopify\ShopifyAccessTokenProvider;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->when(ShopifyAccessTokenProvider::class)
@@ -22,9 +19,6 @@ class AppServiceProvider extends ServiceProvider
             ->give(fn () => Cache::store('redis'));
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         RateLimiter::for('auth', function (Request $request) {

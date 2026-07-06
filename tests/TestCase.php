@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\Cache;
 
 abstract class TestCase extends BaseTestCase
 {
-    /**
-     * @param  array<string, mixed>  $overrides
-     */
     protected function configureShopify(array $overrides = []): void
     {
         config([
