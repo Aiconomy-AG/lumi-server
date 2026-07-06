@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'shopify' => [
+        'shop' => env('SHOPIFY_SHOP'),
+        'client_id' => env('SHOPIFY_ADMIN_ID'),
+        'client_secret' => env('SHOPIFY_ADMIN_SECRET'),
+        'api_version' => env('SHOPIFY_API_VERSION', '2026-07'),
+    ],
+
 ];
