@@ -5,10 +5,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('token', [TokenController::class, 'store'])->middleware('throttle:auth');
+    Route::post('login', [TokenController::class, 'store'])->middleware('throttle:auth');
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::delete('token', [TokenController::class, 'destroy']);
+        Route::delete('logout', [TokenController::class, 'destroy']);
     });
 });
 
