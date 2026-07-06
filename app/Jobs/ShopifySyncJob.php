@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\Shopify\ShopifyThrottledException;
+use App\Integrations\Shopify\ShopifyConnector;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -9,19 +11,34 @@ class ShopifySyncJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 5;
+
+    public int $timeout = 55;
+
     /**
-     * Create a new job instance.
+     * @param  array{query: string, variables?: array<string, mixed>, operation_name?: string|null}  $payload
      */
-    public function __construct()
-    {
-        //
+    public function __construct(
+        private readonly array $payload,
+    ) {
+        $this->onConnection('redis');
+        $this->onQueue('shopify-sync');
     }
 
     /**
-     * Execute the job.
+     * @return array<int, int>
      */
-    public function handle(): void
+    public function backoff(): array
     {
-        //
+        return [30, 60, 120, 300, 600];
+    }
+
+    public function handle(ShopifyConnector $connector): void
+    {
+        try {
+            $connector->query($this->payload);
+        } catch (ShopifyThrottledException $exception) {
+            $this->release($exception->retryAfterSeconds());
+        }
     }
 }

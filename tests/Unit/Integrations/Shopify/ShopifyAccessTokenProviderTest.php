@@ -1,0 +1,92 @@
+<?php
+
+namespace Tests\Unit\Integrations\Shopify;
+
+use App\Exceptions\Shopify\ShopifyException;
+use App\Integrations\Shopify\ShopifyAccessTokenProvider;
+use App\Integrations\Shopify\ShopifyConfig;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+class ShopifyAccessTokenProviderTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->configureShopify();
+        Cache::store('array')->flush();
+    }
+
+    public function test_it_acquires_an_access_token(): void
+    {
+        Http::fake([
+            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+                'access_token' => 'shpat_test_token',
+                'expires_in' => 3600,
+            ]),
+        ]);
+
+        $token = app(ShopifyAccessTokenProvider::class)->getAccessToken();
+
+        $this->assertSame('shpat_test_token', $token);
+    }
+
+    public function test_it_caches_the_access_token(): void
+    {
+        Http::fake([
+            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+                'access_token' => 'shpat_cached_token',
+                'expires_in' => 3600,
+            ]),
+        ]);
+
+        $provider = app(ShopifyAccessTokenProvider::class);
+
+        $provider->getAccessToken();
+        $provider->getAccessToken();
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_it_refreshes_the_token_after_invalidation(): void
+    {
+        Http::fake([
+            'test-shop.myshopify.com/admin/oauth/access_token' => Http::sequence()
+                ->push(['access_token' => 'shpat_first', 'expires_in' => 3600])
+                ->push(['access_token' => 'shpat_second', 'expires_in' => 3600]),
+        ]);
+
+        $provider = app(ShopifyAccessTokenProvider::class);
+
+        $this->assertSame('shpat_first', $provider->getAccessToken());
+
+        $provider->invalidate();
+
+        $this->assertSame('shpat_second', $provider->getAccessToken());
+        Http::assertSentCount(2);
+    }
+
+    public function test_it_throws_when_token_acquisition_fails(): void
+    {
+        Http::fake([
+            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response('invalid', 400),
+        ]);
+
+        $this->expectException(ShopifyException::class);
+        $this->expectExceptionMessage('Failed to obtain Shopify access token (HTTP 400).');
+
+        app(ShopifyAccessTokenProvider::class)->getAccessToken();
+    }
+
+    public function test_it_validates_shop_hostname(): void
+    {
+        $this->configureShopify(['shop' => 'https://bad-shop.myshopify.com']);
+
+        $this->expectException(ShopifyException::class);
+        $this->expectExceptionMessage('SHOPIFY_SHOP must be a plain .myshopify.com hostname');
+
+        new ShopifyConfig;
+    }
+}
