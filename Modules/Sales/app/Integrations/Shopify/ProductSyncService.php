@@ -28,6 +28,15 @@ class ProductSyncService
     }
     GRAPHQL;
 
+    private const PRODUCTS_QUERY = <<<'GRAPHQL'
+    query Products($cursor: String) {
+        products(first: 100, after: $cursor) {
+            edges { node { id } }
+            pageInfo { hasNextPage endCursor }
+        }
+    }
+    GRAPHQL;
+
     public function __construct(
         private readonly ShopifyConnector $connector,
     ) {}
@@ -70,6 +79,56 @@ class ProductSyncService
             'shopify_product_id' => null,
             'shopify_sync_status' => ShopifySyncStatus::Unsynced,
         ])->save();
+    }
+
+    /**
+     * Delete every product currently in the Shopify store (paginating through
+     * the whole catalog) and reset local sync state so they can be re-created.
+     *
+     * @return int Number of products deleted from Shopify.
+     */
+    public function deleteAll(): int
+    {
+        $deleted = 0;
+        $cursor = null;
+
+        do {
+            $response = $this->connector->query([
+                'query' => self::PRODUCTS_QUERY,
+                'variables' => ['cursor' => $cursor],
+            ]);
+
+            $products = $response->data['products'] ?? [];
+
+            foreach ($products['edges'] ?? [] as $edge) {
+                $id = $edge['node']['id'] ?? null;
+
+                if (is_string($id) && $id !== '') {
+                    $this->deleteById($id);
+                    $deleted++;
+                }
+            }
+
+            $hasNextPage = (bool) ($products['pageInfo']['hasNextPage'] ?? false);
+            $cursor = $products['pageInfo']['endCursor'] ?? null;
+        } while ($hasNextPage && $cursor !== null);
+
+        Product::query()->update([
+            'shopify_product_id' => null,
+            'shopify_sync_status' => ShopifySyncStatus::Unsynced->value,
+        ]);
+
+        return $deleted;
+    }
+
+    private function deleteById(string $shopifyProductId): void
+    {
+        $response = $this->connector->query([
+            'query' => self::PRODUCT_DELETE_MUTATION,
+            'variables' => ['input' => ['id' => $shopifyProductId]],
+        ]);
+
+        $this->assertNoUserErrors($response->data['productDelete']['userErrors'] ?? []);
     }
 
     public function seed(): void

@@ -57,6 +57,10 @@ class ImportProductsCsv extends Command
             count($this->categories),
         ));
 
+        $this->components->info('Deleting existing Shopify products...');
+        $deleted = $shopify->deleteAll();
+        $this->components->info(sprintf('Deleted %d Shopify products.', $deleted));
+
         $this->components->info('Syncing products to Shopify...');
         $shopify->seed();
         $this->components->info('Shopify sync complete.');
