@@ -5,11 +5,18 @@ namespace Modules\Sales\Integrations\Shopify;
 use Illuminate\Support\Facades\Log;
 use Modules\Sales\Enums\ShopifySyncStatus;
 use Modules\Sales\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
 
 class ProductSyncService
 {
+    /**
+     * How many times a single request will wait out a Shopify rate limit
+     * before giving up.
+     */
+    private const MAX_THROTTLE_RETRIES = 10;
+
     private const PRODUCT_SET_MUTATION = <<<'GRAPHQL'
     mutation ProductSet($input: ProductSetInput!) {
         productSet(synchronous: true, input: $input) {
@@ -68,12 +75,7 @@ class ProductSyncService
             return;
         }
 
-        $response = $this->connector->query([
-            'query' => self::PRODUCT_DELETE_MUTATION,
-            'variables' => ['input' => ['id' => $product->shopify_product_id]],
-        ]);
-
-        $this->assertNoUserErrors($response->data['productDelete']['userErrors'] ?? []);
+        $this->deleteById($product->shopify_product_id);
 
         $product->forceFill([
             'shopify_product_id' => null,
@@ -93,7 +95,7 @@ class ProductSyncService
         $cursor = null;
 
         do {
-            $response = $this->connector->query([
+            $response = $this->query([
                 'query' => self::PRODUCTS_QUERY,
                 'variables' => ['cursor' => $cursor],
             ]);
@@ -123,7 +125,7 @@ class ProductSyncService
 
     private function deleteById(string $shopifyProductId): void
     {
-        $response = $this->connector->query([
+        $response = $this->query([
             'query' => self::PRODUCT_DELETE_MUTATION,
             'variables' => ['input' => ['id' => $shopifyProductId]],
         ]);
@@ -149,9 +151,30 @@ class ProductSyncService
             });
     }
 
+    /**
+     * Run a Shopify GraphQL request, transparently waiting out rate limits
+     * (throttling) instead of letting them abort a long-running sync/delete.
+     */
+    private function query(array $payload): ShopifyResponse
+    {
+        $attempts = 0;
+
+        while (true) {
+            try {
+                return $this->connector->query($payload);
+            } catch (ShopifyThrottledException $exception) {
+                if (++$attempts >= self::MAX_THROTTLE_RETRIES) {
+                    throw $exception;
+                }
+
+                sleep(max(1, $exception->retryAfterSeconds()));
+            }
+        }
+    }
+
     private function push(Product $product): string
     {
-        $response = $this->connector->query([
+        $response = $this->query([
             'query' => self::PRODUCT_SET_MUTATION,
             'variables' => ['input' => $this->buildInput($product)],
         ]);
