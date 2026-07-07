@@ -7,11 +7,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class CartItemResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'cart_id' => $this->cart_id,
+            'product_id' => $this->product_id,
+            'quantity' => $this->quantity,
+
+            'product' => new ProductResource(
+                $this->whenLoaded('product')
+            ),
+        ];
     }
 }

@@ -7,11 +7,18 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class CartResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'customer_id' => $this->customer_id,
+
+            'items' => CartItemResource::collection(
+                $this->whenLoaded('items')
+            ),
+
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
     }
 }
