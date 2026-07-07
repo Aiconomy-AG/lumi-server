@@ -2,8 +2,9 @@
 
 namespace Modules\Sales\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
 // use Modules\Sales\Database\Factories\OrderItemFactory;
 
 class OrderItem extends Model
@@ -16,7 +17,7 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
-        'quantity'
+        'quantity',
     ];
 
     protected $casts = [
@@ -32,5 +33,4 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
-
 }

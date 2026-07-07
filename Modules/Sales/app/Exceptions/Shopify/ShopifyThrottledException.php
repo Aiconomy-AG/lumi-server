@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exceptions\Shopify;
+namespace Modules\Sales\Exceptions\Shopify;
 
 class ShopifyThrottledException extends ShopifyException
 {

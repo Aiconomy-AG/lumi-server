@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit\Integrations\Shopify;
+namespace Modules\Sales\Tests\Unit\Integrations\Shopify;
 
-use App\Exceptions\Shopify\ShopifyThrottledException;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
 use PHPUnit\Framework\TestCase;
 
 class ShopifyThrottledExceptionTest extends TestCase

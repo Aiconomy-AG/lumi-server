@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Unit\Jobs;
+namespace Modules\Sales\Tests\Unit\Jobs;
 
-use App\Exceptions\Shopify\ShopifyThrottledException;
-use App\Integrations\Shopify\ShopifyConnector;
-use App\Jobs\ShopifySyncJob;
 use Mockery;
-use Tests\TestCase;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
+use Modules\Sales\Integrations\Shopify\ShopifyConnector;
+use Modules\Sales\Jobs\ShopifySyncJob;
+use Modules\Sales\Tests\TestCase;
 
 class ShopifySyncJobTest extends TestCase
 {
@@ -37,7 +37,7 @@ class ShopifySyncJobTest extends TestCase
             ->once()
             ->andThrow(new ShopifyThrottledException('throttled', 15));
 
-        $job = new class (['query' => 'query { shop { name } }']) extends ShopifySyncJob
+        $job = new class(['query' => 'query { shop { name } }']) extends ShopifySyncJob
         {
             public ?int $releasedAfter = null;
 

@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('ingredients', function (Blueprint $table) {
             $table->id();
-            $table->string("name");
-            $table->boolean("is_allergen")->default(false);
-            $table->boolean("is_vegan")->default(false);
-            $table->boolean("is_natural")->default(false);
+            $table->string('name');
+            $table->boolean('is_allergen')->default(false);
+            $table->boolean('is_vegan')->default(false);
+            $table->boolean('is_natural')->default(false);
             $table->timestamps();
         });
     }

@@ -2,8 +2,11 @@
 
 namespace Modules\Sales\Providers;
 
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Support\Facades\Cache;
+use Modules\Sales\Console\ShopifyTestConnection;
+use Modules\Sales\Integrations\Shopify\ShopifyAccessTokenProvider;
 use Nwidart\Modules\Support\ModuleServiceProvider;
-use Illuminate\Console\Scheduling\Schedule;
 
 class SalesServiceProvider extends ModuleServiceProvider
 {
@@ -22,7 +25,9 @@ class SalesServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        ShopifyTestConnection::class,
+    ];
 
     /**
      * Provider classes to register.
@@ -34,13 +39,12 @@ class SalesServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
-    /**
-     * Define module schedules.
-     * 
-     * @param $schedule
-     */
-    // protected function configureSchedules(Schedule $schedule): void
-    // {
-    //     $schedule->command('inspire')->hourly();
-    // }
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->when(ShopifyAccessTokenProvider::class)
+            ->needs(CacheRepository::class)
+            ->give(fn () => Cache::store('redis'));
+    }
 }

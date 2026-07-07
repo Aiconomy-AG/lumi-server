@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Jobs;
+namespace Modules\Sales\Jobs;
 
-use App\Exceptions\Shopify\ShopifyThrottledException;
-use App\Integrations\Shopify\ShopifyConnector;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
+use Modules\Sales\Integrations\Shopify\ShopifyConnector;
 
 class ShopifySyncJob implements ShouldQueue
 {

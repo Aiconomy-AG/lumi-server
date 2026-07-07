@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Console\Commands;
+namespace Modules\Sales\Console;
 
-use App\Exceptions\Shopify\ShopifyException;
-use App\Integrations\Shopify\ShopifyConnector;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Integrations\Shopify\ShopifyConnector;
 
 #[Signature('shopify:test-connection')]
 #[Description('Test Shopify API credentials')]

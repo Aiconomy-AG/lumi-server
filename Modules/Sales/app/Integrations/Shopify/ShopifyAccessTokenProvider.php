@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Integrations\Shopify;
+namespace Modules\Sales\Integrations\Shopify;
 
-use App\Exceptions\Shopify\ShopifyException;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
 
 class ShopifyAccessTokenProvider
 {

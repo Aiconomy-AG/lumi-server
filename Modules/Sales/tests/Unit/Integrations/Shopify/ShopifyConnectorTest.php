@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\Unit\Integrations\Shopify;
+namespace Modules\Sales\Tests\Unit\Integrations\Shopify;
 
-use App\Exceptions\Shopify\ShopifyException;
-use App\Exceptions\Shopify\ShopifyThrottledException;
-use App\Integrations\Shopify\ShopifyConnector;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Tests\TestCase;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
+use Modules\Sales\Integrations\Shopify\ShopifyConnector;
+use Modules\Sales\Tests\TestCase;
 
 class ShopifyConnectorTest extends TestCase
 {

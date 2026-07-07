@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\Unit\Integrations\Shopify;
+namespace Modules\Sales\Tests\Unit\Integrations\Shopify;
 
-use App\Exceptions\Shopify\ShopifyException;
-use App\Integrations\Shopify\ShopifyAccessTokenProvider;
-use App\Integrations\Shopify\ShopifyConfig;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Tests\TestCase;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Integrations\Shopify\ShopifyAccessTokenProvider;
+use Modules\Sales\Integrations\Shopify\ShopifyConfig;
+use Modules\Sales\Tests\TestCase;
 
 class ShopifyAccessTokenProviderTest extends TestCase
 {

@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\Feature\Console;
+namespace Modules\Sales\Tests\Feature\Console;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Tests\TestCase;
+use Modules\Sales\Tests\TestCase;
 
 class ShopifyTestConnectionTest extends TestCase
 {

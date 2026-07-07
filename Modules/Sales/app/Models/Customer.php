@@ -2,8 +2,8 @@
 
 namespace Modules\Sales\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
@@ -15,18 +15,21 @@ class Customer extends Model
     protected $fillable = [
         'username',
         'email',
-        'shopify_customer_id'
+        'shopify_customer_id',
     ];
 
-    public function orders(){
+    public function orders()
+    {
         return $this->hasMany(Order::class);
     }
 
-    public function wishlistItems() {
+    public function wishlistItems()
+    {
         return $this->hasMany(WishlistItem::class);
     }
 
-    public function wishlistProducts(){
+    public function wishlistProducts()
+    {
         return $this->belongsToMany(Product::class, 'wishlist_items')->withTimestamps();
     }
 

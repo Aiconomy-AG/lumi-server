@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Integrations\Shopify;
+namespace Modules\Sales\Integrations\Shopify;
 
 class ShopifyResponse
 {

@@ -2,8 +2,9 @@
 
 namespace Modules\Sales\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
 // use Modules\Sales\Database\Factories\ProductVariantFactory;
 
 class ProductVariant extends Model
@@ -13,7 +14,6 @@ class ProductVariant extends Model
     /**
      * The attributes that are mass assignable.
      */
-
     protected $fillable = [
         'product_id',
         'sku',

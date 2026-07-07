@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Integrations\Shopify;
+namespace Modules\Sales\Integrations\Shopify;
 
-use App\Exceptions\Shopify\ShopifyException;
-use App\Exceptions\Shopify\ShopifyThrottledException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
 
 class ShopifyConnector
 {
