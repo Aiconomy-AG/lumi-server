@@ -1,0 +1,14 @@
+type: object
+properties:
+  id:
+    type: integer
+  name:
+    type: string
+  deadline:
+    type: string
+    format: date-time
+  description:
+    type: string
+  status:
+    type: string
+    enum: [pending, in_progress, completed, overdue, cancelled]

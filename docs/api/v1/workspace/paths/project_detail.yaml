@@ -1,22 +1,22 @@
 get:
   tags:
-    - Tasks
-  summary: Get task details by ID
+    - Projects
+  summary: Get project details by ID
   security:
     - bearerAuth: []
   parameters:
-    - name: taskId
+    - name: projectId
       in: path
       required: true
       schema:
         type: integer
   responses:
     '200':
-      description: Task details with assignees and recent time entries
+      description: Project details
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Task.yaml'
+            $ref: '../components/schemas/Project.yaml'
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
     '404':
@@ -24,12 +24,12 @@ get:
 
 put:
   tags:
-    - Tasks
-  summary: Update task properties or status
+    - Projects
+  summary: Update project properties or status
   security:
     - bearerAuth: []
   parameters:
-    - name: taskId
+    - name: projectId
       in: path
       required: true
       schema:
@@ -41,27 +41,23 @@ put:
         schema:
           type: object
           properties:
-            title:
+            name:
               type: string
+            deadline:
+              type: string
+              format: date-time
             description:
               type: string
             status:
               type: string
-              enum: [pending, in_progress, completed, overdue]
-            due_date:
-              type: string
-              format: date-time
-            parent_id:
-              type: integer
-            project_id:
-              type: integer
+              enum: [pending, in_progress, completed, overdue, cancelled]
   responses:
     '200':
-      description: Task successfully updated
+      description: Project successfully updated
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Task.yaml'
+            $ref: '../components/schemas/Project.yaml'
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
     '404':
@@ -69,19 +65,19 @@ put:
 
 delete:
   tags:
-    - Tasks
-  summary: Delete a task
+    - Projects
+  summary: Delete a project
   security:
     - bearerAuth: []
   parameters:
-    - name: taskId
+    - name: projectId
       in: path
       required: true
       schema:
         type: integer
   responses:
     '200':
-      description: Task successfully deleted
+      description: Project successfully deleted
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
     '404':
