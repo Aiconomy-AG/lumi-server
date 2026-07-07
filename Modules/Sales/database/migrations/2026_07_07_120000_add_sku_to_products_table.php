@@ -16,11 +16,11 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropColumns('products', ['sku']);
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropUnique(['sku']);
+            $table->dropColumn('sku');
+        });
     }
 };
