@@ -9,6 +9,8 @@ use Modules\Sales\Enums\ShopifySyncStatus;
 
 class Product extends Model
 {
+    use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      */
