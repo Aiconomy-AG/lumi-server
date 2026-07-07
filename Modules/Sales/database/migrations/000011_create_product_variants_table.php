@@ -16,8 +16,9 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->string('sku')->unique();
             $table->decimal('price', 10);
-            $table->decimal('weight', 10);
-            $table->string('weight_unit');
+            $table->decimal('weight', 10)->nullable();
+            $table->string('weight_unit')->nullable();
+            $table->string('colour')->nullable();
             $table->unsignedInteger('stock_quantity')->default(0);
             $table->timestamps();
         });

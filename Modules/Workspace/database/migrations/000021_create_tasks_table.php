@@ -21,6 +21,7 @@ return new class extends Migration
                 ->nullable()
                 ->constrained("tasks")
                 ->nullOnDelete();
+            $table->foreignId("project_id")->constrained("projects")->cascadeOnDelete();
             $table->timestamps();
         });
     }
@@ -31,5 +32,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('tasks');
+        Schema::table('tasks', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('project_id');
+        });
     }
 };
