@@ -1,0 +1,24 @@
+delete:
+  tags:
+    - Wishlist
+  summary: Remove product from wishlist
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: productId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Product removed from wishlist successfully
+    '401':
+      : '../components/responses/Unauthorized.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'

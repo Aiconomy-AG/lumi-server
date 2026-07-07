@@ -1,0 +1,23 @@
+get:
+  tags:
+    - Checkout
+  summary: Get order details by ID
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: orderId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Order details
+      content:
+        application/json:
+          schema:
+            : '../components/schemas/Order.yaml'
+    '401':
+      : '../components/responses/Unauthorized.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'

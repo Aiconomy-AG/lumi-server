@@ -1,0 +1,8 @@
+type: object
+properties:
+  cart_id:
+    type: integer
+  product_id:
+    type: integer
+  quantity:
+    type: integer

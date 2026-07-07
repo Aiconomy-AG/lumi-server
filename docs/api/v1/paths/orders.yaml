@@ -1,0 +1,17 @@
+post:
+  tags:
+    - Checkout
+  summary: Create a new order
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/Order.yaml'
+  responses:
+    '201':
+      description: Order successfully created
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'

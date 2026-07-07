@@ -1,0 +1,25 @@
+get:
+  tags:
+    - Catalog
+  summary: List all products
+  parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+    - name: category_id
+      in: query
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: A list of products
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../components/schemas/Product.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

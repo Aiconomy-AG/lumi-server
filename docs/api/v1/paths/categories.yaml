@@ -1,0 +1,13 @@
+get:
+  tags:
+    - Catalog
+  summary: List all categories
+  responses:
+    '200':
+      description: A list of categories
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              : '../components/schemas/Category.yaml'

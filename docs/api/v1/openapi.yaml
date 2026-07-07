@@ -1,9 +1,38 @@
-openapi: 3.1.0
+openapi: 3.0.0
 info:
-  title: Title
-  description: Title
+  title: E-Commerce API
   version: 1.0.0
-servers:
-  - url: 'https'
+  description: OpenAPI specification for the e-commerce database schema.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
 paths:
-  
+  /shop/products:
+    : './paths/products.yaml'
+  /shop/products/{productId}:
+    : './paths/product_details.yaml'
+  /shop/categories:
+    : './paths/categories.yaml'
+  /shop/customers/{customerId}:
+    : './paths/customer_profile.yaml'
+  /shop/customers/{customerId}/cart:
+    : './paths/cart.yaml'
+  /shop/customers/{customerId}/cart/items:
+    : './paths/cart_items.yaml'
+  /shop/customers/{customerId}/cart/items/{productId}:
+    : './paths/cart_item_detail.yaml'
+  /shop/customers/{customerId}/wishlist:
+    : './paths/wishlist.yaml'
+  /shop/customers/{customerId}/wishlist/{productId}:
+    : './paths/wishlist_item.yaml'
+  /shop/orders:
+    : './paths/orders.yaml'
+  /shop/customers/{customerId}/orders:
+    : './paths/customer_orders.yaml'
+  /shop/orders/{orderId}:
+    : './paths/order_detail.yaml'

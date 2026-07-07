@@ -1,0 +1,29 @@
+type: object
+properties:
+  id:
+    type: integer
+  customer_id:
+    type: integer
+  status:
+    type: string
+    enum: [pending, processing, shipped, delivered, cancelled]
+  subtotal:
+    type: number
+    format: double
+  shipping_cost:
+    type: number
+    format: double
+  total_amount:
+    type: number
+    format: double
+  shipping_address:
+    type: string
+  payment_method:
+    type: string
+  payment_status:
+    type: string
+    enum: [pending, successful, failed]
+  items:
+    type: array
+    items:
+      : './Order_Item.yaml'
