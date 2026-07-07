@@ -4,6 +4,7 @@ namespace Modules\Sales\Providers;
 
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Cache;
+use Modules\Sales\Console\ShopifySeedMockProducts;
 use Modules\Sales\Console\ShopifyTestConnection;
 use Modules\Sales\Integrations\Shopify\ShopifyAccessTokenProvider;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -27,6 +28,7 @@ class SalesServiceProvider extends ModuleServiceProvider
      */
     protected array $commands = [
         ShopifyTestConnection::class,
+        ShopifySeedMockProducts::class,
     ];
 
     /**
