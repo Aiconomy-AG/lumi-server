@@ -4,8 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
-// use Modules\Sales\Database\Factories\ProductFactory;
+use Modules\Sales\Database\Factories\ProductFactory;
 
 class Product extends Model
 {
@@ -20,6 +19,7 @@ class Product extends Model
         'image_url',
         'shopify_product_id',
         'shopify_sync_status',
+        'category_id',
     ];
 
     protected $casts = [
@@ -49,8 +49,18 @@ class Product extends Model
 
     public function ingredients()
     {
-        return $this->belongsToMany(Ingredient::class, 'product_ingredients')
+        return $this->belongsToMany(Ingredients::class, 'product_ingredients', 'product_id', 'ingredient_id')
             ->withTimestamps();
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    protected static function newFactory(): ProductFactory
+    {
+        return ProductFactory::new();
     }
 
 
