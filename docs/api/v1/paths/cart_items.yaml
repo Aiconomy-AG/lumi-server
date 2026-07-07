@@ -1,0 +1,38 @@
+post:
+  tags:
+    - Cart
+  summary: Add item to cart
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - product_id
+            - quantity
+          properties:
+            product_id:
+              type: integer
+            quantity:
+              type: integer
+              minimum: 1
+  responses:
+    '201':
+      description: Item successfully added to cart
+      content:
+        application/json:
+          schema:
+            : '../components/schemas/Cart.yaml'
+    '401':
+      : '../components/responses/Unauthorized.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'

@@ -1,0 +1,23 @@
+get:
+  tags:
+    - Customer
+  summary: Get customer profile
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Customer profile details
+      content:
+        application/json:
+          schema:
+            : '../components/schemas/Customer.yaml'
+    '401':
+      : '../components/responses/Unauthorized.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'

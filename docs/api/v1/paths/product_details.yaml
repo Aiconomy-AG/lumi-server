@@ -1,0 +1,19 @@
+get:
+  tags:
+    - Catalog
+  summary: Get product details
+  parameters:
+    - name: productId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Product details with variants and ingredients
+      content:
+        application/json:
+          schema:
+            : '../components/schemas/Product.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'

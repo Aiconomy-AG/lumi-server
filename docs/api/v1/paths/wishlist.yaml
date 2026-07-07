@@ -1,0 +1,56 @@
+get:
+  tags:
+    - Wishlist
+  summary: Get customer wishlist
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Customer wishlist details
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              : '../components/schemas/Product.yaml'
+    '401':
+      : '../components/responses/Unauthorized.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'
+
+post:
+  tags:
+    - Wishlist
+  summary: Add product to wishlist
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - product_id
+          properties:
+            product_id:
+              type: integer
+  responses:
+    '201':
+      description: Product added to wishlist successfully
+    '401':
+      : '../components/responses/Unauthorized.yaml'
+    '404':
+      : '../components/responses/NotFound.yaml'

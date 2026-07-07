@@ -1,0 +1,12 @@
+type: object
+properties:
+  id:
+    type: integer
+  name:
+    type: string
+  is_allergen:
+    type: boolean
+  is_vegan:
+    type: boolean
+  is_natural:
+    type: boolean

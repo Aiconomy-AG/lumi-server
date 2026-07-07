@@ -1,0 +1,23 @@
+get:
+  tags:
+    - Cart
+  summary: Get customer cart
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Cart details
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Cart.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

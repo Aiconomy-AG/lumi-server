@@ -1,0 +1,6 @@
+type: object
+properties:
+  customer_id:
+    type: integer
+  product_id:
+    type: integer

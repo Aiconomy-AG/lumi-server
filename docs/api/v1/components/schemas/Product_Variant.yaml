@@ -1,0 +1,18 @@
+type: object
+properties:
+  id:
+    type: integer
+  product_id:
+    type: integer
+  sku:
+    type: string
+  price:
+    type: number
+    format: double
+  weight:
+    type: number
+    format: double
+  weight_unit:
+    type: string
+  stock_quantity:
+    type: integer
