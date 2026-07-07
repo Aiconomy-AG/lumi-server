@@ -36,10 +36,9 @@ class ProductSyncService
     GRAPHQL;
 
     private const PRODUCTS_QUERY = <<<'GRAPHQL'
-    query Products($cursor: String) {
-        products(first: 100, after: $cursor) {
+    query Products {
+        products(first: 100) {
             edges { node { id } }
-            pageInfo { hasNextPage endCursor }
         }
     }
     GRAPHQL;
@@ -84,36 +83,50 @@ class ProductSyncService
     }
 
     /**
-     * Delete every product currently in the Shopify store (paginating through
-     * the whole catalog) and reset local sync state so they can be re-created.
+     * Delete every product currently in the Shopify store and reset local sync
+     * state so they can be re-created.
+     *
+     * The store is drained by repeatedly fetching the first page: because each
+     * pass deletes the products it sees, the catalog shrinks until it is empty.
+     * This avoids cursor pagination shifting under concurrent deletes (which
+     * would revisit already-deleted ids).
      *
      * @return int Number of products deleted from Shopify.
      */
     public function deleteAll(): int
     {
         $deleted = 0;
-        $cursor = null;
 
-        do {
-            $response = $this->query([
-                'query' => self::PRODUCTS_QUERY,
-                'variables' => ['cursor' => $cursor],
-            ]);
+        while (true) {
+            $response = $this->query(['query' => self::PRODUCTS_QUERY]);
 
-            $products = $response->data['products'] ?? [];
+            $edges = $response->data['products']['edges'] ?? [];
 
-            foreach ($products['edges'] ?? [] as $edge) {
+            if ($edges === []) {
+                break;
+            }
+
+            $progressed = false;
+
+            foreach ($edges as $edge) {
                 $id = $edge['node']['id'] ?? null;
 
-                if (is_string($id) && $id !== '') {
-                    $this->deleteById($id);
+                if (! is_string($id) || $id === '') {
+                    continue;
+                }
+
+                if ($this->deleteById($id)) {
                     $deleted++;
+                    $progressed = true;
                 }
             }
 
-            $hasNextPage = (bool) ($products['pageInfo']['hasNextPage'] ?? false);
-            $cursor = $products['pageInfo']['endCursor'] ?? null;
-        } while ($hasNextPage && $cursor !== null);
+            // Nothing on this page could actually be deleted; stop rather than
+            // loop forever on ids Shopify keeps returning.
+            if (! $progressed) {
+                break;
+            }
+        }
 
         Product::query()->update([
             'shopify_product_id' => null,
@@ -123,14 +136,41 @@ class ProductSyncService
         return $deleted;
     }
 
-    private function deleteById(string $shopifyProductId): void
+    /**
+     * Delete a single Shopify product. Idempotent: a product that no longer
+     * exists is treated as already deleted rather than an error.
+     *
+     * @return bool Whether Shopify actually deleted a product.
+     */
+    private function deleteById(string $shopifyProductId): bool
     {
         $response = $this->query([
             'query' => self::PRODUCT_DELETE_MUTATION,
             'variables' => ['input' => ['id' => $shopifyProductId]],
         ]);
 
-        $this->assertNoUserErrors($response->data['productDelete']['userErrors'] ?? []);
+        $result = $response->data['productDelete'] ?? [];
+        $errors = $this->withoutMissingProductErrors($result['userErrors'] ?? []);
+
+        $this->assertNoUserErrors($errors);
+
+        return ($result['deletedProductId'] ?? null) !== null;
+    }
+
+    /**
+     * Drop "product does not exist" user errors so deleting an already-removed
+     * product is a no-op instead of a failure.
+     *
+     * @param  array<int, mixed>  $errors
+     * @return array<int, mixed>
+     */
+    private function withoutMissingProductErrors(array $errors): array
+    {
+        return array_values(array_filter($errors, function ($error) {
+            $message = is_array($error) ? (string) ($error['message'] ?? '') : '';
+
+            return stripos($message, 'does not exist') === false;
+        }));
     }
 
     public function seed(): void
