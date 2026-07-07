@@ -14,11 +14,24 @@ class Customer extends Model
      */
     protected $fillable = [
         'username',
-        'email'
+        'email',
+        'shopify_customer_id'
     ];
 
-    // protected static function newFactory(): CustomerFactory
-    // {
-    //     // return CustomerFactory::new();
-    // }
+    public function orders(){
+        return $this->hasMany(Order::class);
+    }
+
+    public function wishlistItems() {
+        return $this->hasMany(WishlistItem::class);
+    }
+
+    public function wishlistProducts(){
+        return $this->belongsToMany(Product::class, 'wishlist_items')->withTimestamps();
+    }
+
+    public function carts()
+    {
+        return $this->hasMany(Cart::class);
+    }
 }
