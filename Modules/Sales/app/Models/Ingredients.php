@@ -29,7 +29,7 @@ class Ingredients extends Model
 
     public function products()
     {
-        return $this->belongsToMany(Product::class, 'product_ingredients')
+        return $this->belongsToMany(Product::class, 'product_ingredients', 'ingredient_id', 'product_id')
             ->withTimestamps();
     }
 }
