@@ -4,6 +4,7 @@ namespace Modules\Workspace\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\ServiceProvider;
 
 class WorkspaceServiceProvider extends ModuleServiceProvider
 {
