@@ -1,12 +1,12 @@
 <?php
 
-namespace Modules\Sales\Console;
+namespace Modules\shop\Console;
 
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Modules\Sales\Exceptions\Shopify\ShopifyException;
-use Modules\Sales\Integrations\Shopify\ShopifyConnector;
+use Modules\shop\Exceptions\Shopify\ShopifyException;
+use Modules\shop\Integrations\Shopify\ShopifyConnector;
 
 #[Signature('shopify:test-connection')]
 #[Description('Test Shopify API credentials')]
@@ -14,7 +14,7 @@ class ShopifyTestConnection extends Command
 {
     private const string TEST_QUERY = <<<'GRAPHQL'
         query TestShopifyConnection {
-            sales {
+            shop {
                 name
                 myshopifyDomain
             }
@@ -29,10 +29,10 @@ class ShopifyTestConnection extends Command
                 'operation_name' => 'TestShopifyConnection',
             ]);
 
-            $shop = $response->data['sales'] ?? null;
+            $shop = $response->data['shop'] ?? null;
 
             if (! is_array($shop)) {
-                throw new ShopifyException('No sales data in response.');
+                throw new ShopifyException('No shop data in response.');
             }
 
             $name = (string) ($shop['name'] ?? 'unknown');
