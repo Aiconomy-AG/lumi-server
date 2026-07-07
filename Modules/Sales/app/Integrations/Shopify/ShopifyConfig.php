@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\shop\Integrations\Shopify;
+namespace Modules\Sales\Integrations\Shopify;
 
-use Modules\shop\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
 
 class ShopifyConfig
 {
@@ -16,10 +16,10 @@ class ShopifyConfig
 
     public function __construct()
     {
-        $this->shop = (string) config('shop.shopify.shop');
-        $this->clientId = (string) config('shop.shopify.client_id');
-        $this->clientSecret = (string) config('shop.shopify.client_secret');
-        $this->apiVersion = (string) config('shop.shopify.api_version');
+        $this->shop = (string) config('sales.shopify.shop');
+        $this->clientId = (string) config('sales.shopify.client_id');
+        $this->clientSecret = (string) config('sales.shopify.client_secret');
+        $this->apiVersion = (string) config('sales.shopify.api_version');
 
         $this->validate();
     }
