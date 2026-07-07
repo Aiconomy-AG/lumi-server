@@ -2,13 +2,12 @@
 
 namespace Modules\Sales\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Sales\Database\Factories\ProductFactory;
 
 class Product extends Model
 {
-    use HasFactory;
 
     /**
      * The attributes that are mass assignable.
@@ -18,6 +17,8 @@ class Product extends Model
         'description',
         'price',
         'image_url',
+        'shopify_product_id',
+        'shopify_sync_status',
         'category_id',
     ];
 
@@ -61,4 +62,6 @@ class Product extends Model
     {
         return ProductFactory::new();
     }
+
+
 }
