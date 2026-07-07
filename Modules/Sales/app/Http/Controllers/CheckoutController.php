@@ -32,16 +32,10 @@ class CheckoutController extends Controller
 
         $user = $request->user();
 
-        // Find or create customer matching user's email
-        $customer = Customer::firstOrCreate(
-            ['email' => $user->email],
-            [
-                'username' => $user->name,
-                'shopify_customer_id' => 'mock_cus_' . uniqid(),
-            ]
-        );
+        // Resolve customer matching user's identity securely
+        $customer = Customer::resolveFromUser($user);
 
-        // Map OpenAPI status & payment_status request parameters to database enum equivalents
+        // Map OpenAPI status & payment_status request parameters to database equivalents
         $dbStatus = 'pending';
         if (($validated['payment_status'] ?? null) === 'successful') {
             $dbStatus = 'paid';
@@ -56,13 +50,22 @@ class CheckoutController extends Controller
             $dbPaymentStatus = 'fulfilled';
         }
 
-        // Calculate subtotal from products in database
+        // Calculate subtotal from products in database with variant fallbacks
         $subtotal = 0.00;
         $itemsData = [];
 
         foreach ($validated['items'] as $item) {
             $product = Product::find($item['product_id']);
             $price = (float) $product->price;
+
+            // Fallback: If base product price is 0.00, pull from the first variant
+            if ($price <= 0.00) {
+                $firstVariant = $product->variants()->first();
+                if ($firstVariant) {
+                    $price = (float) $firstVariant->price;
+                }
+            }
+
             $subtotal += $price * $item['quantity'];
 
             $itemsData[] = [
@@ -116,7 +119,7 @@ class CheckoutController extends Controller
         }
 
         $user = $request->user();
-        $customer = Customer::where('email', $user->email)->first();
+        $customer = Customer::resolveFromUser($user);
 
         // Restrict to owner unless requesting user is an admin
         if (!$customer || (!$user->isAdmin() && $customer->id != $customerId)) {
@@ -148,7 +151,7 @@ class CheckoutController extends Controller
         }
 
         $user = $request->user();
-        $customer = Customer::where('email', $user->email)->first();
+        $customer = Customer::resolveFromUser($user);
 
         // Restrict to owner unless requesting user is an admin
         if (!$customer || (!$user->isAdmin() && $order->customer_id != $customer->id)) {

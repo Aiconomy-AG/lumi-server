@@ -7,11 +7,11 @@ use Modules\Sales\Models\Category;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Transformers\CategoryResource;
 use Modules\Sales\Transformers\ProductResource;
-use Request;
-
+use Illuminate\Http\Request;
 
 class CatalogController extends Controller
 {
+    // GET /sales/products
     public function index(Request $request)
     {
         $limit = $request->query('limit', 20);
