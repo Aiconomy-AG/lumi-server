@@ -112,14 +112,14 @@ class ProductSyncService
 
     private function buildInput(Product $product): array
     {
+        [$productOptions, $variants] = $this->buildVariants($product);
+
         $input = [
             'title' => $product->name,
             'descriptionHtml' => (string) $product->description,
             'status' => 'ACTIVE',
-            'productOptions' => [
-                ['name' => 'Title', 'values' => [['name' => 'Default Title']]],
-            ],
-            'variants' => [$this->buildVariant($product)],
+            'productOptions' => $productOptions,
+            'variants' => $variants,
         ];
 
         if (! empty($product->shopify_product_id)) {
@@ -133,14 +133,86 @@ class ProductSyncService
         return $input;
     }
 
-    private function buildVariant(Product $product): array
+    /**
+     * Build the Shopify product option definition together with one Shopify
+     * variant per stored variant. A product is classified either by colour or
+     * by size/weight, so it is pushed under a single "Color" or "Size" option
+     * (each variant becoming its own Shopify variant). Products without a
+     * meaningful classification fall back to the default "Title" option.
+     *
+     * @return array{0: array<int, array>, 1: array<int, array>}
+     */
+    private function buildVariants(Product $product): array
     {
-        $variant = $product->variants->first();
+        $variants = $product->variants;
 
+        if ($this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
+            return $this->buildOptionVariants($product, 'Color', fn (ProductVariant $variant) => $this->colourLabel($variant));
+        }
+
+        if ($variants->count() > 1
+            && $this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->sizeLabel($variant))) {
+            return $this->buildOptionVariants($product, 'Size', fn (ProductVariant $variant) => $this->sizeLabel($variant));
+        }
+
+        return [
+            [['name' => 'Title', 'values' => [['name' => 'Default Title']]]],
+            [$this->buildVariant($variants->first(), $product, 'Title', 'Default Title')],
+        ];
+    }
+
+    /**
+     * Every variant must resolve to a non-empty, unique label for it to work
+     * as a Shopify option value.
+     */
+    private function hasDistinctLabels(mixed $variants, callable $label): bool
+    {
+        if ($variants->isEmpty()) {
+            return false;
+        }
+
+        $labels = $variants
+            ->map($label)
+            ->filter(fn (?string $value) => $value !== null && $value !== '');
+
+        return $labels->count() === $variants->count()
+            && $labels->unique()->count() === $variants->count();
+    }
+
+    /**
+     * @return array{0: array<int, array>, 1: array<int, array>}
+     */
+    private function buildOptionVariants(Product $product, string $optionName, callable $label): array
+    {
+        $variants = $product->variants;
+
+        $productOptions = [[
+            'name' => $optionName,
+            'values' => $variants
+                ->map(fn (ProductVariant $variant) => ['name' => $label($variant)])
+                ->values()
+                ->all(),
+        ]];
+
+        $variantInputs = $variants
+            ->map(fn (ProductVariant $variant) => $this->buildVariant(
+                $variant,
+                $product,
+                $optionName,
+                $label($variant),
+            ))
+            ->values()
+            ->all();
+
+        return [$productOptions, $variantInputs];
+    }
+
+    private function buildVariant(?ProductVariant $variant, Product $product, string $optionName, string $optionValue): array
+    {
         $data = [
             'price' => $this->money($variant?->price ?? $product->price),
             'optionValues' => [
-                ['optionName' => 'Title', 'name' => 'Default Title'],
+                ['optionName' => $optionName, 'name' => $optionValue],
             ],
         ];
 
@@ -164,6 +236,32 @@ class ProductSyncService
         }
 
         return $data;
+    }
+
+    /**
+     * The colour code stored on the variant, used as the "Color" option value.
+     */
+    private function colourLabel(ProductVariant $variant): ?string
+    {
+        $colour = $variant->colour !== null ? trim($variant->colour) : '';
+
+        return $colour !== '' ? $colour : null;
+    }
+
+    /**
+     * Human-readable size label built from the variant weight + unit, e.g.
+     * 30 + "ml" => "30ml". Returns null when there is no meaningful size.
+     */
+    private function sizeLabel(ProductVariant $variant): ?string
+    {
+        if ($variant->weight === null || (float) $variant->weight <= 0.0) {
+            return null;
+        }
+
+        $value = rtrim(rtrim(number_format((float) $variant->weight, 2, '.', ''), '0'), '.');
+        $unit = $variant->weight_unit !== null ? trim($variant->weight_unit) : '';
+
+        return $unit !== '' ? $value.$unit : $value;
     }
 
     private function money(int|float|string|null $amount): string
