@@ -4,6 +4,7 @@ namespace Modules\Workspace\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\ServiceProvider;
 
 class WorkspaceServiceProvider extends ModuleServiceProvider
 {
@@ -36,7 +37,7 @@ class WorkspaceServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     * 
+     *
      * @param $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void

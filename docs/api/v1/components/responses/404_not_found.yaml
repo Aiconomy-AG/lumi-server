@@ -1,0 +1,7 @@
+description: Not Found. The requested resource or endpoint could not be found.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/error.yaml'
+    example:
+      message: "Record not found."

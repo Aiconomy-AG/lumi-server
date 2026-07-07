@@ -1,0 +1,20 @@
+type: object
+required:
+  - message
+properties:
+  message:
+    type: string
+    description: An explanation of the specific error.
+    example: "The given data was invalid."
+  errors:
+    type: object
+    description: Detailed field-by-field validation errors (only present in 422 responses).
+    additionalProperties:
+      type: array
+      items:
+        type: string
+    example:
+      employee_id:
+        - "The selected employee id is invalid."
+      message:
+        - "The message field is required."

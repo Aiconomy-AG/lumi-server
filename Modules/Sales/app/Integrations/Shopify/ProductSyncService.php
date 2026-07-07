@@ -5,11 +5,18 @@ namespace Modules\Sales\Integrations\Shopify;
 use Illuminate\Support\Facades\Log;
 use Modules\Sales\Enums\ShopifySyncStatus;
 use Modules\Sales\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
 
 class ProductSyncService
 {
+    /**
+     * How many times a single request will wait out a Shopify rate limit
+     * before giving up.
+     */
+    private const MAX_THROTTLE_RETRIES = 10;
+
     private const PRODUCT_SET_MUTATION = <<<'GRAPHQL'
     mutation ProductSet($input: ProductSetInput!) {
         productSet(synchronous: true, input: $input) {
@@ -24,6 +31,14 @@ class ProductSyncService
         productDelete(input: $input) {
             deletedProductId
             userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
+    private const PRODUCTS_QUERY = <<<'GRAPHQL'
+    query Products {
+        products(first: 100) {
+            edges { node { id } }
         }
     }
     GRAPHQL;
@@ -59,17 +74,103 @@ class ProductSyncService
             return;
         }
 
-        $response = $this->connector->query([
-            'query' => self::PRODUCT_DELETE_MUTATION,
-            'variables' => ['input' => ['id' => $product->shopify_product_id]],
-        ]);
-
-        $this->assertNoUserErrors($response->data['productDelete']['userErrors'] ?? []);
+        $this->deleteById($product->shopify_product_id);
 
         $product->forceFill([
             'shopify_product_id' => null,
             'shopify_sync_status' => ShopifySyncStatus::Unsynced,
         ])->save();
+    }
+
+    /**
+     * Delete every product currently in the Shopify store and reset local sync
+     * state so they can be re-created.
+     *
+     * The store is drained by repeatedly fetching the first page: because each
+     * pass deletes the products it sees, the catalog shrinks until it is empty.
+     * This avoids cursor pagination shifting under concurrent deletes (which
+     * would revisit already-deleted ids).
+     *
+     * @return int Number of products deleted from Shopify.
+     */
+    public function deleteAll(): int
+    {
+        $deleted = 0;
+
+        while (true) {
+            $response = $this->query(['query' => self::PRODUCTS_QUERY]);
+
+            $edges = $response->data['products']['edges'] ?? [];
+
+            if ($edges === []) {
+                break;
+            }
+
+            $progressed = false;
+
+            foreach ($edges as $edge) {
+                $id = $edge['node']['id'] ?? null;
+
+                if (! is_string($id) || $id === '') {
+                    continue;
+                }
+
+                if ($this->deleteById($id)) {
+                    $deleted++;
+                    $progressed = true;
+                }
+            }
+
+            // Nothing on this page could actually be deleted; stop rather than
+            // loop forever on ids Shopify keeps returning.
+            if (! $progressed) {
+                break;
+            }
+        }
+
+        Product::query()->update([
+            'shopify_product_id' => null,
+            'shopify_sync_status' => ShopifySyncStatus::Unsynced->value,
+        ]);
+
+        return $deleted;
+    }
+
+    /**
+     * Delete a single Shopify product. Idempotent: a product that no longer
+     * exists is treated as already deleted rather than an error.
+     *
+     * @return bool Whether Shopify actually deleted a product.
+     */
+    private function deleteById(string $shopifyProductId): bool
+    {
+        $response = $this->query([
+            'query' => self::PRODUCT_DELETE_MUTATION,
+            'variables' => ['input' => ['id' => $shopifyProductId]],
+        ]);
+
+        $result = $response->data['productDelete'] ?? [];
+        $errors = $this->withoutMissingProductErrors($result['userErrors'] ?? []);
+
+        $this->assertNoUserErrors($errors);
+
+        return ($result['deletedProductId'] ?? null) !== null;
+    }
+
+    /**
+     * Drop "product does not exist" user errors so deleting an already-removed
+     * product is a no-op instead of a failure.
+     *
+     * @param  array<int, mixed>  $errors
+     * @return array<int, mixed>
+     */
+    private function withoutMissingProductErrors(array $errors): array
+    {
+        return array_values(array_filter($errors, function ($error) {
+            $message = is_array($error) ? (string) ($error['message'] ?? '') : '';
+
+            return stripos($message, 'does not exist') === false;
+        }));
     }
 
     public function seed(): void
@@ -90,9 +191,30 @@ class ProductSyncService
             });
     }
 
+    /**
+     * Run a Shopify GraphQL request, transparently waiting out rate limits
+     * (throttling) instead of letting them abort a long-running sync/delete.
+     */
+    private function query(array $payload): ShopifyResponse
+    {
+        $attempts = 0;
+
+        while (true) {
+            try {
+                return $this->connector->query($payload);
+            } catch (ShopifyThrottledException $exception) {
+                if (++$attempts >= self::MAX_THROTTLE_RETRIES) {
+                    throw $exception;
+                }
+
+                sleep(max(1, $exception->retryAfterSeconds()));
+            }
+        }
+    }
+
     private function push(Product $product): string
     {
-        $response = $this->connector->query([
+        $response = $this->query([
             'query' => self::PRODUCT_SET_MUTATION,
             'variables' => ['input' => $this->buildInput($product)],
         ]);
@@ -112,14 +234,14 @@ class ProductSyncService
 
     private function buildInput(Product $product): array
     {
+        [$productOptions, $variants] = $this->buildVariants($product);
+
         $input = [
             'title' => $product->name,
             'descriptionHtml' => (string) $product->description,
             'status' => 'ACTIVE',
-            'productOptions' => [
-                ['name' => 'Title', 'values' => [['name' => 'Default Title']]],
-            ],
-            'variants' => [$this->buildVariant($product)],
+            'productOptions' => $productOptions,
+            'variants' => $variants,
         ];
 
         if (! empty($product->shopify_product_id)) {
@@ -133,14 +255,86 @@ class ProductSyncService
         return $input;
     }
 
-    private function buildVariant(Product $product): array
+    /**
+     * Build the Shopify product option definition together with one Shopify
+     * variant per stored variant. A product is classified either by colour or
+     * by size/weight, so it is pushed under a single "Color" or "Size" option
+     * (each variant becoming its own Shopify variant). Products without a
+     * meaningful classification fall back to the default "Title" option.
+     *
+     * @return array{0: array<int, array>, 1: array<int, array>}
+     */
+    private function buildVariants(Product $product): array
     {
-        $variant = $product->variants->first();
+        $variants = $product->variants;
 
+        if ($this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
+            return $this->buildOptionVariants($product, 'Color', fn (ProductVariant $variant) => $this->colourLabel($variant));
+        }
+
+        if ($variants->count() > 1
+            && $this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->sizeLabel($variant))) {
+            return $this->buildOptionVariants($product, 'Size', fn (ProductVariant $variant) => $this->sizeLabel($variant));
+        }
+
+        return [
+            [['name' => 'Title', 'values' => [['name' => 'Default Title']]]],
+            [$this->buildVariant($variants->first(), $product, 'Title', 'Default Title')],
+        ];
+    }
+
+    /**
+     * Every variant must resolve to a non-empty, unique label for it to work
+     * as a Shopify option value.
+     */
+    private function hasDistinctLabels(mixed $variants, callable $label): bool
+    {
+        if ($variants->isEmpty()) {
+            return false;
+        }
+
+        $labels = $variants
+            ->map($label)
+            ->filter(fn (?string $value) => $value !== null && $value !== '');
+
+        return $labels->count() === $variants->count()
+            && $labels->unique()->count() === $variants->count();
+    }
+
+    /**
+     * @return array{0: array<int, array>, 1: array<int, array>}
+     */
+    private function buildOptionVariants(Product $product, string $optionName, callable $label): array
+    {
+        $variants = $product->variants;
+
+        $productOptions = [[
+            'name' => $optionName,
+            'values' => $variants
+                ->map(fn (ProductVariant $variant) => ['name' => $label($variant)])
+                ->values()
+                ->all(),
+        ]];
+
+        $variantInputs = $variants
+            ->map(fn (ProductVariant $variant) => $this->buildVariant(
+                $variant,
+                $product,
+                $optionName,
+                $label($variant),
+            ))
+            ->values()
+            ->all();
+
+        return [$productOptions, $variantInputs];
+    }
+
+    private function buildVariant(?ProductVariant $variant, Product $product, string $optionName, string $optionValue): array
+    {
         $data = [
             'price' => $this->money($variant?->price ?? $product->price),
             'optionValues' => [
-                ['optionName' => 'Title', 'name' => 'Default Title'],
+                ['optionName' => $optionName, 'name' => $optionValue],
             ],
         ];
 
@@ -164,6 +358,32 @@ class ProductSyncService
         }
 
         return $data;
+    }
+
+    /**
+     * The colour code stored on the variant, used as the "Color" option value.
+     */
+    private function colourLabel(ProductVariant $variant): ?string
+    {
+        $colour = $variant->colour !== null ? trim($variant->colour) : '';
+
+        return $colour !== '' ? $colour : null;
+    }
+
+    /**
+     * Human-readable size label built from the variant weight + unit, e.g.
+     * 30 + "ml" => "30ml". Returns null when there is no meaningful size.
+     */
+    private function sizeLabel(ProductVariant $variant): ?string
+    {
+        if ($variant->weight === null || (float) $variant->weight <= 0.0) {
+            return null;
+        }
+
+        $value = rtrim(rtrim(number_format((float) $variant->weight, 2, '.', ''), '0'), '.');
+        $unit = $variant->weight_unit !== null ? trim($variant->weight_unit) : '';
+
+        return $unit !== '' ? $value.$unit : $value;
     }
 
     private function money(int|float|string|null $amount): string
