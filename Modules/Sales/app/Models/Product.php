@@ -9,10 +9,13 @@ use Modules\Sales\Enums\ShopifySyncStatus;
 
 class Product extends Model
 {
+    use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'sku',
         'name',
         'description',
         'price',
