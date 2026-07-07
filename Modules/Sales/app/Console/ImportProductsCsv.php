@@ -6,6 +6,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Category;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
@@ -19,7 +20,7 @@ class ImportProductsCsv extends Command
 
     private array $categories = [];
 
-    public function handle(): int
+    public function handle(ProductSyncService $shopify): int
     {
         $path = (string) $this->argument('path');
 
@@ -55,6 +56,10 @@ class ImportProductsCsv extends Command
             $stats['variants'],
             count($this->categories),
         ));
+
+        $this->components->info('Syncing products to Shopify...');
+        $shopify->seed();
+        $this->components->info('Shopify sync complete.');
 
         return self::SUCCESS;
     }
