@@ -12,7 +12,6 @@ use Request;
 
 class CatalogController extends Controller
 {
-    // GET /sales/products
     public function index(Request $request)
     {
         $limit = $request->query('limit', 20);
