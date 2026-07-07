@@ -18,17 +18,14 @@ class ShopifySeedMockProducts extends Command
     {
         $count = max(1, (int) $this->argument('count'));
 
-        $products = Product::factory()
-            ->count($count)
-            ->create([
+        $products = collect(range(1, $count))->map(function (int $index) {
+            return Product::create([
+                'name' => self::MOCK_PREFIX.'Product '.strtoupper(bin2hex(random_bytes(3))).' #'.$index,
+                'description' => 'Mock product generated for Shopify sync testing.',
+                'price' => random_int(500, 20000) / 100,
                 'image_url' => null,
             ]);
-
-        foreach ($products as $product) {
-            $product->forceFill([
-                'name' => self::MOCK_PREFIX.$product->name,
-            ])->save();
-        }
+        });
 
         $this->components->info("Created {$count} mock products. Pushing to Shopify...");
 
