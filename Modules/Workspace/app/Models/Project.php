@@ -13,10 +13,19 @@ class Project extends Model
     /**
      * The attributes that are mass assignable.
      */
-    protected $fillable = [];
+    protected $fillable = [
+        'name',
+        'deadline',
+        'description',
+        'status',
+    ];
 
-    // protected static function newFactory(): ProjectFactory
-    // {
-    //     // return ProjectFactory::new();
-    // }
+    protected $casts = [
+        'deadline' => 'datetime',
+    ];
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
 }
