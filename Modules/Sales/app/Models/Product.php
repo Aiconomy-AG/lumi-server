@@ -5,10 +5,10 @@ namespace Modules\Sales\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Sales\Database\Factories\ProductFactory;
+use Modules\Sales\Enums\ShopifySyncStatus;
 
 class Product extends Model
 {
-
     /**
      * The attributes that are mass assignable.
      */
@@ -24,6 +24,7 @@ class Product extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'shopify_sync_status' => ShopifySyncStatus::class,
     ];
 
     public function variants()
