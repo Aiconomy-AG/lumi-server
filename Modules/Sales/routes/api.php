@@ -2,13 +2,25 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Sales\Http\Controllers\CartController;
+use Modules\Sales\Http\Controllers\CatalogController;
 use Modules\Sales\Http\Controllers\CheckoutController;
+use Modules\Sales\Http\Controllers\CustomerController;
 use Modules\Sales\Http\Controllers\WishlistController;
+
+Route::prefix('v1/shop')->group(function (): void {
+    Route::get('products', [CatalogController::class, 'index']);
+    Route::get('products/{productId}', [CatalogController::class, 'show']);
+    Route::get('categories', [CatalogController::class, 'categories']);
+});
 
 Route::middleware(['auth:sanctum'])
     ->prefix('v1/shop')
     ->group(function (): void {
         Route::prefix('customers/{customerId}')->group(function (): void {
+
+
+            Route::get('/', [CustomerController::class, 'show']);
+
             Route::get(
                 'cart',
                 [CartController::class, 'show']
