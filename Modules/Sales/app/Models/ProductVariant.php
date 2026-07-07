@@ -21,6 +21,7 @@ class ProductVariant extends Model
         'weight',
         'weight_unit',
         'stock_quantity',
+        'colour',
     ];
 
     protected $casts = [
