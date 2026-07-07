@@ -14,5 +14,7 @@ properties:
     format: double
   weight_unit:
     type: string
+  colour:
+    type: string
   stock_quantity:
     type: integer

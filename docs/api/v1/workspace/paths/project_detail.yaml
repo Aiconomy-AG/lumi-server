@@ -50,7 +50,7 @@ put:
               type: string
             status:
               type: string
-              enum: [pending, in_progress, completed, overdue, cancelled]
+              enum: [complete, to_do, in_progress, blocked]
   responses:
     '200':
       description: Project successfully updated
