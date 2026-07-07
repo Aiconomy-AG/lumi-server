@@ -54,7 +54,7 @@ class ShopifyConnectorTest extends TestCase
         Http::assertSent(function ($request) {
             $body = $request->data();
 
-            return $request->url() === 'https://test-shop.myshopify.com/admin/api/2026-07/graphql.json'
+            return $request->url() === 'https://test-sales.myshopify.com/admin/api/2026-07/graphql.json'
                 && $body['operationName'] === 'ShopQuery'
                 && $body['variables'] === ['limit' => 1];
         });
