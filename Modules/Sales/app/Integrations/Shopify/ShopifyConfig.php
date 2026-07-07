@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\shop\Integrations\Shopify;
+namespace Modules\Sales\Integrations\Shopify;
 
-use Modules\shop\Exceptions\Shopify\ShopifyException;
+use Modules\Sales\Exceptions\Shopify\ShopifyException;
 
 class ShopifyConfig
 {
