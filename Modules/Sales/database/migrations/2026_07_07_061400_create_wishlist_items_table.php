@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('wishlist_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId("user_id")->constrained()->cascadeOnDelete();
+            $table->foreignId("customer_id")->constrained()->cascadeOnDelete();
             $table->foreignId("product_id")->constrained()->cascadeOnDelete();
             $table->timestamps();
-            $table->unique(["user_id", "product_id"]);
+            $table->unique(["customer_id", "product_id"]);
         });
     }
 
