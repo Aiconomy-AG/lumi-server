@@ -20,6 +20,10 @@ paths:
     $ref: './paths/employees.yaml'
   /workspace/employees/{employeeId}:
     $ref: './paths/employee_detail.yaml'
+  /workspace/projects:
+    $ref: './paths/projects.yaml'
+  /workspace/projects/{projectId}:
+    $ref: './paths/project_detail.yaml'
   /workspace/tasks:
     $ref: './paths/tasks.yaml'
   /workspace/tasks/{taskId}:

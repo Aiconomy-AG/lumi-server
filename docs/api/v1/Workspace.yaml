@@ -62,6 +62,22 @@ components:
           type: string
           format: date-time
 
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, overdue, cancelled]
+
     Task:
       type: object
       properties:
@@ -79,6 +95,10 @@ components:
         due_date:
           type: string
           format: date-time
+        parent_id:
+          type: integer
+        project_id:
+          type: integer
         assignees:
           type: array
           items:
@@ -353,6 +373,153 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /workspace/projects:
+    get:
+      tags:
+        - Projects
+      summary: List all projects
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, overdue, cancelled]
+      responses:
+        '200':
+          description: A list of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Projects
+      summary: Create a new project
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - status
+              properties:
+                name:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed, overdue, cancelled]
+      responses:
+        '201':
+          description: Project successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get project details by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Projects
+      summary: Update project properties or status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed, overdue, cancelled]
+      responses:
+        '200':
+          description: Project successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Projects
+      summary: Delete a project
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /workspace/tasks:
     get:
       tags:
@@ -408,6 +575,10 @@ paths:
                 due_date:
                   type: string
                   format: date-time
+                parent_id:
+                  type: integer
+                project_id:
+                  type: integer
       responses:
         '201':
           description: Task successfully created
@@ -472,6 +643,10 @@ paths:
                 due_date:
                   type: string
                   format: date-time
+                parent_id:
+                  type: integer
+                project_id:
+                  type: integer
       responses:
         '200':
           description: Task successfully updated

@@ -1,7 +1,7 @@
 get:
   tags:
-    - Tasks
-  summary: List all tasks
+    - Projects
+  summary: List all projects
   security:
     - bearerAuth: []
   parameters:
@@ -9,27 +9,23 @@ get:
       in: query
       schema:
         type: string
-        enum: [pending, in_progress, completed, overdue]
-    - name: assigneeId
-      in: query
-      schema:
-        type: integer
+        enum: [pending, in_progress, completed, overdue, cancelled]
   responses:
     '200':
-      description: A list of tasks
+      description: A list of projects
       content:
         application/json:
           schema:
             type: array
             items:
-              $ref: '../components/schemas/Task.yaml'
+              $ref: '../components/schemas/Project.yaml'
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
 
 post:
   tags:
-    - Tasks
-  summary: Create a new task
+    - Projects
+  summary: Create a new project
   security:
     - bearerAuth: []
   requestBody:
@@ -39,29 +35,25 @@ post:
         schema:
           type: object
           required:
-            - title
+            - name
             - status
           properties:
-            title:
+            name:
               type: string
+            deadline:
+              type: string
+              format: date-time
             description:
               type: string
             status:
               type: string
-              enum: [pending, in_progress, completed, overdue]
-            due_date:
-              type: string
-              format: date-time
-            parent_id:
-              type: integer
-            project_id:
-              type: integer
+              enum: [pending, in_progress, completed, overdue, cancelled]
   responses:
     '201':
-      description: Task successfully created
+      description: Project successfully created
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Task.yaml'
+            $ref: '../components/schemas/Project.yaml'
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
