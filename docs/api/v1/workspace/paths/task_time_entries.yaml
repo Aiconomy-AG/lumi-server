@@ -1,0 +1,25 @@
+get:
+  tags:
+    - Time Tracking
+  summary: List time entries for a task
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: A list of time entries
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../components/schemas/Task_Time_Entry.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

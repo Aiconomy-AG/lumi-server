@@ -1,0 +1,15 @@
+get:
+  tags:
+    - Authentication
+  summary: Get authenticated employee profile
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Profile details
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Employee.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'

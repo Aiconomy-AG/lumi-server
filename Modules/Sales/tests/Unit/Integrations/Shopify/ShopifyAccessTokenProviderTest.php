@@ -22,7 +22,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
     public function test_it_acquires_an_access_token(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_test_token',
                 'expires_in' => 3600,
             ]),
@@ -36,7 +36,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
     public function test_it_caches_the_access_token(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_cached_token',
                 'expires_in' => 3600,
             ]),
@@ -53,7 +53,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
     public function test_it_refreshes_the_token_after_invalidation(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::sequence()
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::sequence()
                 ->push(['access_token' => 'shpat_first', 'expires_in' => 3600])
                 ->push(['access_token' => 'shpat_second', 'expires_in' => 3600]),
         ]);
@@ -71,9 +71,9 @@ class ShopifyAccessTokenProviderTest extends TestCase
     public function test_it_throws_when_token_acquisition_fails(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'error' => 'app_not_installed',
-                'error_description' => 'The application is not installed on this shop.',
+                'error_description' => 'The application is not installed on this sales.',
             ], 400),
         ]);
 
@@ -85,7 +85,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
 
     public function test_it_validates_shop_hostname(): void
     {
-        $this->configureShopify(['shop' => 'https://bad-shop.myshopify.com']);
+        $this->configureShopify(['sales' => 'https://bad-shop.myshopify.com']);
 
         $this->expectException(ShopifyException::class);
         $this->expectExceptionMessage('Invalid SHOPIFY_SHOP format.');

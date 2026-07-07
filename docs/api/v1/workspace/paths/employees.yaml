@@ -1,0 +1,67 @@
+get:
+  tags:
+    - Employees
+  summary: List all employees
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: status
+      in: query
+      schema:
+        type: string
+        enum: [active, inactive]
+    - name: role
+      in: query
+      schema:
+        type: string
+        enum: [admin, manager, employee]
+  responses:
+    '200':
+      description: A list of employees
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../components/schemas/Employee.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+
+post:
+  tags:
+    - Employees
+  summary: Create/Onboard a new employee
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - role
+            - email
+            - password
+            - name
+          properties:
+            role:
+              type: string
+              enum: [admin, manager, employee]
+            email:
+              type: string
+            password:
+              type: string
+            name:
+              type: string
+            phone_number:
+              type: string
+  responses:
+    '201':
+      description: Employee successfully onboarded
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Employee.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'

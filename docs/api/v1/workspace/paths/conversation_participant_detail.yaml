@@ -1,0 +1,28 @@
+delete:
+  tags:
+    - Chat
+  summary: Remove a participant from a group conversation
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: employeeId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Participant removed successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Conversation.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

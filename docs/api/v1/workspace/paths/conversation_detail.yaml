@@ -1,0 +1,23 @@
+get:
+  tags:
+    - Chat
+  summary: Get conversation details by ID
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Conversation details with participants
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Conversation.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

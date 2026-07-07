@@ -185,7 +185,7 @@ components:
             $ref: "#/components/schemas/Error"
 
 paths:
-  /shop/products:
+  /sales/products:
     get:
       tags:
         - Catalog
@@ -212,7 +212,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/products/{productId}:
+  /sales/products/{productId}:
     get:
       tags:
         - Catalog
@@ -233,7 +233,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/categories:
+  /sales/categories:
     get:
       tags:
         - Catalog
@@ -248,7 +248,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/Category"
 
-  /shop/customers/{customerId}:
+  /sales/customers/{customerId}:
     get:
       tags:
         - Customer
@@ -273,7 +273,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/customers/{customerId}/cart:
+  /sales/customers/{customerId}/cart:
     get:
       tags:
         - Cart
@@ -298,7 +298,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/customers/{customerId}/cart/items:
+  /sales/customers/{customerId}/cart/items:
     post:
       tags:
         - Cart
@@ -338,7 +338,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/customers/{customerId}/cart/items/{productId}:
+  /sales/customers/{customerId}/cart/items/{productId}:
     put:
       tags:
         - Cart
@@ -409,7 +409,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/customers/{customerId}/wishlist:
+  /sales/customers/{customerId}/wishlist:
     get:
       tags:
         - Wishlist
@@ -467,7 +467,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/customers/{customerId}/wishlist/{productId}:
+  /sales/customers/{customerId}/wishlist/{productId}:
     delete:
       tags:
         - Wishlist
@@ -493,7 +493,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/orders:
+  /sales/orders:
     post:
       tags:
         - Checkout
@@ -512,7 +512,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /shop/customers/{customerId}/orders:
+  /sales/customers/{customerId}/orders:
     get:
       tags:
         - Checkout
@@ -539,7 +539,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/orders/{orderId}:
+  /sales/orders/{orderId}:
     get:
       tags:
         - Checkout

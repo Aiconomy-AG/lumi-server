@@ -16,7 +16,7 @@ class ShopifyConfig
 
     public function __construct()
     {
-        $this->shop = (string) config('sales.shopify.shop');
+        $this->shop = (string) config('sales.shopify.sales');
         $this->clientId = (string) config('sales.shopify.client_id');
         $this->clientSecret = (string) config('sales.shopify.client_secret');
         $this->apiVersion = (string) config('sales.shopify.api_version');

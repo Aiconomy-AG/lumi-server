@@ -24,9 +24,9 @@ class ShopifyConnectorTest extends TestCase
         $this->fakeTokenAndGraphql(
             graphQlResponse: [
                 'data' => [
-                    'shop' => [
+                    'sales' => [
                         'name' => 'Test Shop',
-                        'myshopifyDomain' => 'test-shop.myshopify.com',
+                        'myshopifyDomain' => 'test-sales.myshopify.com',
                     ],
                 ],
                 'extensions' => [
@@ -42,12 +42,12 @@ class ShopifyConnectorTest extends TestCase
         );
 
         $response = app(ShopifyConnector::class)->query([
-            'query' => 'query { shop { name } }',
+            'query' => 'query { sales { name } }',
             'variables' => ['limit' => 1],
             'operation_name' => 'ShopQuery',
         ]);
 
-        $this->assertSame('Test Shop', $response->data['shop']['name']);
+        $this->assertSame('Test Shop', $response->data['sales']['name']);
         $this->assertSame(1, $response->cost()['requestedQueryCost']);
         $this->assertSame(999, $response->throttleStatus()['currentlyAvailable']);
 
@@ -67,7 +67,7 @@ class ShopifyConnectorTest extends TestCase
                 'errors' => [
                     [
                         'message' => 'Field error',
-                        'path' => ['shop', 'name'],
+                        'path' => ['sales', 'name'],
                         'extensions' => ['code' => 'ACCESS_DENIED'],
                     ],
                 ],
@@ -78,18 +78,18 @@ class ShopifyConnectorTest extends TestCase
         $this->expectExceptionMessage('Field error');
 
         app(ShopifyConnector::class)->query([
-            'query' => 'query { shop { name } }',
+            'query' => 'query { sales { name } }',
         ]);
     }
 
     public function test_it_throws_throttled_exception_for_http_429(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_test',
                 'expires_in' => 3600,
             ]),
-            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response(
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::response(
                 ['errors' => [['message' => 'Throttled']]],
                 429,
                 ['Retry-After' => '7'],
@@ -97,7 +97,7 @@ class ShopifyConnectorTest extends TestCase
         ]);
 
         try {
-            app(ShopifyConnector::class)->query(['query' => 'query { shop { name } }']);
+            app(ShopifyConnector::class)->query(['query' => 'query { sales { name } }']);
             $this->fail('Expected ShopifyThrottledException was not thrown.');
         } catch (ShopifyThrottledException $exception) {
             $this->assertSame(7, $exception->retryAfterSeconds());
@@ -127,7 +127,7 @@ class ShopifyConnectorTest extends TestCase
         );
 
         try {
-            app(ShopifyConnector::class)->query(['query' => 'query { shop { name } }']);
+            app(ShopifyConnector::class)->query(['query' => 'query { sales { name } }']);
             $this->fail('Expected ShopifyThrottledException was not thrown.');
         } catch (ShopifyThrottledException $exception) {
             $this->assertSame(2, $exception->retryAfterSeconds());
@@ -137,51 +137,51 @@ class ShopifyConnectorTest extends TestCase
     public function test_it_refreshes_token_and_retries_once_on_http_401(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::sequence()
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::sequence()
                 ->push(['access_token' => 'shpat_expired', 'expires_in' => 3600])
                 ->push(['access_token' => 'shpat_fresh', 'expires_in' => 3600]),
-            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::sequence()
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::sequence()
                 ->push(status: 401)
                 ->push([
-                    'data' => ['shop' => ['name' => 'Recovered Shop']],
+                    'data' => ['sales' => ['name' => 'Recovered Shop']],
                     'extensions' => [],
                 ]),
         ]);
 
         $response = app(ShopifyConnector::class)->query([
-            'query' => 'query { shop { name } }',
+            'query' => 'query { sales { name } }',
         ]);
 
-        $this->assertSame('Recovered Shop', $response->data['shop']['name']);
+        $this->assertSame('Recovered Shop', $response->data['sales']['name']);
         Http::assertSentCount(4);
     }
 
     public function test_it_throws_shopify_exception_for_server_errors(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_test',
                 'expires_in' => 3600,
             ]),
-            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response('error', 503),
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::response('error', 503),
         ]);
 
         $this->expectException(ShopifyException::class);
 
-        app(ShopifyConnector::class)->query(['query' => 'query { shop { name } }']);
+        app(ShopifyConnector::class)->query(['query' => 'query { sales { name } }']);
     }
 
     public function test_it_omits_empty_variables_from_graphql_request(): void
     {
         $this->fakeTokenAndGraphql(
             graphQlResponse: [
-                'data' => ['shop' => ['name' => 'Test Shop']],
+                'data' => ['sales' => ['name' => 'Test Shop']],
                 'extensions' => [],
             ],
         );
 
         app(ShopifyConnector::class)->query([
-            'query' => 'query { shop { name } }',
+            'query' => 'query { sales { name } }',
         ]);
 
         Http::assertSent(function ($request) {
@@ -194,11 +194,11 @@ class ShopifyConnectorTest extends TestCase
     private function fakeTokenAndGraphql(array $graphQlResponse): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_test',
                 'expires_in' => 3600,
             ]),
-            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response($graphQlResponse),
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::response($graphQlResponse),
         ]);
     }
 }

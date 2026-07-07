@@ -1,0 +1,16 @@
+type: object
+properties:
+  id:
+    type: integer
+  role:
+    type: string
+    enum: [admin, manager, employee]
+  email:
+    type: string
+  name:
+    type: string
+  phone_number:
+    type: string
+  status:
+    type: string
+    enum: [active, inactive]

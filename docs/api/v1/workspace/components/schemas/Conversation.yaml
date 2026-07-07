@@ -1,0 +1,15 @@
+type: object
+properties:
+  id:
+    type: integer
+  type:
+    type: string
+    enum: [direct, group]
+  name:
+    type: string
+  created_by:
+    type: integer
+  participants:
+    type: array
+    items:
+      $ref: './Employee.yaml'

@@ -1,0 +1,18 @@
+type: object
+properties:
+  id:
+    type: integer
+  type:
+    type: string
+    enum: [TASK, CHAT]
+  title:
+    type: string
+  message:
+    type: string
+  actor_employee_id:
+    type: integer
+  is_read:
+    type: boolean
+  read_at:
+    type: string
+    format: date-time

@@ -1,0 +1,28 @@
+post:
+  tags:
+    - Time Tracking
+  summary: Stop a timer and record duration
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: entryId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Timer stopped and duration logged
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Task_Time_Entry.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

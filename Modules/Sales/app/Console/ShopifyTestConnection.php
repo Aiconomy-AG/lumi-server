@@ -14,7 +14,7 @@ class ShopifyTestConnection extends Command
 {
     private const string TEST_QUERY = <<<'GRAPHQL'
         query TestShopifyConnection {
-            shop {
+            sales {
                 name
                 myshopifyDomain
             }
@@ -29,10 +29,10 @@ class ShopifyTestConnection extends Command
                 'operation_name' => 'TestShopifyConnection',
             ]);
 
-            $shop = $response->data['shop'] ?? null;
+            $shop = $response->data['sales'] ?? null;
 
             if (! is_array($shop)) {
-                throw new ShopifyException('No shop data in response.');
+                throw new ShopifyException('No sales data in response.');
             }
 
             $name = (string) ($shop['name'] ?? 'unknown');

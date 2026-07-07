@@ -1,0 +1,86 @@
+get:
+  tags:
+    - Employees
+  summary: Get employee profile by ID
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: employeeId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Employee profile details
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Employee.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+put:
+  tags:
+    - Employees
+  summary: Update employee details
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: employeeId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            role:
+              type: string
+              enum: [admin, manager, employee]
+            email:
+              type: string
+            name:
+              type: string
+            phone_number:
+              type: string
+            status:
+              type: string
+              enum: [active, inactive]
+  responses:
+    '200':
+      description: Employee successfully updated
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Employee.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+delete:
+  tags:
+    - Employees
+  summary: Deactivate/Delete an employee
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: employeeId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Employee successfully deactivated
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

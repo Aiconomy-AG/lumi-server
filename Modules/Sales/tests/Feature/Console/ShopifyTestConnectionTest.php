@@ -19,15 +19,15 @@ class ShopifyTestConnectionTest extends TestCase
     public function test_command_reports_success(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_test',
                 'expires_in' => 3600,
             ]),
-            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response([
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::response([
                 'data' => [
-                    'shop' => [
+                    'sales' => [
                         'name' => 'Test Shop',
-                        'myshopifyDomain' => 'test-shop.myshopify.com',
+                        'myshopifyDomain' => 'test-sales.myshopify.com',
                     ],
                 ],
                 'extensions' => [],
@@ -35,14 +35,14 @@ class ShopifyTestConnectionTest extends TestCase
         ]);
 
         $this->artisan('shopify:test-connection')
-            ->expectsOutputToContain('Connected to Test Shop (test-shop.myshopify.com)')
+            ->expectsOutputToContain('Connected to Test Shop (test-sales.myshopify.com)')
             ->assertSuccessful();
     }
 
     public function test_command_reports_failure(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response('invalid', 400),
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response('invalid', 400),
         ]);
 
         $this->artisan('shopify:test-connection')
@@ -53,14 +53,14 @@ class ShopifyTestConnectionTest extends TestCase
     public function test_command_reports_graphql_failure_details(): void
     {
         Http::fake([
-            'test-shop.myshopify.com/admin/oauth/access_token' => Http::response([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
                 'access_token' => 'shpat_test',
                 'expires_in' => 3600,
             ]),
-            'test-shop.myshopify.com/admin/api/2026-07/graphql.json' => Http::response([
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::response([
                 'errors' => [
                     [
-                        'message' => 'Access denied for shop field.',
+                        'message' => 'Access denied for sales field.',
                         'extensions' => ['code' => 'ACCESS_DENIED'],
                     ],
                 ],
@@ -68,7 +68,7 @@ class ShopifyTestConnectionTest extends TestCase
         ]);
 
         $this->artisan('shopify:test-connection')
-            ->expectsOutputToContain('Access denied for shop field.')
+            ->expectsOutputToContain('Access denied for sales field.')
             ->assertFailed();
     }
 }

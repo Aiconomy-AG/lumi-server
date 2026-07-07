@@ -20,7 +20,7 @@ class ShopifySyncJobTest extends TestCase
     public function test_it_uses_redis_connection_and_shopify_sync_queue(): void
     {
         $job = new ShopifySyncJob([
-            'query' => 'query { shop { name } }',
+            'query' => 'query { sales { name } }',
         ]);
 
         $this->assertSame('redis', $job->connection);
@@ -37,7 +37,7 @@ class ShopifySyncJobTest extends TestCase
             ->once()
             ->andThrow(new ShopifyThrottledException('throttled', 15));
 
-        $job = new class(['query' => 'query { shop { name } }']) extends ShopifySyncJob
+        $job = new class(['query' => 'query { sales { name } }']) extends ShopifySyncJob
         {
             public ?int $releasedAfter = null;
 

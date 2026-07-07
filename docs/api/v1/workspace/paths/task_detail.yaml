@@ -1,0 +1,84 @@
+get:
+  tags:
+    - Tasks
+  summary: Get task details by ID
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Task details with assignees and recent time entries
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Task.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+put:
+  tags:
+    - Tasks
+  summary: Update task properties or status
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            status:
+              type: string
+              enum: [pending, in_progress, completed, overdue]
+            due_date:
+              type: string
+              format: date-time
+  responses:
+    '200':
+      description: Task successfully updated
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Task.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+delete:
+  tags:
+    - Tasks
+  summary: Delete a task
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Task successfully deleted
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

@@ -1,0 +1,16 @@
+type: object
+properties:
+  id:
+    type: integer
+  task_id:
+    type: integer
+  employee_id:
+    type: integer
+  started_at:
+    type: string
+    format: date-time
+  stopped_at:
+    type: string
+    format: date-time
+  duration_seconds:
+    type: integer

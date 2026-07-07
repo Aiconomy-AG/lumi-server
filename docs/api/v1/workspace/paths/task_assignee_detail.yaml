@@ -1,0 +1,28 @@
+delete:
+  tags:
+    - Tasks
+  summary: Unassign an employee from a task
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: employeeId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Employee unassigned successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Task.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

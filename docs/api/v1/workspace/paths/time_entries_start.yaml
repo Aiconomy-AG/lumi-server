@@ -1,0 +1,23 @@
+post:
+  tags:
+    - Time Tracking
+  summary: Start a timer on a task
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '201':
+      description: Timer started successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Task_Time_Entry.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

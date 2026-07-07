@@ -1,0 +1,63 @@
+get:
+  tags:
+    - Tasks
+  summary: List all tasks
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: status
+      in: query
+      schema:
+        type: string
+        enum: [pending, in_progress, completed, overdue]
+    - name: assigneeId
+      in: query
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: A list of tasks
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../components/schemas/Task.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+
+post:
+  tags:
+    - Tasks
+  summary: Create a new task
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - title
+            - status
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            status:
+              type: string
+              enum: [pending, in_progress, completed, overdue]
+            due_date:
+              type: string
+              format: date-time
+  responses:
+    '201':
+      description: Task successfully created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Task.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'

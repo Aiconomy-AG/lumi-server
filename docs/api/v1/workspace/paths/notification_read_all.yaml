@@ -1,0 +1,11 @@
+put:
+  tags:
+    - Notifications
+  summary: Mark all notifications as read
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: All notifications marked as read successfully
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'

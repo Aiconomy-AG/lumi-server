@@ -1,0 +1,928 @@
+openapi: 3.0.0
+info:
+  title: Workspace Collaboration API
+  version: 1.0.0
+  description: OpenAPI specification for the internal workspace, employee, chat, and tasks database schema.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        role:
+          type: string
+          enum: [admin, manager, employee]
+        email:
+          type: string
+        name:
+          type: string
+        phone_number:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [direct, group]
+        name:
+          type: string
+        created_by:
+          type: integer
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employee'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversation_id:
+          type: integer
+        sender_id:
+          type: integer
+        message:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, overdue]
+        created_by:
+          type: integer
+        due_date:
+          type: string
+          format: date-time
+        assignees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employee'
+
+    Task_Time_Entry:
+      type: object
+      properties:
+        id:
+          type: integer
+        task_id:
+          type: integer
+        employee_id:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        stopped_at:
+          type: string
+          format: date-time
+        duration_seconds:
+          type: integer
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [TASK, CHAT]
+        title:
+          type: string
+        message:
+          type: string
+        actor_employee_id:
+          type: integer
+        is_read:
+          type: boolean
+        read_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+  responses:
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication is required or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+paths:
+  /workspace/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Employee login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  employee:
+                    $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get authenticated employee profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/employees:
+    get:
+      tags:
+        - Employees
+      summary: List all employees
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [admin, manager, employee]
+      responses:
+        '200':
+          description: A list of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Employees
+      summary: Create/Onboard a new employee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+                - email
+                - password
+                - name
+              properties:
+                role:
+                  type: string
+                  enum: [admin, manager, employee]
+                email:
+                  type: string
+                password:
+                  type: string
+                name:
+                  type: string
+                phone_number:
+                  type: string
+      responses:
+        '201':
+          description: Employee successfully onboarded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/employees/{employeeId}:
+    get:
+      tags:
+        - Employees
+      summary: Get employee profile by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Employee profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Employees
+      summary: Update employee details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [admin, manager, employee]
+                email:
+                  type: string
+                name:
+                  type: string
+                phone_number:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '200':
+          description: Employee successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Employees
+      summary: Deactivate/Delete an employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Employee successfully deactivated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List all tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, overdue]
+        - name: assigneeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A list of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - status
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed, overdue]
+                due_date:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Task successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task details by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task details with assignees and recent time entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Tasks
+      summary: Update task properties or status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed, overdue]
+                due_date:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Task successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Tasks
+      summary: Delete a task
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/tasks/{taskId}/assignees:
+    post:
+      tags:
+        - Tasks
+      summary: Assign employees to a task
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employee_ids
+              properties:
+                employee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Employees assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/tasks/{taskId}/assignees/{employeeId}:
+    delete:
+      tags:
+        - Tasks
+      summary: Unassign an employee from a task
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Employee unassigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/tasks/{taskId}/time-entries/start:
+    post:
+      tags:
+        - Time Tracking
+      summary: Start a timer on a task
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Timer started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task_Time_Entry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/tasks/{taskId}/time-entries/{entryId}/stop:
+    post:
+      tags:
+        - Time Tracking
+      summary: Stop a timer and record duration
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Timer stopped and duration logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task_Time_Entry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/tasks/{taskId}/time-entries:
+    get:
+      tags:
+        - Time Tracking
+      summary: List time entries for a task
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A list of time entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task_Time_Entry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/conversations:
+    get:
+      tags:
+        - Chat
+      summary: List all chat conversations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Chat
+      summary: Start a new direct or group conversation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - participant_employee_ids
+              properties:
+                type:
+                  type: string
+                  enum: [direct, group]
+                name:
+                  type: string
+                participant_employee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '201':
+          description: Conversation successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/conversations/{conversationId}:
+    get:
+      tags:
+        - Chat
+      summary: Get conversation details by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Conversation details with participants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/conversations/{conversationId}/messages:
+    get:
+      tags:
+        - Chat
+      summary: Retrieve messages in a conversation (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: A list of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Chat
+      summary: Send a message in a conversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+      responses:
+        '201':
+          description: Message successfully sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/conversations/{conversationId}/participants:
+    post:
+      tags:
+        - Chat
+      summary: Add participants to a group conversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employee_ids
+              properties:
+                employee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Participants added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/conversations/{conversationId}/participants/{employeeId}:
+    delete:
+      tags:
+        - Chat
+      summary: Remove a participant from a group conversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Participant removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get authenticated employee notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: A list of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /workspace/notifications/{notificationId}/read:
+    put:
+      tags:
+        - Notifications
+      summary: Mark a notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification marked as read successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/notifications/read-all:
+    put:
+      tags:
+        - Notifications
+      summary: Mark all notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All notifications marked as read successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
