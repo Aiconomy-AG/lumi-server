@@ -16,6 +16,16 @@ use SplFileObject;
 #[Description('Import products, variants and categories from a products export CSV')]
 class ImportProductsCsv extends Command
 {
+    /**
+     * Source-spreadsheet record numbers (header = 1) to skip as test data.
+     */
+    private const SKIP_RECORDS = [1260];
+
+    /**
+     * Last real record; everything after this is test data to ignore.
+     */
+    private const LAST_RECORD = 1275;
+
     private array $columns = [];
 
     private array $categories = [];
@@ -61,9 +71,12 @@ class ImportProductsCsv extends Command
         $deleted = $shopify->deleteAll();
         $this->components->info(sprintf('Deleted %d Shopify products.', $deleted));
 
-        $this->components->info('Syncing products to Shopify...');
-        $shopify->seed();
-        $this->components->info('Shopify sync complete.');
+        $this->components->info('Queueing products for Shopify sync...');
+        $queued = $shopify->queueSeed();
+        $this->components->info(sprintf(
+            'Queued %d products. Run a worker to process them: php artisan queue:work redis --queue=shopify-sync',
+            $queued,
+        ));
 
         return self::SUCCESS;
     }
@@ -87,6 +100,7 @@ class ImportProductsCsv extends Command
         $this->columns = array_flip($header);
 
         $rows = [];
+        $recordNumber = 1; // header is record 1, matching the source spreadsheet
 
         while (! $file->eof()) {
             $row = $file->fgetcsv();
@@ -95,10 +109,25 @@ class ImportProductsCsv extends Command
                 continue;
             }
 
+            $recordNumber++;
+
+            if ($this->isTestRecord($recordNumber)) {
+                continue;
+            }
+
             $rows[] = $row;
         }
 
         return $rows;
+    }
+
+    /**
+     * Test/placeholder rows that must never be imported.
+     */
+    private function isTestRecord(int $recordNumber): bool
+    {
+        return $recordNumber > self::LAST_RECORD
+            || in_array($recordNumber, self::SKIP_RECORDS, true);
     }
 
     /**
@@ -158,14 +187,14 @@ class ImportProductsCsv extends Command
         // A product with no extra rows is a simple product; give it a single
         // default variant so it still has purchasable stock and price data.
         if ($variantRows === []) {
-            $this->importWeightVariant($product, $parent, null);
+            $this->importWeightVariant($product, $parent, $this->variantAttributes($this->value($parent, 'Name')));
             $stats['variants']++;
 
             return;
         }
 
         foreach ($variantRows as $row) {
-            $this->importWeightVariant($product, $row, $this->parseWeight($this->value($row, 'Name')));
+            $this->importWeightVariant($product, $row, $this->variantAttributes($this->value($row, 'Name')));
             $stats['variants']++;
         }
     }
@@ -199,20 +228,20 @@ class ImportProductsCsv extends Command
     }
 
     /**
-     * @param  array{weight: float, unit: ?string}|null  $weight
+     * @param  array{weight: float|null, unit: string|null, colour: string|null}  $attributes
      */
-    private function importWeightVariant(Product $product, array $row, ?array $weight): void
+    private function importWeightVariant(Product $product, array $row, array $attributes): void
     {
-        $sku = $this->variantSku($product, $row, $weight);
+        $sku = $this->variantSku($product, $row, $this->variantSkuSuffix($attributes));
 
         ProductVariant::updateOrCreate(
             ['sku' => $sku],
             [
                 'product_id' => $product->id,
                 'price' => $this->price($row),
-                'weight' => $weight['weight'] ?? null,
-                'weight_unit' => $weight['unit'] ?? null,
-                'colour' => null,
+                'weight' => $attributes['weight'],
+                'weight_unit' => $attributes['unit'],
+                'colour' => $attributes['colour'],
                 'stock_quantity' => max(0, (int) $this->value($row, 'Stock Quantity')),
             ],
         );
@@ -275,6 +304,63 @@ class ImportProductsCsv extends Command
     }
 
     /**
+     * Resolve a variant row's colour + weight from its name.
+     *
+     * Three name shapes are supported:
+     *  - "Base, Colour, Size" (two commas): colour after the first comma, size
+     *    after the second. Size maps to weight/unit via parseSize().
+     *  - "Base - 30ml" / "Base, 570g" (one separator): a weight variant.
+     *  - anything else: no attributes.
+     *
+     * @return array{weight: float|null, unit: string|null, colour: string|null}
+     */
+    private function variantAttributes(string $name): array
+    {
+        $parts = array_map('trim', explode(',', $name));
+
+        if (count($parts) === 3) {
+            [$weight, $unit] = $this->parseSize($parts[2]);
+
+            return [
+                'weight' => $weight,
+                'unit' => $unit,
+                'colour' => $parts[1] !== '' ? $parts[1] : null,
+            ];
+        }
+
+        $weight = $this->parseWeight($name);
+
+        return [
+            'weight' => $weight['weight'] ?? null,
+            'unit' => $weight['unit'] ?? null,
+            'colour' => null,
+        ];
+    }
+
+    /**
+     * Split a size token into weight + unit. A leading number is the weight and
+     * the rest the unit ("3XL" => 3 + "xl"); a purely alphabetic size has no
+     * weight and becomes the unit ("M" => null + "m").
+     *
+     * @return array{0: float|null, 1: string|null}
+     */
+    private function parseSize(string $size): array
+    {
+        if ($size === '') {
+            return [null, null];
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*([\p{L}]+)?$/u', $size, $matches)) {
+            return [
+                (float) $matches[1],
+                ($matches[2] ?? '') !== '' ? strtolower($matches[2]) : null,
+            ];
+        }
+
+        return [null, strtolower($size)];
+    }
+
+    /**
      * The colour code is the trailing "<1-2 digits><N|W|C>" token of a name,
      * e.g. "Slap Stick 29N" => "29N". Returns null when there is none.
      */
@@ -294,18 +380,15 @@ class ImportProductsCsv extends Command
         return trim(preg_replace('/\s\d{1,2}[NWC]$/', '', $name));
     }
 
-    /**
-     * @param  array{weight: float, unit: ?string}|null  $weight
-     */
-    private function variantSku(Product $product, array $row, ?array $weight): string
+    private function variantSku(Product $product, array $row, ?string $suffix): string
     {
         $sku = $this->value($row, 'Variant SKU');
 
         if ($sku === '') {
             $sku = $this->value($row, 'SKU');
 
-            if ($weight !== null) {
-                $sku .= '-'.$this->weightLabel($weight);
+            if ($suffix !== null && $suffix !== '') {
+                $sku .= '-'.$suffix;
             }
         }
 
@@ -320,13 +403,29 @@ class ImportProductsCsv extends Command
     }
 
     /**
-     * @param  array{weight: float, unit: ?string}  $weight
+     * A short colour/size suffix used to keep a variant SKU unique when the CSV
+     * row carries no explicit Variant SKU of its own.
+     *
+     * @param  array{weight: float|null, unit: string|null, colour: string|null}  $attributes
      */
-    private function weightLabel(array $weight): string
+    private function variantSkuSuffix(array $attributes): ?string
     {
-        $value = rtrim(rtrim(number_format($weight['weight'], 2, '.', ''), '0'), '.');
+        $parts = [];
 
-        return $value.($weight['unit'] ?? '');
+        if ($attributes['colour'] !== null) {
+            $parts[] = $attributes['colour'];
+        }
+
+        if ($attributes['weight'] !== null || $attributes['unit'] !== null) {
+            $value = $attributes['weight'] !== null
+                ? rtrim(rtrim(number_format($attributes['weight'], 2, '.', ''), '0'), '.')
+                : '';
+            $parts[] = $value.($attributes['unit'] ?? '');
+        }
+
+        $label = trim(implode('-', $parts));
+
+        return $label !== '' ? $label : null;
     }
 
     private function productPrice(array $parent, array $variantRows): float

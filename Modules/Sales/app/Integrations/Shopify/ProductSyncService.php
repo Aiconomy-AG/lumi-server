@@ -3,9 +3,11 @@
 namespace Modules\Sales\Integrations\Shopify;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Sales\Enums\ShopifySyncStatus;
 use Modules\Sales\Exceptions\Shopify\ShopifyException;
 use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
+use Modules\Sales\Jobs\SyncShopifyProductJob;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
 
@@ -18,8 +20,8 @@ class ProductSyncService
     private const MAX_THROTTLE_RETRIES = 10;
 
     private const PRODUCT_SET_MUTATION = <<<'GRAPHQL'
-    mutation ProductSet($input: ProductSetInput!) {
-        productSet(synchronous: true, input: $input) {
+    mutation ProductSet($identifier: ProductSetIdentifiers!, $input: ProductSetInput!) {
+        productSet(synchronous: true, identifier: $identifier, input: $input) {
             product { id }
             userErrors { field message }
         }
@@ -173,22 +175,56 @@ class ProductSyncService
         }));
     }
 
+    /**
+     * Synchronously push every product that still needs syncing. Simple but
+     * slow for large catalogs; prefer queueSeed() for those.
+     */
     public function seed(): void
     {
-        Product::query()
+        $this->pendingProducts()
             ->with('variants')
-            ->where(function ($query) {
-                $query->whereNull('shopify_product_id')
-                    ->orWhereIn('shopify_sync_status', [
-                        ShopifySyncStatus::Unsynced->value,
-                        ShopifySyncStatus::Error->value,
-                    ]);
-            })
             ->chunkById(100, function ($products) {
                 foreach ($products as $product) {
                     $this->sync($product);
                 }
             });
+    }
+
+    /**
+     * Dispatch one background job per product that still needs syncing, so a
+     * large catalog is pushed to Shopify by queue workers instead of blocking
+     * the caller. Requires a worker on the "shopify-sync" queue.
+     *
+     * @return int Number of products queued.
+     */
+    public function queueSeed(): int
+    {
+        $queued = 0;
+
+        $this->pendingProducts()
+            ->select('id')
+            ->chunkById(500, function ($products) use (&$queued) {
+                foreach ($products as $product) {
+                    SyncShopifyProductJob::dispatch($product->id);
+                    $queued++;
+                }
+            });
+
+        return $queued;
+    }
+
+    /**
+     * Products that are not yet synced (never pushed, or last attempt failed).
+     */
+    private function pendingProducts(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Product::query()->where(function ($query) {
+            $query->whereNull('shopify_product_id')
+                ->orWhereIn('shopify_sync_status', [
+                    ShopifySyncStatus::Unsynced->value,
+                    ShopifySyncStatus::Error->value,
+                ]);
+        });
     }
 
     /**
@@ -216,7 +252,10 @@ class ProductSyncService
     {
         $response = $this->query([
             'query' => self::PRODUCT_SET_MUTATION,
-            'variables' => ['input' => $this->buildInput($product)],
+            'variables' => [
+                'identifier' => ['handle' => $this->productHandle($product)],
+                'input' => $this->buildInput($product),
+            ],
         ]);
 
         $result = $response->data['productSet'] ?? [];
@@ -237,6 +276,7 @@ class ProductSyncService
         [$productOptions, $variants] = $this->buildVariants($product);
 
         $input = [
+            'handle' => $this->productHandle($product),
             'title' => $product->name,
             'descriptionHtml' => (string) $product->description,
             'status' => 'ACTIVE',
@@ -244,9 +284,9 @@ class ProductSyncService
             'variants' => $variants,
         ];
 
-        if (! empty($product->shopify_product_id)) {
-            $input['id'] = $product->shopify_product_id;
-        } elseif (! empty($product->image_url)) {
+        // Only attach the image on the first push; on re-syncs (matched by
+        // handle) the product already carries it, so re-sending would duplicate.
+        if (empty($product->shopify_product_id) && ! empty($product->image_url)) {
             $input['files'] = [
                 ['originalSource' => $product->image_url, 'contentType' => 'IMAGE'],
             ];
@@ -256,31 +296,107 @@ class ProductSyncService
     }
 
     /**
+     * A stable Shopify handle derived from the product SKU. Using it as the
+     * productSet identifier makes the push idempotent: a retried or timed-out
+     * job re-matches the same Shopify product and updates it instead of
+     * creating a duplicate.
+     */
+    private function productHandle(Product $product): string
+    {
+        $handle = Str::slug((string) $product->sku);
+
+        return $handle !== '' ? $handle : 'product-'.$product->getKey();
+    }
+
+    /**
      * Build the Shopify product option definition together with one Shopify
-     * variant per stored variant. A product is classified either by colour or
-     * by size/weight, so it is pushed under a single "Color" or "Size" option
-     * (each variant becoming its own Shopify variant). Products without a
-     * meaningful classification fall back to the default "Title" option.
+     * variant per stored variant. A product is classified by colour, by
+     * size/weight, or by both:
+     *  - colour + size => two options ("Color" and "Size"), each variant a
+     *    unique combination;
+     *  - colour only    => single "Color" option;
+     *  - size only      => single "Size" option;
+     *  - otherwise      => the default "Title" option.
      *
      * @return array{0: array<int, array>, 1: array<int, array>}
      */
     private function buildVariants(Product $product): array
     {
-        $variants = $product->variants;
+        $combined = $this->buildColourSizeVariants($product);
 
-        if ($this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
+        if ($combined !== null) {
+            return $combined;
+        }
+
+        if ($this->hasDistinctLabels($product->variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
             return $this->buildOptionVariants($product, 'Color', fn (ProductVariant $variant) => $this->colourLabel($variant));
         }
 
-        if ($variants->count() > 1
-            && $this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->sizeLabel($variant))) {
+        if ($product->variants->count() > 1
+            && $this->hasDistinctLabels($product->variants, fn (ProductVariant $variant) => $this->sizeLabel($variant))) {
             return $this->buildOptionVariants($product, 'Size', fn (ProductVariant $variant) => $this->sizeLabel($variant));
         }
 
         return [
             [['name' => 'Title', 'values' => [['name' => 'Default Title']]]],
-            [$this->buildVariant($variants->first(), $product, 'Title', 'Default Title')],
+            [$this->buildVariant($product->variants->first(), $product, [
+                ['optionName' => 'Title', 'name' => 'Default Title'],
+            ])],
         ];
+    }
+
+    /**
+     * Build a two-dimensional Color + Size product when every variant carries
+     * both a colour and a size and the combinations are unique. Returns null
+     * when the product is not a clean colour/size grid.
+     *
+     * @return array{0: array<int, array>, 1: array<int, array>}|null
+     */
+    private function buildColourSizeVariants(Product $product): ?array
+    {
+        $variants = $product->variants;
+
+        if ($variants->count() < 2) {
+            return null;
+        }
+
+        $colours = [];
+        $sizes = [];
+        $seen = [];
+
+        foreach ($variants as $variant) {
+            $colour = $this->colourLabel($variant);
+            $size = $this->sizeLabel($variant);
+
+            if ($colour === null || $size === null) {
+                return null;
+            }
+
+            $key = $colour.'|'.$size;
+
+            if (isset($seen[$key])) {
+                return null;
+            }
+
+            $seen[$key] = true;
+            $colours[$colour] = true;
+            $sizes[$size] = true;
+        }
+
+        $productOptions = [
+            ['name' => 'Color', 'values' => array_map(fn ($c) => ['name' => $c], array_keys($colours))],
+            ['name' => 'Size', 'values' => array_map(fn ($s) => ['name' => $s], array_keys($sizes))],
+        ];
+
+        $variantInputs = $variants
+            ->map(fn (ProductVariant $variant) => $this->buildVariant($variant, $product, [
+                ['optionName' => 'Color', 'name' => $this->colourLabel($variant)],
+                ['optionName' => 'Size', 'name' => $this->sizeLabel($variant)],
+            ]))
+            ->values()
+            ->all();
+
+        return [$productOptions, $variantInputs];
     }
 
     /**
@@ -320,8 +436,7 @@ class ProductSyncService
             ->map(fn (ProductVariant $variant) => $this->buildVariant(
                 $variant,
                 $product,
-                $optionName,
-                $label($variant),
+                [['optionName' => $optionName, 'name' => $label($variant)]],
             ))
             ->values()
             ->all();
@@ -329,13 +444,14 @@ class ProductSyncService
         return [$productOptions, $variantInputs];
     }
 
-    private function buildVariant(?ProductVariant $variant, Product $product, string $optionName, string $optionValue): array
+    /**
+     * @param  array<int, array{optionName: string, name: string}>  $optionValues
+     */
+    private function buildVariant(?ProductVariant $variant, Product $product, array $optionValues): array
     {
         $data = [
             'price' => $this->money($variant?->price ?? $product->price),
-            'optionValues' => [
-                ['optionName' => $optionName, 'name' => $optionValue],
-            ],
+            'optionValues' => $optionValues,
         ];
 
         if ($variant instanceof ProductVariant) {
@@ -371,19 +487,22 @@ class ProductSyncService
     }
 
     /**
-     * Human-readable size label built from the variant weight + unit, e.g.
-     * 30 + "ml" => "30ml". Returns null when there is no meaningful size.
+     * Human-readable size label built from the variant weight + unit:
+     * 30 + "ml" => "30ml", null + "m" => "m", 3 + "xl" => "3xl". Returns null
+     * when the variant carries neither a weight nor a unit.
      */
     private function sizeLabel(ProductVariant $variant): ?string
     {
-        if ($variant->weight === null || (float) $variant->weight <= 0.0) {
-            return null;
-        }
-
-        $value = rtrim(rtrim(number_format((float) $variant->weight, 2, '.', ''), '0'), '.');
+        $weight = $variant->weight !== null ? (float) $variant->weight : null;
         $unit = $variant->weight_unit !== null ? trim($variant->weight_unit) : '';
 
-        return $unit !== '' ? $value.$unit : $value;
+        $value = ($weight !== null && $weight > 0.0)
+            ? rtrim(rtrim(number_format($weight, 2, '.', ''), '0'), '.')
+            : '';
+
+        $label = $value.$unit;
+
+        return $label !== '' ? $label : null;
     }
 
     private function money(int|float|string|null $amount): string
