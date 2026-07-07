@@ -15,27 +15,27 @@ return new class extends Migration
             $table->id();
             $table->integer("user_id");
             $table->enum("status", ["paid",
-"pending",
-"authorized",
-"partially_paid",
-"partially_refunded",
-"refunded",
-"voided",
-"expired"]);
+            "pending",
+            "authorized",
+            "partially_paid",
+            "partially_refunded",
+            "refunded",
+            "voided",
+            "expired"]);
             $table->decimal("subtotal", 10);
-            $table->decimal("shipping_cart", 10);
+            $table->decimal("shipping_cost", 10);
             $table->decimal("total_amount",10);
             $table->string("shipping_address");
             $table->string("payment_method");
             $table->enum("payment_status", ["unshipped",
-            $table->timestamps(),
-"shipped",
-"fulfilled",
-"partial",
-"scheduled",
-"on_hold",
-"unfulfilled",
-"request_declined"]);
+            "shipped",
+            "fulfilled",
+            "partial",
+            "scheduled",
+            "on_hold",
+            "unfulfilled",
+            "request_declined"]);
+            $table->timestamps();
         });
     }
 
