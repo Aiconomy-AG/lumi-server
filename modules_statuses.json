@@ -1,3 +1,6 @@
 {
-    "Sales": true
+    "Sales": true,
+    "Team": true,
+    "Workplace": true,
+    "Workspace": true
 }
