@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\shop\Console;
+namespace Modules\sales\Console;
 
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
