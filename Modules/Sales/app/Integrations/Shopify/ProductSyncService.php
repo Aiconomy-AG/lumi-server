@@ -65,6 +65,14 @@ class ProductSyncService
     }
     GRAPHQL;
 
+    private const ONLINE_STORE_PUBLICATIONS_QUERY = <<<'GRAPHQL'
+    query OnlineStorePublications {
+        publications(first: 5, catalogType: ONLINE_STORE) {
+            edges { node { id name } }
+        }
+    }
+    GRAPHQL;
+
     private const LOCATIONS_QUERY = <<<'GRAPHQL'
     query Locations {
         locations(first: 10) {
@@ -208,13 +216,10 @@ class ProductSyncService
         try {
             $shopifyId = $this->push($product);
 
-            // Persist the link right away: if a later step (metafields,
-            // publish, collections) fails, the product already exists in
-            // Shopify and retries must update it instead of appearing unsynced.
             $product->forceFill(['shopify_product_id' => $shopifyId])->save();
 
-            $this->pushIngredientsMetafield($shopifyId, $product);
-            $this->publishToOnlineStore($shopifyId);
+            $this->safelyPushIngredientsMetafield($shopifyId, $product);
+            $this->safelyPublishToOnlineStore($shopifyId, $product->getKey());
 
             $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Synced])->save();
 
@@ -496,11 +501,9 @@ class ProductSyncService
             throw new ShopifyException('Shopify inventory location was not found.');
         }
 
-        // Inventory-only sync still updates the product in Shopify (productSet).
-        // Ensure the product remains included in the Online Store sales channel.
         $shopifyProductId = $this->push($product);
         $product->forceFill(['shopify_product_id' => $shopifyProductId])->save();
-        $this->publishToOnlineStore($shopifyProductId);
+        $this->safelyPublishToOnlineStore($shopifyProductId, $product->getKey());
 
         return $this->applyInventoryLevels($product, $shopifyProductId);
     }
@@ -843,12 +846,38 @@ class ProductSyncService
         return $input;
     }
 
-    private function publishToOnlineStore(string $shopifyProductId): void
+    private function safelyPushIngredientsMetafield(string $shopifyProductId, Product $product): void
+    {
+        try {
+            $this->pushIngredientsMetafield($shopifyProductId, $product);
+        } catch (ShopifyException $exception) {
+            Log::warning('Shopify ingredients metafield sync failed', [
+                'product_id' => $product->getKey(),
+                'shopify_product_id' => $shopifyProductId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function safelyPublishToOnlineStore(string $shopifyProductId, ?int $productId = null): void
     {
         if (! (bool) config('sales.shopify.publish_products', true)) {
             return;
         }
 
+        try {
+            $this->publishToOnlineStore($shopifyProductId);
+        } catch (ShopifyException $exception) {
+            Log::warning('Shopify Online Store publish failed', [
+                'product_id' => $productId,
+                'shopify_product_id' => $shopifyProductId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function publishToOnlineStore(string $shopifyProductId): void
+    {
         $publicationId = $this->onlineStorePublicationId();
 
         if ($publicationId === null) {
@@ -886,17 +915,16 @@ class ProductSyncService
             }
         }
 
-        $response = $this->query(['query' => self::PUBLICATIONS_QUERY]);
-        $edges = $response->data['publications']['edges'] ?? [];
+        $onlineStoreNodes = $this->publicationNodes(self::ONLINE_STORE_PUBLICATIONS_QUERY);
+
+        if ($onlineStoreNodes !== []) {
+            return $this->onlineStorePublicationId = (string) $onlineStoreNodes[0]['id'];
+        }
+
+        $allNodes = $this->publicationNodes(self::PUBLICATIONS_QUERY);
         $names = [];
 
-        foreach ($edges as $edge) {
-            $node = is_array($edge) ? ($edge['node'] ?? null) : null;
-
-            if (! is_array($node)) {
-                continue;
-            }
-
+        foreach ($allNodes as $node) {
             $name = strtolower(trim((string) ($node['name'] ?? '')));
             $names[] = $name;
 
@@ -905,14 +933,31 @@ class ProductSyncService
             }
         }
 
-        // An empty list usually means the app token is missing the
-        // read_publications scope; otherwise the channel has a custom name and
-        // SHOPIFY_ONLINE_STORE_PUBLICATION_ID must be set explicitly.
         Log::warning('Shopify Online Store publication not found', [
             'publications' => $names,
         ]);
 
         return null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function publicationNodes(string $query): array
+    {
+        $response = $this->query(['query' => $query]);
+        $edges = $response->data['publications']['edges'] ?? [];
+        $nodes = [];
+
+        foreach ($edges as $edge) {
+            $node = is_array($edge) ? ($edge['node'] ?? null) : null;
+
+            if (is_array($node) && isset($node['id'])) {
+                $nodes[] = $node;
+            }
+        }
+
+        return $nodes;
     }
 
     private function assignProductCollection(Product $product, string $shopifyProductId): void

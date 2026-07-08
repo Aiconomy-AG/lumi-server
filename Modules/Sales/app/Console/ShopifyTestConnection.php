@@ -21,6 +21,14 @@ class ShopifyTestConnection extends Command
         }
         GRAPHQL;
 
+    private const string ONLINE_STORE_PUBLICATIONS_QUERY = <<<'GRAPHQL'
+        query OnlineStorePublications {
+            publications(first: 5, catalogType: ONLINE_STORE) {
+                edges { node { id name } }
+            }
+        }
+        GRAPHQL;
+
     public function handle(ShopifyConnector $connector): int
     {
         try {
@@ -40,11 +48,60 @@ class ShopifyTestConnection extends Command
 
             $this->components->info("Connected to {$name} ({$domain})");
 
+            $this->reportOnlineStorePublication($connector);
+
             return self::SUCCESS;
         } catch (ShopifyException $exception) {
             $this->components->error($exception->getMessage());
 
             return self::FAILURE;
+        }
+    }
+
+    private function reportOnlineStorePublication(ShopifyConnector $connector): void
+    {
+        $configured = config('sales.shopify.online_store_publication_id');
+
+        if (is_string($configured) && trim($configured) !== '') {
+            $this->components->info('Online Store publication: '.trim($configured).' (from SHOPIFY_ONLINE_STORE_PUBLICATION_ID)');
+
+            return;
+        }
+
+        try {
+            $response = $connector->query([
+                'query' => self::ONLINE_STORE_PUBLICATIONS_QUERY,
+                'operation_name' => 'OnlineStorePublications',
+            ]);
+
+            $edges = $response->data['publications']['edges'] ?? [];
+            $publication = null;
+
+            foreach ($edges as $edge) {
+                $node = is_array($edge) ? ($edge['node'] ?? null) : null;
+
+                if (is_array($node) && isset($node['id'])) {
+                    $publication = $node;
+                    break;
+                }
+            }
+
+            if ($publication === null) {
+                $this->components->warn(
+                    'Online Store publication not found. Enable read_publications/write_publications on the Shopify app '
+                    .'or set SHOPIFY_ONLINE_STORE_PUBLICATION_ID.',
+                );
+
+                return;
+            }
+
+            $this->components->info(sprintf(
+                'Online Store publication: %s (%s)',
+                (string) ($publication['name'] ?? 'Online Store'),
+                (string) $publication['id'],
+            ));
+        } catch (ShopifyException $exception) {
+            $this->components->warn('Could not resolve Online Store publication: '.$exception->getMessage());
         }
     }
 }

@@ -52,6 +52,14 @@ class CollectionAssignService
     }
     GRAPHQL;
 
+    private const ONLINE_STORE_PUBLICATIONS_QUERY = <<<'GRAPHQL'
+    query OnlineStorePublications {
+        publications(first: 5, catalogType: ONLINE_STORE) {
+            edges { node { id name } }
+        }
+    }
+    GRAPHQL;
+
     private const PUBLISHABLE_PUBLISH_MUTATION = <<<'GRAPHQL'
     mutation PublishablePublish($id: ID!, $input: [PublicationInput!]!) {
         publishablePublish(id: $id, input: $input) {
@@ -263,22 +271,31 @@ class CollectionAssignService
             return;
         }
 
-        $publicationId = $this->onlineStorePublicationId();
+        try {
+            $publicationId = $this->onlineStorePublicationId();
 
-        if ($publicationId === null) {
-            return;
+            if ($publicationId === null) {
+                Log::warning('Shopify collection publish skipped: Online Store publication not found');
+
+                return;
+            }
+
+            $response = $this->query([
+                'query' => self::PUBLISHABLE_PUBLISH_MUTATION,
+                'variables' => [
+                    'id' => $collectionId,
+                    'input' => [['publicationId' => $publicationId]],
+                ],
+            ]);
+
+            $result = $response->data['publishablePublish'] ?? [];
+            $this->assertNoUserErrors($this->withoutAlreadyAssignedErrors($result['userErrors'] ?? []));
+        } catch (ShopifyException $exception) {
+            Log::warning('Shopify collection publish failed', [
+                'collection_id' => $collectionId,
+                'error' => $exception->getMessage(),
+            ]);
         }
-
-        $response = $this->query([
-            'query' => self::PUBLISHABLE_PUBLISH_MUTATION,
-            'variables' => [
-                'id' => $collectionId,
-                'input' => [['publicationId' => $publicationId]],
-            ],
-        ]);
-
-        $result = $response->data['publishablePublish'] ?? [];
-        $this->assertNoUserErrors($this->withoutAlreadyAssignedErrors($result['userErrors'] ?? []));
     }
 
     private function onlineStorePublicationId(): ?string
@@ -297,16 +314,15 @@ class CollectionAssignService
             }
         }
 
-        $response = $this->query(['query' => self::PUBLICATIONS_QUERY]);
-        $edges = $response->data['publications']['edges'] ?? [];
+        $onlineStoreNodes = $this->publicationNodes(self::ONLINE_STORE_PUBLICATIONS_QUERY);
 
-        foreach ($edges as $edge) {
-            $node = is_array($edge) ? ($edge['node'] ?? null) : null;
+        if ($onlineStoreNodes !== []) {
+            return $this->onlineStorePublicationId = (string) $onlineStoreNodes[0]['id'];
+        }
 
-            if (! is_array($node)) {
-                continue;
-            }
+        $allNodes = $this->publicationNodes(self::PUBLICATIONS_QUERY);
 
+        foreach ($allNodes as $node) {
             $name = strtolower(trim((string) ($node['name'] ?? '')));
 
             if ($name === 'online store' || str_contains($name, 'online store')) {
@@ -315,6 +331,26 @@ class CollectionAssignService
         }
 
         return null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function publicationNodes(string $query): array
+    {
+        $response = $this->query(['query' => $query]);
+        $edges = $response->data['publications']['edges'] ?? [];
+        $nodes = [];
+
+        foreach ($edges as $edge) {
+            $node = is_array($edge) ? ($edge['node'] ?? null) : null;
+
+            if (is_array($node) && isset($node['id'])) {
+                $nodes[] = $node;
+            }
+        }
+
+        return $nodes;
     }
 
     /**

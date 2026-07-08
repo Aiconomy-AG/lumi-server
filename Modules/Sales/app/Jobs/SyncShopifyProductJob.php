@@ -24,7 +24,7 @@ class SyncShopifyProductJob implements ShouldQueue
 
     public function backoff(): array
     {
-        return [30, 60, 120, 300, 600];
+        return [15, 30, 60, 120];
     }
 
     public function handle(ProductSyncService $service): void
