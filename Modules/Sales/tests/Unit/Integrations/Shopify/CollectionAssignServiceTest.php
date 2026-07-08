@@ -132,4 +132,50 @@ class CollectionAssignServiceTest extends TestCase
 
         Http::assertSentCount(4);
     }
+
+    public function test_reconcile_category_removes_stale_products_and_adds_correct_ones(): void
+    {
+        Http::fake([
+            'test-sales.myshopify.com/admin/oauth/access_token' => Http::response([
+                'access_token' => 'shpat_test',
+                'expires_in' => 3600,
+            ]),
+            'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::sequence()
+                ->push(['data' => ['collectionByHandle' => ['id' => 'gid://shopify/Collection/111', 'handle' => 'bath']], 'extensions' => []])
+                ->push(['data' => ['collectionRemoveProducts' => ['userErrors' => []]], 'extensions' => []])
+                ->push(['data' => ['collectionAddProducts' => ['collection' => ['id' => 'gid://shopify/Collection/111', 'title' => 'Bath'], 'userErrors' => []]], 'extensions' => []]),
+        ]);
+
+        $service = new CollectionAssignService(
+            app(\Modules\Sales\Integrations\Shopify\ShopifyConnector::class),
+            new CategoryCollectionMap,
+        );
+
+        $method = new \ReflectionMethod(CollectionAssignService::class, 'reconcileCategory');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(
+            $service,
+            1,
+            ['gid://shopify/Product/101', 'gid://shopify/Product/102'],
+            [1 => ['gid://shopify/Product/101']],
+        );
+
+        $this->assertSame(1, $result['assigned']);
+        $this->assertSame(1, $result['removed']);
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return ($body['variables']['id'] ?? null) === 'gid://shopify/Collection/111'
+                && ($body['variables']['productIds'] ?? null) === ['gid://shopify/Product/102'];
+        });
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return ($body['variables']['id'] ?? null) === 'gid://shopify/Collection/111'
+                && ($body['variables']['productIds'] ?? null) === ['gid://shopify/Product/101'];
+        });
+    }
 }

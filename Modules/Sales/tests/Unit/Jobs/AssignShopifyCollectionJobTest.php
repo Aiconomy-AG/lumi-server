@@ -9,7 +9,7 @@ class AssignShopifyCollectionJobTest extends TestCase
 {
     public function test_it_uses_redis_connection_and_shopify_sync_queue(): void
     {
-        $job = new AssignShopifyCollectionJob(1, ['gid://shopify/Product/101']);
+        $job = new AssignShopifyCollectionJob(1);
 
         $this->assertSame('redis', $job->connection);
         $this->assertSame('shopify-sync', $job->queue);

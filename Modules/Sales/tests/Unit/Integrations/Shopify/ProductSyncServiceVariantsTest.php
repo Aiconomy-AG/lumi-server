@@ -86,4 +86,26 @@ class ProductSyncServiceVariantsTest extends TestCase
         $this->assertSame('Red', $variantInputs[0]['optionValues'][0]['name']);
         $this->assertSame('Blue', $variantInputs[1]['optionValues'][0]['name']);
     }
+
+    public function test_placeholder_default_variant_is_excluded_when_colour_variants_exist(): void
+    {
+        $service = $this->service();
+
+        $product = new Product(['price' => 10, 'sku' => 'SLAP-STICK']);
+        $product->setRelation('variants', collect([
+            new ProductVariant(['sku' => 'SLAP-STICK', 'name' => 'Slap Stick', 'price' => 10, 'stock_quantity' => 0]),
+            new ProductVariant(['sku' => '00076-29N', 'colour' => '29N', 'price' => 10, 'stock_quantity' => 5]),
+            new ProductVariant(['sku' => '00076-30N', 'colour' => '30N', 'price' => 10, 'stock_quantity' => 3]),
+        ]));
+
+        $method = new ReflectionMethod(ProductSyncService::class, 'buildVariants');
+        $method->setAccessible(true);
+
+        [$productOptions, $variantInputs] = $method->invoke($service, $product);
+
+        $this->assertSame('Color', $productOptions[0]['name']);
+        $this->assertCount(2, $variantInputs);
+        $this->assertSame('00076-29N', $variantInputs[0]['sku']);
+        $this->assertSame('00076-30N', $variantInputs[1]['sku']);
+    }
 }

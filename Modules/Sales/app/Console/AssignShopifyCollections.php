@@ -8,17 +8,18 @@ use Illuminate\Console\Command;
 use Modules\Sales\Integrations\Shopify\CollectionAssignService;
 
 #[Signature('sales:assign-shopify-collections {--sync : Assign collections synchronously instead of queueing jobs}')]
-#[Description('Assign existing synced products to Shopify collections based on local category mapping')]
+#[Description('Reconcile Shopify collection membership from local product categories (read-only locally)')]
 class AssignShopifyCollections extends Command
 {
     public function handle(CollectionAssignService $service): int
     {
         if ($this->option('sync')) {
-            $stats = $service->assignAll();
+            $stats = $service->reconcileAll();
 
             $this->components->info(sprintf(
-                'Assigned %d products (%d failed).',
+                'Reconciled collections: %d product placements added, %d stale placements removed (%d categories failed).',
                 $stats['assigned'],
+                $stats['removed'],
                 $stats['failed'],
             ));
 
@@ -28,7 +29,7 @@ class AssignShopifyCollections extends Command
         $queued = $service->queueAssign();
 
         $this->components->info(sprintf(
-            'Queued %d collection assignment job(s). Run a worker to process them: php artisan queue:work redis --queue=shopify-sync',
+            'Queued %d collection reconciliation job(s). Run a worker to process them: php artisan queue:work redis --queue=shopify-sync',
             $queued,
         ));
 

@@ -16,12 +16,8 @@ class AssignShopifyCollectionJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    /**
-     * @param  array<int, string>  $shopifyProductIds
-     */
     public function __construct(
         private readonly int $categoryId,
-        private readonly array $shopifyProductIds,
     ) {
         $this->onConnection('redis');
         $this->onQueue('shopify-sync');
@@ -35,11 +31,10 @@ class AssignShopifyCollectionJob implements ShouldQueue
     public function handle(CollectionAssignService $service): void
     {
         try {
-            $service->assignProducts($this->categoryId, $this->shopifyProductIds);
+            $service->reconcileCategoryById($this->categoryId);
         } catch (ShopifyException $exception) {
-            Log::warning('Shopify collection assignment job failed', [
+            Log::warning('Shopify collection reconciliation job failed', [
                 'category_id' => $this->categoryId,
-                'product_count' => count($this->shopifyProductIds),
                 'error' => $exception->getMessage(),
             ]);
 

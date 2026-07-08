@@ -1034,23 +1034,32 @@ class ProductSyncService
             throw new ShopifyException('Product has no variants to sync to Shopify.');
         }
 
-        $combined = $this->buildColourSizeVariants($product);
+        $variants = $this->shopifyVariants($product);
+
+        if ($variants->isEmpty()) {
+            throw new ShopifyException('Product has no variants to sync to Shopify.');
+        }
+
+        $syncProduct = clone $product;
+        $syncProduct->setRelation('variants', $variants);
+
+        $combined = $this->buildColourSizeVariants($syncProduct);
 
         if ($combined !== null) {
             return $combined;
         }
 
-        if ($product->variants->count() > 1
-            && $this->hasDistinctLabels($product->variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
-            return $this->buildOptionVariants($product, 'Color', fn (ProductVariant $variant) => $this->colourLabel($variant));
+        if ($variants->count() > 1
+            && $this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
+            return $this->buildOptionVariants($syncProduct, 'Color', fn (ProductVariant $variant) => $this->colourLabel($variant));
         }
 
-        if ($product->variants->count() > 1
-            && $this->hasDistinctLabels($product->variants, fn (ProductVariant $variant) => $this->sizeLabel($variant))) {
-            return $this->buildOptionVariants($product, 'Size', fn (ProductVariant $variant) => $this->sizeLabel($variant));
+        if ($variants->count() > 1
+            && $this->hasDistinctLabels($variants, fn (ProductVariant $variant) => $this->sizeLabel($variant))) {
+            return $this->buildOptionVariants($syncProduct, 'Size', fn (ProductVariant $variant) => $this->sizeLabel($variant));
         }
 
-        $variant = $product->variants->first();
+        $variant = $variants->first();
 
         if (! $variant instanceof ProductVariant) {
             throw new ShopifyException('Product has no variants to sync to Shopify.');
@@ -1062,6 +1071,41 @@ class ProductSyncService
                 ['optionName' => 'Title', 'name' => 'Default Title'],
             ])],
         ];
+    }
+
+    /**
+     * Drop placeholder default variants when real option variants exist.
+     * A simple product often keeps one standard row (no colour/size) alongside
+     * newly added colour or size rows; Shopify should only receive the option
+     * variants in that case.
+     *
+     * @return \Illuminate\Support\Collection<int, ProductVariant>
+     */
+    private function shopifyVariants(Product $product): \Illuminate\Support\Collection
+    {
+        $variants = $product->variants;
+
+        if ($variants->count() <= 1) {
+            return $variants->values();
+        }
+
+        $withColour = $variants
+            ->filter(fn (ProductVariant $variant) => $this->colourLabel($variant) !== null)
+            ->values();
+
+        if ($withColour->count() < $variants->count() && $withColour->isNotEmpty()) {
+            return $withColour;
+        }
+
+        $withSize = $variants
+            ->filter(fn (ProductVariant $variant) => $this->sizeLabel($variant) !== null)
+            ->values();
+
+        if ($withSize->count() < $variants->count() && $withSize->isNotEmpty()) {
+            return $withSize;
+        }
+
+        return $variants->values();
     }
 
     /**

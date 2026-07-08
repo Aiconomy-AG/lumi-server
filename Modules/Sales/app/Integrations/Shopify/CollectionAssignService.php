@@ -88,7 +88,8 @@ class CollectionAssignService
     ) {}
 
     /**
-     * Dispatch one background job per mapped category that has synced products.
+     * Dispatch one background job per mapped category to reconcile Shopify
+     * collection membership (read-only against the local database).
      *
      * @return int Number of categories queued.
      */
@@ -97,13 +98,7 @@ class CollectionAssignService
         $queued = 0;
 
         foreach ($this->categoryCollectionMap->handlesByCategoryId() as $categoryId => $handle) {
-            $productIds = $this->syncedProductIdsForCategory($categoryId);
-
-            if ($productIds === []) {
-                continue;
-            }
-
-            AssignShopifyCollectionJob::dispatch($categoryId, $productIds);
+            AssignShopifyCollectionJob::dispatch((int) $categoryId);
             $queued++;
         }
 
@@ -111,28 +106,27 @@ class CollectionAssignService
     }
 
     /**
-     * Assign every synced product with a mapped category to its Shopify collection.
+     * Reconcile every mapped Shopify collection from local product categories.
+     * Products are added to their database category collection and removed from
+     * every other mapped collection. Does not write to the local database.
      *
-     * @return array{assigned: int, skipped: int, failed: int}
+     * @return array{assigned: int, removed: int, failed: int}
      */
-    public function assignAll(): array
+    public function reconcileAll(): array
     {
-        $stats = ['assigned' => 0, 'skipped' => 0, 'failed' => 0];
+        [$allSynced, $byCategory] = $this->syncedProductsByCategory();
+
+        $stats = ['assigned' => 0, 'removed' => 0, 'failed' => 0];
 
         foreach ($this->categoryCollectionMap->handlesByCategoryId() as $categoryId => $handle) {
-            $productIds = $this->syncedProductIdsForCategory($categoryId);
-
-            if ($productIds === []) {
-                continue;
-            }
-
             try {
-                $assigned = $this->assignProducts($categoryId, $productIds);
-                $stats['assigned'] += $assigned;
+                $result = $this->reconcileCategory((int) $categoryId, $allSynced, $byCategory);
+                $stats['assigned'] += $result['assigned'];
+                $stats['removed'] += $result['removed'];
             } catch (ShopifyException $exception) {
-                $stats['failed'] += count($productIds);
+                $stats['failed']++;
 
-                Log::warning('Shopify collection assignment failed', [
+                Log::warning('Shopify collection reconciliation failed', [
                     'category_id' => $categoryId,
                     'handle' => $handle,
                     'error' => $exception->getMessage(),
@@ -141,6 +135,37 @@ class CollectionAssignService
         }
 
         return $stats;
+    }
+
+    /**
+     * Reconcile one mapped category collection. Read-only against the database.
+     *
+     * @param  array<int, string>  $allSynced
+     * @param  array<int, array<int, string>>  $byCategory
+     * @return array{assigned: int, removed: int}
+     */
+    public function reconcileCategoryById(int $categoryId): array
+    {
+        [$allSynced, $byCategory] = $this->syncedProductsByCategory();
+
+        return $this->reconcileCategory($categoryId, $allSynced, $byCategory);
+    }
+
+    /**
+     * @deprecated Use reconcileAll() for collection backfills.
+     *
+     * @return array{assigned: int, skipped: int, failed: int, removed: int}
+     */
+    public function assignAll(): array
+    {
+        $stats = $this->reconcileAll();
+
+        return [
+            'assigned' => $stats['assigned'],
+            'removed' => $stats['removed'],
+            'skipped' => 0,
+            'failed' => $stats['failed'],
+        ];
     }
 
     /**
@@ -182,7 +207,7 @@ class CollectionAssignService
             throw new ShopifyException("No Shopify collection handle configured for category {$categoryId}.");
         }
 
-        $collectionId = $this->findCollectionId($categoryId, $handle);
+        $collectionId = $this->lookupCollectionId($categoryId, $handle);
 
         if ($collectionId === null) {
             return 0;
@@ -196,6 +221,75 @@ class CollectionAssignService
         }
 
         return $removed;
+    }
+
+    /**
+     * @return array{0: array<int, string>, 1: array<int, array<int, string>>}
+     */
+    private function syncedProductsByCategory(): array
+    {
+        $byCategory = [];
+        $allSynced = [];
+
+        Product::query()
+            ->whereNotNull('shopify_product_id')
+            ->where('shopify_product_id', '!=', '')
+            ->select(['category_id', 'shopify_product_id'])
+            ->orderBy('id')
+            ->chunkById(500, function ($products) use (&$byCategory, &$allSynced): void {
+                foreach ($products as $product) {
+                    $shopifyProductId = (string) $product->shopify_product_id;
+                    $allSynced[] = $shopifyProductId;
+
+                    if ($product->category_id !== null) {
+                        $byCategory[(int) $product->category_id][] = $shopifyProductId;
+                    }
+                }
+            });
+
+        return [
+            array_values(array_unique($allSynced)),
+            array_map(
+                static fn (array $ids): array => array_values(array_unique($ids)),
+                $byCategory,
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $allSynced
+     * @param  array<int, array<int, string>>  $byCategory
+     * @return array{assigned: int, removed: int}
+     */
+    private function reconcileCategory(int $categoryId, array $allSynced, array $byCategory): array
+    {
+        $handle = $this->categoryCollectionMap->handleForCategory($categoryId);
+
+        if ($handle === null) {
+            throw new ShopifyException("No Shopify collection handle configured for category {$categoryId}.");
+        }
+
+        $collectionId = $this->lookupCollectionId($categoryId, $handle);
+
+        if ($collectionId === null) {
+            throw new ShopifyException("Shopify collection was not found for handle \"{$handle}\".");
+        }
+
+        $shouldBeHere = $byCategory[$categoryId] ?? [];
+        $shouldNotBeHere = array_values(array_diff($allSynced, $shouldBeHere));
+        $stats = ['assigned' => 0, 'removed' => 0];
+
+        foreach (array_chunk($shouldNotBeHere, self::MAX_PRODUCTS_PER_REQUEST) as $chunk) {
+            $this->removeProductsFromCollection($collectionId, $chunk);
+            $stats['removed'] += count($chunk);
+        }
+
+        foreach (array_chunk($shouldBeHere, self::MAX_PRODUCTS_PER_REQUEST) as $chunk) {
+            $this->addProductsToCollection($collectionId, $chunk);
+            $stats['assigned'] += count($chunk);
+        }
+
+        return $stats;
     }
 
     /**
@@ -213,7 +307,7 @@ class CollectionAssignService
 
     private function resolveCollectionId(int $categoryId, string $handle): string
     {
-        $collectionId = $this->findCollectionId($categoryId, $handle);
+        $collectionId = $this->lookupCollectionId($categoryId, $handle);
 
         if ($collectionId !== null) {
             return $collectionId;
@@ -242,7 +336,11 @@ class CollectionAssignService
         return $this->resolvedCollectionIds[$handle] = $collectionId;
     }
 
-    private function findCollectionId(int $categoryId, string $handle): ?string
+    /**
+     * Resolve a Shopify collection id from local mapping / Shopify lookup only.
+     * Does not create collections and does not persist anything locally.
+     */
+    private function lookupCollectionId(int $categoryId, string $handle): ?string
     {
         if (isset($this->resolvedCollectionIds[$handle])) {
             return $this->resolvedCollectionIds[$handle];
@@ -266,22 +364,17 @@ class CollectionAssignService
         ]);
 
         $collectionId = $response->data['collectionByHandle']['id'] ?? null;
-        $resolvedHandle = $response->data['collectionByHandle']['handle'] ?? $handle;
 
         if (! is_string($collectionId) || $collectionId === '') {
             return null;
         }
 
-        if ($category) {
-            $category->forceFill([
-                'shopify_collection_id' => $collectionId,
-                'shopify_collection_handle' => is_string($resolvedHandle) && $resolvedHandle !== ''
-                    ? $resolvedHandle
-                    : $handle,
-            ])->save();
-        }
-
         return $this->resolvedCollectionIds[$handle] = $collectionId;
+    }
+
+    private function findCollectionId(int $categoryId, string $handle): ?string
+    {
+        return $this->lookupCollectionId($categoryId, $handle);
     }
 
     /**
