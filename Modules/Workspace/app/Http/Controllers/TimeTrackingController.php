@@ -30,6 +30,7 @@ class TimeTrackingController extends Controller
             'task_id' => $taskId,
             'user_id' => Auth::id(),
             'started_at' => now(),
+            'duration_seconds' => 0,
         ]);
 
         return (new TaskTimeEntryResource($entry))->response()->setStatusCode(201);
@@ -48,7 +49,7 @@ class TimeTrackingController extends Controller
         }
 
         $stoppedAt = now();
-        $durationSeconds = $stoppedAt->diffInSeconds($entry->started_at);
+        $durationSeconds = $entry->started_at->diffInSeconds($stoppedAt, absolute: true);
 
         $entry->update([
             'stopped_at' => $stoppedAt,

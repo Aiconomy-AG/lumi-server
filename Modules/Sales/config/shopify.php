@@ -27,4 +27,15 @@ return [
         8 => 'new',            // New → New
         9 => 'limited',        // Limited → Limited
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Product ingredients metafield
+    |--------------------------------------------------------------------------
+    */
+    'ingredients_metafield' => [
+        'namespace' => 'custom',
+        'key' => 'ingredients',
+        'type' => env('SHOPIFY_INGREDIENTS_METAFIELD_TYPE', 'rich_text_field'),
+    ],
 ];

@@ -8,17 +8,33 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Category;
+use Modules\Sales\Models\Ingredients;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
+use Modules\Sales\Services\IngredientListParser;
+use Modules\Sales\Services\ProductVariantAttributeParser;
 use SplFileObject;
 
 #[Signature('sales:import-products {path : Path to the products export CSV}')]
-#[Description('Import products, variants and categories from a products export CSV')]
+#[Description('Import products, variants, categories and ingredients from a products export CSV')]
 class ImportProductsCsv extends Command
 {
+    /**
+     * Source-spreadsheet record numbers (header = 1) to skip as test data.
+     */
+    private const SKIP_RECORDS = [1260];
+
+    /**
+     * Last real record; everything after this is test data to ignore.
+     */
+    private const LAST_RECORD = 1275;
+
     private array $columns = [];
 
     private array $categories = [];
+
+    /** @var array<string, int> */
+    private array $ingredients = [];
 
     public function handle(ProductSyncService $shopify): int
     {
@@ -38,32 +54,32 @@ class ImportProductsCsv extends Command
 
         [$weightGroups, $colourGroups] = $this->classifyRows($rows);
 
-        $stats = ['products' => 0, 'variants' => 0];
+        $stats = ['products' => 0, 'variants' => 0, 'ingredients' => 0];
 
         DB::transaction(function () use ($weightGroups, $colourGroups, &$stats) {
             foreach ($weightGroups as $group) {
-                $this->importWeightProduct($group, $stats);
+                $this->importWeightProduct($this->sortProductGroup($group), $stats);
             }
 
             foreach ($colourGroups as $group) {
-                $this->importColourProduct($group, $stats);
+                $this->importColourProduct($this->sortProductGroup($group), $stats);
             }
         });
 
         $this->components->info(sprintf(
-            'Imported %d products (%d variants, %d categories).',
+            'Imported %d products (%d variants, %d categories, %d ingredients).',
             $stats['products'],
             $stats['variants'],
             count($this->categories),
+            $stats['ingredients'],
         ));
 
-//        $this->components->info('Deleting existing Shopify products...');
-//        $deleted = $shopify->deleteAll();
-//        $this->components->info(sprintf('Deleted %d Shopify products.', $deleted));
-//
-//        $this->components->info('Syncing products to Shopify...');
-//        $shopify->seed();
-//        $this->components->info('Shopify sync complete.');
+        $this->components->info('Queueing products for Shopify sync...');
+        $queued = $shopify->queueAll();
+        $this->components->info(sprintf(
+            'Queued %d products. Ensure your Forge worker is running on the shopify-sync queue.',
+            $queued,
+        ));
 
         return self::SUCCESS;
     }
@@ -87,11 +103,18 @@ class ImportProductsCsv extends Command
         $this->columns = array_flip($header);
 
         $rows = [];
+        $recordNumber = 1;
 
         while (! $file->eof()) {
             $row = $file->fgetcsv();
 
             if (! is_array($row) || $row === [null] || count($row) < count($this->columns)) {
+                continue;
+            }
+
+            $recordNumber++;
+
+            if ($this->isTestRecord($recordNumber)) {
                 continue;
             }
 
@@ -101,14 +124,13 @@ class ImportProductsCsv extends Command
         return $rows;
     }
 
+    private function isTestRecord(int $recordNumber): bool
+    {
+        return $recordNumber > self::LAST_RECORD
+            || in_array($recordNumber, self::SKIP_RECORDS, true);
+    }
+
     /**
-     * Split rows into two kinds of product groups:
-     *  - Colour products: rows whose name ends in a colour code (e.g. "29N").
-     *    Each of these rows has its own id/sku, so they are grouped by the
-     *    shared base name (name with the colour code removed).
-     *  - Weight products: everything else, grouped by Product ID. The first
-     *    row of such a group is the product, the rest are weight variants.
-     *
      * @param  array<int, array<int, string|null>>  $rows
      * @return array{0: array<string, array<int, array>>, 1: array<string, array<int, array>>}
      */
@@ -120,8 +142,8 @@ class ImportProductsCsv extends Command
         foreach ($rows as $row) {
             $name = $this->value($row, 'Name');
 
-            if ($this->colourCode($name) !== null) {
-                $colourGroups[$this->baseName($name)][] = $row;
+            if (ProductVariantAttributeParser::colourCode($name) !== null) {
+                $colourGroups[ProductVariantAttributeParser::baseName($name)][] = $row;
 
                 continue;
             }
@@ -133,9 +155,28 @@ class ImportProductsCsv extends Command
     }
 
     /**
-     * Rows sharing a Product ID form one product: the first row (which carries
-     * the whole name) is the product itself, every following row is a weight
-     * variant of it.
+     * @param  array<int, array<int, string|null>>  $rows
+     * @return array<int, array<int, string|null>>
+     */
+    private function sortProductGroup(array $rows): array
+    {
+        usort($rows, function (array $a, array $b): int {
+            $aIsVariant = $this->value($a, 'Variant ID') !== '';
+            $bIsVariant = $this->value($b, 'Variant ID') !== '';
+
+            if ($aIsVariant === $bIsVariant) {
+                return 0;
+            }
+
+            return $aIsVariant <=> $bIsVariant;
+        });
+
+        return $rows;
+    }
+
+    /**
+     * Rows sharing a Product ID form one product: the first row is the product,
+     * every following row is a variant.
      */
     private function importWeightProduct(array $rows, array &$stats): void
     {
@@ -153,27 +194,26 @@ class ImportProductsCsv extends Command
             ],
         );
 
+        $this->importIngredients($product, $parent, $stats);
+
         $stats['products']++;
 
-        // A product with no extra rows is a simple product; give it a single
-        // default variant so it still has purchasable stock and price data.
         if ($variantRows === []) {
-            $this->importWeightVariant($product, $parent, null);
+            $this->importVariant($product, $parent);
             $stats['variants']++;
 
             return;
         }
 
         foreach ($variantRows as $row) {
-            $this->importWeightVariant($product, $row, $this->parseWeight($this->value($row, 'Name')));
+            $this->importVariant($product, $row);
             $stats['variants']++;
         }
     }
 
     /**
      * Rows that share a base name but carry a colour code (e.g. "Slap Stick
-     * 29N") are one product with a colour variant per row. Each row has its own
-     * id/sku, so any of them can seed the product; we use the first one.
+     * 29N") are one product with a colour variant per row.
      */
     private function importColourProduct(array $rows, array &$stats): void
     {
@@ -182,13 +222,15 @@ class ImportProductsCsv extends Command
         $product = Product::updateOrCreate(
             ['sku' => $this->value($parent, 'SKU')],
             [
-                'name' => $this->baseName($this->value($parent, 'Name')),
+                'name' => ProductVariantAttributeParser::baseName($this->value($parent, 'Name')),
                 'description' => $this->description($parent),
                 'price' => $this->productPrice($parent, $rows),
                 'image_url' => $this->value($parent, 'Image URL') ?: null,
                 'category_id' => $this->categoryId($parent),
             ],
         );
+
+        $this->importIngredients($product, $parent, $stats);
 
         $stats['products']++;
 
@@ -198,21 +240,19 @@ class ImportProductsCsv extends Command
         }
     }
 
-    /**
-     * @param  array{weight: float, unit: ?string}|null  $weight
-     */
-    private function importWeightVariant(Product $product, array $row, ?array $weight): void
+    private function importVariant(Product $product, array $row): void
     {
-        $sku = $this->variantSku($product, $row, $weight);
+        $attributes = $this->variantAttributes($row);
+        $sku = $this->variantSku($product, $row, $attributes);
 
         ProductVariant::updateOrCreate(
             ['sku' => $sku],
             [
                 'product_id' => $product->id,
                 'price' => $this->price($row),
-                'weight' => $weight['weight'] ?? null,
-                'weight_unit' => $weight['unit'] ?? null,
-                'colour' => null,
+                'weight' => $attributes['weight'],
+                'weight_unit' => $attributes['unit'],
+                'colour' => $attributes['colour'],
                 'stock_quantity' => max(0, (int) $this->value($row, 'Stock Quantity')),
             ],
         );
@@ -220,92 +260,50 @@ class ImportProductsCsv extends Command
 
     private function importColourVariant(Product $product, array $row): void
     {
-        $sku = $this->variantSku($product, $row, null);
+        $attributes = $this->variantAttributes($row);
+        $attributes['colour'] = ProductVariantAttributeParser::colourCode($this->value($row, 'Name'));
+        $sku = $this->variantSku($product, $row, $attributes);
 
         ProductVariant::updateOrCreate(
             ['sku' => $sku],
             [
                 'product_id' => $product->id,
                 'price' => $this->price($row),
-                'weight' => null,
-                'weight_unit' => null,
-                'colour' => $this->colourCode($this->value($row, 'Name')),
+                'weight' => $attributes['weight'],
+                'weight_unit' => $attributes['unit'],
+                'colour' => $attributes['colour'],
                 'stock_quantity' => max(0, (int) $this->value($row, 'Stock Quantity')),
             ],
         );
     }
 
     /**
-     * Extract the weight that follows the last "-" or "," of a variant name,
-     * e.g. "Sakura Shower Gel, 570g" => ['weight' => 570.0, 'unit' => 'g'] and
-     * "Basma Body Scrub, 125" => ['weight' => 125.0, 'unit' => null]. The unit
-     * stays null when the title does not spell one out.
-     *
-     * @return array{weight: float, unit: ?string}|null
+     * @return array{weight: ?float, unit: ?string, colour: ?string}
      */
-    private function parseWeight(string $name): ?array
+    private function variantAttributes(array $row): array
     {
-        $dash = strrpos($name, '-');
-        $comma = strrpos($name, ',');
-
-        $position = false;
-
-        if ($dash !== false) {
-            $position = $dash;
-        }
-
-        if ($comma !== false && ($position === false || $comma > $position)) {
-            $position = $comma;
-        }
-
-        if ($position === false) {
-            return null;
-        }
-
-        $suffix = trim(substr($name, $position + 1));
-
-        if (! preg_match('/^(\d+(?:\.\d+)?)\s*([\p{L}]+)?$/u', $suffix, $matches)) {
-            return null;
-        }
-
-        return [
-            'weight' => (float) $matches[1],
-            'unit' => ($matches[2] ?? '') !== '' ? strtolower($matches[2]) : null,
-        ];
+        return ProductVariantAttributeParser::fromRow(
+            $this->value($row, 'Name'),
+            $this->value($row, 'Color'),
+            $this->value($row, 'Farbe'),
+            $this->value($row, 'Size'),
+            $this->value($row, 'Grösse'),
+        );
     }
 
     /**
-     * The colour code is the trailing "<1-2 digits><N|W|C>" token of a name,
-     * e.g. "Slap Stick 29N" => "29N". Returns null when there is none.
+     * @param  array{weight: ?float, unit: ?string, colour: ?string}  $attributes
      */
-    private function colourCode(string $name): ?string
-    {
-        return preg_match('/\s(\d{1,2}[NWC])$/', $name, $matches) === 1
-            ? $matches[1]
-            : null;
-    }
-
-    /**
-     * The product name with its trailing colour code removed,
-     * e.g. "Slap Stick 29N" => "Slap Stick".
-     */
-    private function baseName(string $name): string
-    {
-        return trim(preg_replace('/\s\d{1,2}[NWC]$/', '', $name));
-    }
-
-    /**
-     * @param  array{weight: float, unit: ?string}|null  $weight
-     */
-    private function variantSku(Product $product, array $row, ?array $weight): string
+    private function variantSku(Product $product, array $row, array $attributes): string
     {
         $sku = $this->value($row, 'Variant SKU');
 
         if ($sku === '') {
             $sku = $this->value($row, 'SKU');
+            $suffix = $this->variantSkuSuffix($attributes);
 
-            if ($weight !== null) {
-                $sku .= '-'.$this->weightLabel($weight);
+            if ($suffix !== null) {
+                $sku .= '-'.$suffix;
             }
         }
 
@@ -320,13 +318,30 @@ class ImportProductsCsv extends Command
     }
 
     /**
-     * @param  array{weight: float, unit: ?string}  $weight
+     * @param  array{weight: ?float, unit: ?string, colour: ?string}  $attributes
      */
-    private function weightLabel(array $weight): string
+    private function variantSkuSuffix(array $attributes): ?string
     {
-        $value = rtrim(rtrim(number_format($weight['weight'], 2, '.', ''), '0'), '.');
+        $parts = [];
 
-        return $value.($weight['unit'] ?? '');
+        if ($attributes['colour'] !== null) {
+            $parts[] = $attributes['colour'];
+        }
+
+        if ($attributes['weight'] !== null || $attributes['unit'] !== null) {
+            $value = $attributes['weight'] !== null
+                ? rtrim(rtrim(number_format($attributes['weight'], 2, '.', ''), '0'), '.')
+                : '';
+            $label = $value.($attributes['unit'] ?? '');
+
+            if ($label !== '') {
+                $parts[] = $label;
+            }
+        }
+
+        $label = trim(implode('-', $parts));
+
+        return $label !== '' ? $label : null;
     }
 
     private function productPrice(array $parent, array $variantRows): float
@@ -367,6 +382,85 @@ class ImportProductsCsv extends Command
             ?: $this->value($row, 'Description (en)')
             ?: $this->value($row, 'Description')
             ?: null;
+    }
+
+    /**
+     * @param  array{products: int, variants: int, ingredients: int}  $stats
+     */
+    private function importIngredients(Product $product, array $row, array &$stats): void
+    {
+        $parsed = IngredientListParser::parse($this->value($row, 'Ingredients (de_CH)'));
+
+        if ($parsed === []) {
+            $product->ingredients()->detach();
+
+            return;
+        }
+
+        $ingredientIds = [];
+
+        foreach ($parsed as $ingredient) {
+            $ingredientIds[] = $this->ingredientId($ingredient, $stats);
+        }
+
+        $product->ingredients()->sync($ingredientIds);
+    }
+
+    /**
+     * @param  array{name: string, is_natural: bool, is_allergen: bool}  $ingredient
+     * @param  array{products: int, variants: int, ingredients: int}  $stats
+     */
+    private function ingredientId(array $ingredient, array &$stats): int
+    {
+        $name = $ingredient['name'];
+
+        if (isset($this->ingredients[$name])) {
+            $this->mergeIngredientFlags($this->ingredients[$name], $ingredient);
+
+            return $this->ingredients[$name];
+        }
+
+        $model = Ingredients::firstOrCreate(
+            ['name' => $name],
+            [
+                'is_vegan' => false,
+                'is_natural' => $ingredient['is_natural'],
+                'is_allergen' => $ingredient['is_allergen'],
+            ],
+        );
+
+        if ($model->wasRecentlyCreated) {
+            $stats['ingredients']++;
+        }
+
+        $this->mergeIngredientFlags($model->getKey(), $ingredient);
+
+        return $this->ingredients[$name] = $model->getKey();
+    }
+
+    /**
+     * @param  array{name: string, is_natural: bool, is_allergen: bool}  $ingredient
+     */
+    private function mergeIngredientFlags(int $ingredientId, array $ingredient): void
+    {
+        $model = Ingredients::query()->find($ingredientId);
+
+        if ($model === null) {
+            return;
+        }
+
+        $isNatural = $model->is_natural || $ingredient['is_natural'];
+        $isAllergen = $model->is_allergen || $ingredient['is_allergen'];
+
+        if ($model->is_natural === $isNatural && $model->is_allergen === $isAllergen) {
+            return;
+        }
+
+        $model->update([
+            'is_natural' => $isNatural,
+            'is_allergen' => $isAllergen,
+            'is_vegan' => false,
+        ]);
     }
 
     private function value(array $row, string $column): string

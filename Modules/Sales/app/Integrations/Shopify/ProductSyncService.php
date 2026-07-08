@@ -10,6 +10,7 @@ use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
 use Modules\Sales\Jobs\SyncShopifyProductJob;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
+use Modules\Sales\Services\IngredientShopifyFormatter;
 
 class ProductSyncService
 {
@@ -45,16 +46,28 @@ class ProductSyncService
     }
     GRAPHQL;
 
+    private const METAFIELDS_SET_MUTATION = <<<'GRAPHQL'
+    mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+            metafields { id namespace key }
+            userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
     public function __construct(
         private readonly ShopifyConnector $connector,
     ) {}
 
     public function sync(Product $product): void
     {
+        $this->loadSyncRelations($product);
+
         $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Syncing])->save();
 
         try {
             $shopifyId = $this->push($product);
+            $this->pushIngredientsMetafield($shopifyId, $product);
 
             $product->forceFill([
                 'shopify_product_id' => $shopifyId,
@@ -67,6 +80,8 @@ class ProductSyncService
                 'product_id' => $product->getKey(),
                 'error' => $exception->getMessage(),
             ]);
+
+            throw $exception;
         }
     }
 
@@ -214,6 +229,31 @@ class ProductSyncService
     }
 
     /**
+     * Mark every product as needing a Shopify sync and queue jobs for all of them.
+     *
+     * @return int Number of products queued.
+     */
+    public function queueAll(): int
+    {
+        Product::query()->update([
+            'shopify_sync_status' => ShopifySyncStatus::Unsynced->value,
+        ]);
+
+        $queued = 0;
+
+        Product::query()
+            ->select('id')
+            ->chunkById(500, function ($products) use (&$queued) {
+                foreach ($products as $product) {
+                    SyncShopifyProductJob::dispatch($product->id);
+                    $queued++;
+                }
+            });
+
+        return $queued;
+    }
+
+    /**
      * Products that are not yet synced (never pushed, or last attempt failed).
      */
     private function pendingProducts(): \Illuminate\Database\Eloquent\Builder
@@ -269,6 +309,45 @@ class ProductSyncService
         }
 
         return $shopifyId;
+    }
+
+    private function loadSyncRelations(Product $product): void
+    {
+        $product->loadMissing([
+            'variants',
+            'ingredients' => fn ($query) => $query->orderBy('product_ingredients.id'),
+        ]);
+    }
+
+    private function pushIngredientsMetafield(string $shopifyProductId, Product $product): void
+    {
+        $config = config('sales.shopify.ingredients_metafield', []);
+        $namespace = (string) ($config['namespace'] ?? 'custom');
+        $key = (string) ($config['key'] ?? 'ingredients');
+        $type = (string) ($config['type'] ?? 'rich_text_field');
+
+        $value = IngredientShopifyFormatter::toMetafieldValue($product->ingredients, $type);
+
+        if ($value === null) {
+            return;
+        }
+
+        $response = $this->query([
+            'query' => self::METAFIELDS_SET_MUTATION,
+            'variables' => [
+                'metafields' => [[
+                    'ownerId' => $shopifyProductId,
+                    'namespace' => $namespace,
+                    'key' => $key,
+                    'type' => $type,
+                    'value' => $value,
+                ]],
+            ],
+        ]);
+
+        $result = $response->data['metafieldsSet'] ?? [];
+
+        $this->assertNoUserErrors($result['userErrors'] ?? []);
     }
 
     private function buildInput(Product $product): array

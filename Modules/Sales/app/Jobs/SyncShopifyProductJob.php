@@ -29,7 +29,10 @@ class SyncShopifyProductJob implements ShouldQueue
 
     public function handle(ProductSyncService $service): void
     {
-        $product = Product::with('variants')->find($this->productId);
+        $product = Product::with([
+            'variants',
+            'ingredients' => fn ($query) => $query->orderBy('product_ingredients.id'),
+        ])->find($this->productId);
 
         if ($product !== null) {
             $service->sync($product);
