@@ -289,8 +289,12 @@ class CollectionAssignService
 
         $configured = config('sales.shopify.online_store_publication_id');
 
-        if (is_string($configured) && $configured !== '') {
-            return $this->onlineStorePublicationId = $configured;
+        if (is_string($configured)) {
+            $configured = trim($configured);
+
+            if ($configured !== '') {
+                return $this->onlineStorePublicationId = $configured;
+            }
         }
 
         $response = $this->query(['query' => self::PUBLICATIONS_QUERY]);
@@ -299,7 +303,13 @@ class CollectionAssignService
         foreach ($edges as $edge) {
             $node = is_array($edge) ? ($edge['node'] ?? null) : null;
 
-            if (is_array($node) && strtolower((string) ($node['name'] ?? '')) === 'online store') {
+            if (! is_array($node)) {
+                continue;
+            }
+
+            $name = strtolower(trim((string) ($node['name'] ?? '')));
+
+            if ($name === 'online store' || str_contains($name, 'online store')) {
                 return $this->onlineStorePublicationId = (string) $node['id'];
             }
         }

@@ -493,7 +493,11 @@ class ProductSyncService
             throw new ShopifyException('Shopify inventory location was not found.');
         }
 
-        $this->push($product);
+        // Inventory-only sync still updates the product in Shopify (productSet).
+        // Ensure the product remains included in the Online Store sales channel.
+        $shopifyProductId = $this->push($product);
+        $product->forceFill(['shopify_product_id' => $shopifyProductId])->save();
+        $this->publishToOnlineStore($shopifyProductId);
 
         return $this->applyInventoryLevels($product, $shopifyProductId);
     }
@@ -868,8 +872,12 @@ class ProductSyncService
 
         $configured = config('sales.shopify.online_store_publication_id');
 
-        if (is_string($configured) && $configured !== '') {
-            return $this->onlineStorePublicationId = $configured;
+        if (is_string($configured)) {
+            $configured = trim($configured);
+
+            if ($configured !== '') {
+                return $this->onlineStorePublicationId = $configured;
+            }
         }
 
         $response = $this->query(['query' => self::PUBLICATIONS_QUERY]);
@@ -882,7 +890,9 @@ class ProductSyncService
                 continue;
             }
 
-            if (strtolower((string) ($node['name'] ?? '')) === 'online store') {
+            $name = strtolower(trim((string) ($node['name'] ?? '')));
+
+            if ($name === 'online store' || str_contains($name, 'online store')) {
                 return $this->onlineStorePublicationId = (string) $node['id'];
             }
         }
