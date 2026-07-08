@@ -12,6 +12,22 @@ use Modules\Sales\Http\Controllers\WishlistController;
 use Modules\Sales\Http\Middleware\VerifyCustomerOwnership;
 
 Route::prefix('v1/shop')->group(function (): void {
+    // Core Catalog
+    Route::get('products', [CatalogController::class, 'index']);
+    Route::get('products/{productId}', [CatalogController::class, 'show']);
+    Route::get('categories', [CatalogController::class, 'categories']);
+
+    // Product Variants
+    Route::get('products/{productId}/variants', [CatalogController::class, 'productVariants']);
+    Route::get('variants/{variantId}', [CatalogController::class, 'variantDetails']);
+
+    // Ingredients
+    Route::get('ingredients', [CatalogController::class, 'ingredients']);
+    Route::get('ingredients/{ingredientId}', [CatalogController::class, 'ingredientDetails']);
+    Route::get('products/{productId}/ingredients', [CatalogController::class, 'productIngredients']);
+});
+
+Route::prefix('v1/shop')->group(function (): void {
     Route::get('products', [CatalogController::class, 'index']);
     Route::get('products/{productId}', [CatalogController::class, 'show']);
     Route::get('categories', [CatalogController::class, 'categories']);
