@@ -8,6 +8,7 @@ use Modules\Sales\Console\AssignShopifyCollections;
 use Modules\Sales\Console\ImportProductsCsv;
 use Modules\Sales\Console\ShopifyTestConnection;
 use Modules\Sales\Console\SyncShopifyInventory;
+use Modules\Sales\Console\SyncShopifyProducts;
 use Modules\Sales\Integrations\Shopify\ShopifyAccessTokenProvider;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -33,6 +34,7 @@ class SalesServiceProvider extends ModuleServiceProvider
         ImportProductsCsv::class,
         ShopifyTestConnection::class,
         SyncShopifyInventory::class,
+        SyncShopifyProducts::class,
     ];
 
     /**
