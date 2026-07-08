@@ -97,6 +97,30 @@ class ProductSyncService
     }
 
     /**
+     * Queue a parent product re-sync after a variant is created locally.
+     */
+    public function createVariant(Product $product): void
+    {
+        $this->queueSync($product);
+    }
+
+    /**
+     * Queue a parent product re-sync after a variant is updated locally.
+     */
+    public function updateVariant(Product $product): void
+    {
+        $this->queueSync($product);
+    }
+
+    /**
+     * Queue a parent product re-sync after a variant is deleted locally.
+     */
+    public function deleteVariant(Product $product): void
+    {
+        $this->queueSync($product);
+    }
+
+    /**
      * Queue removal of a product from Shopify when the local record is deleted.
      */
     public function queueDelete(Product $product): void

@@ -40,7 +40,7 @@ class ProductVariantController extends Controller
         ]);
 
         $product->load(['variants', 'category']);
-        $this->shopify->update($product);
+        $this->shopify->createVariant($product);
 
         return (new ProductResource($product))
             ->response()
@@ -70,7 +70,7 @@ class ProductVariantController extends Controller
         $variant->update($validated);
 
         $product->load(['variants', 'category']);
-        $this->shopify->update($product);
+        $this->shopify->updateVariant($product);
 
         return new ProductResource($product);
     }
@@ -92,7 +92,7 @@ class ProductVariantController extends Controller
             throw $exception;
         }
 
-        $this->shopify->update($product->load(['variants', 'category']));
+        $this->shopify->deleteVariant($product->load(['variants', 'category']));
 
         return response()->noContent();
     }
@@ -110,7 +110,10 @@ class ProductVariantController extends Controller
             'stock_quantity' => $validated['stock_quantity'],
         ]);
 
-        return new ProductResource($product->fresh()->load('variants'));
+        $product->load(['variants', 'category']);
+        $this->shopify->updateVariant($product);
+
+        return new ProductResource($product);
     }
 
     private function findVariant(Product $product, int $variantId): ProductVariant

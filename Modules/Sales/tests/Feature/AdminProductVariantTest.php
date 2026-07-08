@@ -102,5 +102,7 @@ class AdminProductVariantTest extends TestCase
             ->assertNoContent();
 
         $this->assertDatabaseMissing('product_variants', ['id' => $variant->id]);
+
+        Queue::assertPushed(SyncShopifyProductJob::class);
     }
 }

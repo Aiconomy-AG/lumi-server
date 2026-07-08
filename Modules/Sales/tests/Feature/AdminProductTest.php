@@ -53,6 +53,8 @@ class AdminProductTest extends TestCase
             'stock_quantity' => 9,
         ])->assertOk()->assertJsonPath('data.variants.0.stock_quantity', 9);
 
+        Queue::assertPushed(SyncShopifyProductJob::class, 3);
+
         $this->deleteJson("/api/v1/admin/products/{$productId}")
             ->assertForbidden();
     }
