@@ -18,6 +18,20 @@ class Customer extends Model
         'shopify_customer_id',
     ];
 
+    /**
+     * Resolve Customer from the authenticated User.
+     */
+    public static function resolveFromUser($user): self
+    {
+        return self::firstOrCreate(
+            ['email' => $user->email],
+            [
+                'username' => $user->name,
+                'shopify_customer_id' => 'mock_cus_' . uniqid(),
+            ]
+        );
+    }
+
     public function orders()
     {
         return $this->hasMany(Order::class);

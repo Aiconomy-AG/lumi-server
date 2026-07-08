@@ -17,7 +17,7 @@ abstract class TestCase extends BaseTestCase
             'sales.shopify' => array_merge([
                 'client_id' => 'test-client-id',
                 'client_secret' => 'test-client-secret',
-                'sales' => 'test-sales.myshopify.com',
+                'shop' => 'test-sales.myshopify.com',
                 'api_version' => '2026-07',
             ], $overrides),
         ]);

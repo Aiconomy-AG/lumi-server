@@ -32,16 +32,8 @@ class CheckoutController extends Controller
 
         $user = $request->user();
 
-        // Find or create customer matching user's email
-        $customer = Customer::firstOrCreate(
-            ['email' => $user->email],
-            [
-                'username' => $user->name,
-                'shopify_customer_id' => 'mock_cus_' . uniqid(),
-            ]
-        );
+        $customer = Customer::resolveFromUser($user);
 
-        // Map OpenAPI status & payment_status request parameters to database enum equivalents
         $dbStatus = 'pending';
         if (($validated['payment_status'] ?? null) === 'successful') {
             $dbStatus = 'paid';
@@ -56,13 +48,20 @@ class CheckoutController extends Controller
             $dbPaymentStatus = 'fulfilled';
         }
 
-        // Calculate subtotal from products in database
         $subtotal = 0.00;
         $itemsData = [];
 
         foreach ($validated['items'] as $item) {
             $product = Product::find($item['product_id']);
             $price = (float) $product->price;
+
+            if ($price <= 0.00) {
+                $firstVariant = $product->variants()->first();
+                if ($firstVariant) {
+                    $price = (float) $firstVariant->price;
+                }
+            }
+
             $subtotal += $price * $item['quantity'];
 
             $itemsData[] = [
@@ -74,7 +73,6 @@ class CheckoutController extends Controller
         $shippingCost = isset($validated['shipping_cost']) ? (float) $validated['shipping_cost'] : 5.00;
         $totalAmount = $subtotal + $shippingCost;
 
-        // Perform transactional database insertion
         $order = DB::transaction(function () use ($customer, $dbStatus, $dbPaymentStatus, $subtotal, $shippingCost, $totalAmount, $validated, $itemsData) {
             $order = Order::create([
                 'customer_id' => $customer->id,
@@ -94,7 +92,6 @@ class CheckoutController extends Controller
             return $order;
         });
 
-        // Load items relation for output transformation
         $order->load('items');
 
         return (new OrderResource($order))
@@ -116,9 +113,8 @@ class CheckoutController extends Controller
         }
 
         $user = $request->user();
-        $customer = Customer::where('email', $user->email)->first();
+        $customer = Customer::resolveFromUser($user);
 
-        // Restrict to owner unless requesting user is an admin
         if (!$customer || (!$user->isAdmin() && $customer->id != $customerId)) {
             return response()->json([
                 'code' => 'UNAUTHORIZED',
@@ -148,7 +144,7 @@ class CheckoutController extends Controller
         }
 
         $user = $request->user();
-        $customer = Customer::where('email', $user->email)->first();
+        $customer = Customer::resolveFromUser($user);
 
         // Restrict to owner unless requesting user is an admin
         if (!$customer || (!$user->isAdmin() && $order->customer_id != $customer->id)) {

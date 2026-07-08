@@ -64,6 +64,8 @@ components:
           format: double
         weight_unit:
           type: string
+        colour:
+          type: string
         stock_quantity:
           type: integer
 
@@ -211,6 +213,27 @@ paths:
                   $ref: "#/components/schemas/Product"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Catalog
+      summary: Create a new product
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Product"
+      responses:
+        "201":
+          description: Product successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /shop/products/{productId}:
     get:
@@ -230,6 +253,155 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Catalog
+      summary: Update an existing product
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Product"
+      responses:
+        "200":
+          description: Product successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /shop/products/{productId}/variants:
+    get:
+      tags:
+        - Catalog
+      summary: List all variants of a product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of product variants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product_Variant"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /shop/variants/{variantId}:
+    get:
+      tags:
+        - Catalog
+      summary: Get product variant details
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product variant details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /shop/ingredients:
+    get:
+      tags:
+        - Catalog
+      summary: List all ingredients
+      parameters:
+        - name: is_allergen
+          in: query
+          schema:
+            type: boolean
+        - name: is_vegan
+          in: query
+          schema:
+            type: boolean
+        - name: is_natural
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A list of ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ingredient"
+
+  /shop/ingredients/{ingredientId}:
+    get:
+      tags:
+        - Catalog
+      summary: Get ingredient details
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ingredient details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /shop/products/{productId}/ingredients:
+    get:
+      tags:
+        - Catalog
+      summary: List ingredients of a product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of ingredients for the product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ingredient"
         "404":
           $ref: "#/components/responses/NotFound"
 
