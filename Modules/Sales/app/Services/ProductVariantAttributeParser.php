@@ -113,6 +113,33 @@ class ProductVariantAttributeParser
         return [null, strtolower($size)];
     }
 
+    /**
+     * Parse a CSV "Variant Option Values" string like
+     * "Farbe: rot, Grösse: 100g" into ['Farbe' => 'rot', 'Grösse' => '100g'].
+     *
+     * @return array<string, string>|null
+     */
+    public static function options(string $raw): ?array
+    {
+        if (trim($raw) === '') {
+            return null;
+        }
+
+        $options = [];
+
+        foreach (explode(',', $raw) as $pair) {
+            [$key, $value] = array_pad(explode(':', $pair, 2), 2, '');
+            $key = trim($key);
+            $value = trim($value);
+
+            if ($key !== '' && $value !== '') {
+                $options[$key] = $value;
+            }
+        }
+
+        return $options !== [] ? $options : null;
+    }
+
     public static function colourCode(string $name): ?string
     {
         return preg_match('/\s(\d{1,2}[NWC])$/', $name, $matches) === 1
