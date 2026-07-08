@@ -31,6 +31,13 @@ class AdminProductTest extends TestCase
 
         $productId = $createResponse->json('data.id');
 
+        $this->assertDatabaseCount('product_variants', 1);
+        $this->assertDatabaseHas('product_variants', [
+            'product_id' => $productId,
+            'name' => 'Panel Product',
+            'stock_quantity' => 0,
+        ]);
+
         Queue::assertPushed(SyncShopifyProductJob::class);
 
         $this->putJson("/api/v1/admin/products/{$productId}", [
@@ -40,18 +47,16 @@ class AdminProductTest extends TestCase
 
         Queue::assertPushed(SyncShopifyProductJob::class, 2);
 
-        $variant = ProductVariant::create([
-            'product_id' => $productId,
-            'sku' => 'sku-1',
-            'price' => 11,
-            'weight' => 1,
-            'weight_unit' => 'kg',
-            'stock_quantity' => 2,
-        ]);
+        $variant = ProductVariant::where('product_id', $productId)->firstOrFail();
 
         $this->patchJson("/api/v1/admin/products/{$productId}/variants/{$variant->id}", [
             'stock_quantity' => 9,
-        ])->assertOk()->assertJsonPath('data.variants.0.stock_quantity', 9);
+        ])->assertOk();
+
+        $this->assertDatabaseHas('product_variants', [
+            'id' => $variant->id,
+            'stock_quantity' => 9,
+        ]);
 
         Queue::assertPushed(SyncShopifyProductJob::class, 3);
 
@@ -185,6 +190,30 @@ class AdminProductTest extends TestCase
         $this->assertDatabaseHas('product_variants', [
             'sku' => 'SG-120',
             'name' => 'Shower Gel, 120 g',
+        ]);
+    }
+
+    public function test_store_creates_default_variant_when_no_variants_provided(): void
+    {
+        Queue::fake();
+
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $this->postJson('/api/v1/admin/products', [
+            'name' => 'Massage Bar',
+            'price' => 8.5,
+            'sku' => 'MB-001',
+            'stock_quantity' => 25,
+        ])->assertCreated()
+            ->assertJsonCount(1, 'data.variants')
+            ->assertJsonPath('data.variants.0.sku', 'MB-001')
+            ->assertJsonPath('data.variants.0.name', 'Massage Bar')
+            ->assertJsonPath('data.variants.0.stock_quantity', 25);
+
+        $this->assertDatabaseHas('product_variants', [
+            'sku' => 'MB-001',
+            'name' => 'Massage Bar',
+            'stock_quantity' => 25,
         ]);
     }
 }

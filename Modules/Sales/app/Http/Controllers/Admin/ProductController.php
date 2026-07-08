@@ -109,6 +109,7 @@ class ProductController extends Controller
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'category_name' => ['nullable', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:255'],
+            'stock_quantity' => ['nullable', 'integer', 'min:0'],
             'variants' => ['sometimes', 'array', 'min:1'],
             'variants.*.sku' => ['required_with:variants', 'string', 'max:255', 'unique:product_variants,sku'],
             'variants.*.name' => ['nullable', 'string', 'max:255'],
@@ -120,10 +121,11 @@ class ProductController extends Controller
             'variants.*.options.*' => ['string', 'max:255'],
         ]);
 
-        $productData = collect($validated)->except(['variants', 'category_name'])->all();
+        $productData = collect($validated)->except(['variants', 'category_name', 'stock_quantity'])->all();
         $variantData = $validated['variants'] ?? [];
+        $stockQuantity = $validated['stock_quantity'] ?? 0;
 
-        $product = DB::transaction(function () use ($productData, $variantData, $validated): Product {
+        $product = DB::transaction(function () use ($productData, $variantData, $stockQuantity, $validated): Product {
             if (! isset($productData['category_id']) && ! empty($validated['category_name'])) {
                 $category = Category::firstOrCreate(['name' => $validated['category_name']]);
                 $productData['category_id'] = $category->id;
@@ -144,6 +146,8 @@ class ProductController extends Controller
                     ],
                     $variantData
                 ));
+            } else {
+                $this->createDefaultVariant($product, $stockQuantity);
             }
 
             return $product;
@@ -204,5 +208,19 @@ class ProductController extends Controller
         }
 
         return response()->noContent();
+    }
+
+    private function createDefaultVariant(Product $product, int $stockQuantity = 0): void
+    {
+        $sku = $product->sku !== null && $product->sku !== ''
+            ? $product->sku
+            : 'product-'.$product->getKey();
+
+        $product->variants()->create([
+            'sku' => $sku,
+            'name' => $product->name,
+            'price' => $product->price,
+            'stock_quantity' => $stockQuantity,
+        ]);
     }
 }
