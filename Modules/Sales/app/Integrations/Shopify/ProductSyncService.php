@@ -467,11 +467,12 @@ class ProductSyncService
             ];
         }
 
-        // Only attach the image on the first push; on re-syncs (matched by
-        // handle) the product already carries it, so re-sending would duplicate.
-        if (empty($product->shopify_product_id) && ! empty($product->image_url)) {
+        if (! empty($product->image_url)) {
             $input['files'] = [
-                ['originalSource' => $product->image_url, 'contentType' => 'IMAGE'],
+                [
+                    'originalSource' => $product->image_url,
+                    'contentType' => 'IMAGE',
+                ],
             ];
         }
 
