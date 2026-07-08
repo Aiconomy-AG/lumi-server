@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Modules\Sales\Database\Factories\ProductVariantFactory;
 
 // use Modules\Sales\Database\Factories\ProductVariantFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductVariant extends Model
 {
@@ -37,6 +38,14 @@ class ProductVariant extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(
+            CartItem::class,
+            'product_variant_id'
+        );
     }
 
     protected static function newFactory(): ProductVariantFactory
