@@ -16,7 +16,6 @@ class CustomerController extends Controller
     {
         $user = $request->user();
 
-        // Assuming your Customer model handles resolving the relationship cleanly
         $customer = Customer::resolveFromUser($user);
 
         return new CustomerResource($customer);

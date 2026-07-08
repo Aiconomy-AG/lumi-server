@@ -8,6 +8,7 @@ use Modules\Sales\Enums\ShopifySyncStatus;
 use Modules\Sales\Exceptions\Shopify\ShopifyException;
 use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
 use Modules\Sales\Jobs\DeleteShopifyProductJob;
+use Modules\Sales\Jobs\SyncShopifyInventoryJob;
 use Modules\Sales\Jobs\SyncShopifyProductJob;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
@@ -64,6 +65,59 @@ class ProductSyncService
     }
     GRAPHQL;
 
+    private const LOCATIONS_QUERY = <<<'GRAPHQL'
+    query Locations {
+        locations(first: 10) {
+            edges { node { id name isActive } }
+        }
+    }
+    GRAPHQL;
+
+    private const PRODUCT_INVENTORY_QUERY = <<<'GRAPHQL'
+    query ProductInventory($id: ID!) {
+        product(id: $id) {
+            variants(first: 250) {
+                nodes {
+                    id
+                    sku
+                    inventoryItem {
+                        id
+                        tracked
+                    }
+                }
+            }
+        }
+    }
+    GRAPHQL;
+
+    private const INVENTORY_ACTIVATE_MUTATION = <<<'GRAPHQL'
+    mutation InventoryActivate($inventoryItemId: ID!, $locationId: ID!, $available: Int) {
+        inventoryActivate(
+            inventoryItemId: $inventoryItemId
+            locationId: $locationId
+            available: $available
+        ) {
+            userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
+    private const INVENTORY_ITEM_UPDATE_MUTATION = <<<'GRAPHQL'
+    mutation InventoryItemUpdate($id: ID!, $input: InventoryItemInput!) {
+        inventoryItemUpdate(id: $id, input: $input) {
+            userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
+    private const INVENTORY_SET_QUANTITIES_MUTATION = <<<'GRAPHQL'
+    mutation InventorySetQuantities($input: InventorySetQuantitiesInput!) {
+        inventorySetQuantities(input: $input) {
+            userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
     private const PUBLISHABLE_PUBLISH_MUTATION = <<<'GRAPHQL'
     mutation PublishablePublish($id: ID!, $input: [PublicationInput!]!) {
         publishablePublish(id: $id, input: $input) {
@@ -74,6 +128,8 @@ class ProductSyncService
     GRAPHQL;
 
     private ?string $onlineStorePublicationId = null;
+
+    private ?string $inventoryLocationId = null;
 
     public function __construct(
         private readonly ShopifyConnector $connector,
@@ -340,6 +396,307 @@ class ProductSyncService
         return $queued;
     }
 
+    /**
+     * Queue inventory-only sync jobs for every product already linked to Shopify.
+     *
+     * @return int Number of products queued.
+     */
+    public function queueInventorySync(?int $productId = null): int
+    {
+        $queued = 0;
+
+        $query = $this->syncedProductsQuery();
+
+        if ($productId !== null) {
+            $query->whereKey($productId);
+        }
+
+        $query
+            ->select('id')
+            ->chunkById(500, function ($products) use (&$queued) {
+                foreach ($products as $product) {
+                    SyncShopifyInventoryJob::dispatch($product->id);
+                    $queued++;
+                }
+            });
+
+        return $queued;
+    }
+
+    /**
+     * Push local variant stock to Shopify for every linked product.
+     *
+     * @return array{synced: int, failed: int, skipped: int, variants: int, errors: array<int, string>}
+     */
+    public function syncAllInventory(?int $productId = null): array
+    {
+        $stats = [
+            'synced' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'variants' => 0,
+            'errors' => [],
+        ];
+
+        $query = $this->syncedProductsQuery()->with('variants');
+
+        if ($productId !== null) {
+            $query->whereKey($productId);
+        }
+
+        $query->chunkById(100, function ($products) use (&$stats) {
+            foreach ($products as $product) {
+                if ($product->variants->isEmpty()) {
+                    $stats['skipped']++;
+
+                    continue;
+                }
+
+                try {
+                    $stats['variants'] += $this->syncInventory($product);
+                    $stats['synced']++;
+                } catch (ShopifyException $exception) {
+                    $stats['failed']++;
+                    $stats['errors'][$product->getKey()] = $exception->getMessage();
+
+                    Log::warning('Shopify inventory sync failed', [
+                        'product_id' => $product->getKey(),
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        });
+
+        return $stats;
+    }
+
+    /**
+     * Re-sync variant inventory for a product already linked to Shopify.
+     *
+     * @return int Number of variant inventory levels updated.
+     */
+    public function syncInventory(Product $product): int
+    {
+        $this->loadSyncRelations($product);
+
+        $shopifyProductId = $product->shopify_product_id;
+
+        if (! is_string($shopifyProductId) || $shopifyProductId === '') {
+            throw new ShopifyException('Product is not linked to Shopify yet.');
+        }
+
+        if ($product->variants->isEmpty()) {
+            return 0;
+        }
+
+        if ($this->inventoryLocationId() === null) {
+            throw new ShopifyException('Shopify inventory location was not found.');
+        }
+
+        $this->push($product);
+
+        return $this->applyInventoryLevels($product, $shopifyProductId);
+    }
+
+    private function applyInventoryLevels(Product $product, string $shopifyProductId): int
+    {
+        $locationId = $this->inventoryLocationId();
+
+        if ($locationId === null) {
+            throw new ShopifyException('Shopify inventory location was not found.');
+        }
+
+        $shopifyVariants = $this->shopifyVariantsWithInventory($shopifyProductId);
+        $matches = $this->matchVariantsToShopifyNodes($product, $shopifyVariants);
+        $updated = 0;
+
+        foreach ($matches as $match) {
+            /** @var ProductVariant $variant */
+            $variant = $match['variant'];
+            $inventoryItemId = $match['inventory_item_id'];
+            $quantity = max(0, (int) $variant->stock_quantity);
+
+            if (($match['tracked'] ?? false) !== true) {
+                $this->enableInventoryTracking($inventoryItemId);
+            }
+
+            $this->activateInventoryAtLocation($inventoryItemId, $locationId, $quantity);
+            $this->setInventoryQuantity($inventoryItemId, $locationId, $quantity);
+            $updated++;
+        }
+
+        if ($updated === 0) {
+            throw new ShopifyException('No Shopify variants matched local inventory rows.');
+        }
+
+        return $updated;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function shopifyVariantsWithInventory(string $shopifyProductId): array
+    {
+        $response = $this->query([
+            'query' => self::PRODUCT_INVENTORY_QUERY,
+            'variables' => ['id' => $shopifyProductId],
+        ]);
+
+        $nodes = $response->data['product']['variants']['nodes'] ?? [];
+
+        return is_array($nodes) ? array_values(array_filter($nodes, 'is_array')) : [];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $shopifyVariants
+     * @return array<int, array{variant: ProductVariant, inventory_item_id: string, tracked: bool}>
+     */
+    private function matchVariantsToShopifyNodes(Product $product, array $shopifyVariants): array
+    {
+        $matches = [];
+        $usedShopifyIndexes = [];
+        $shopifyBySku = [];
+
+        foreach ($shopifyVariants as $index => $node) {
+            $sku = trim((string) ($node['sku'] ?? ''));
+
+            if ($sku !== '') {
+                $shopifyBySku[$sku][] = $index;
+            }
+        }
+
+        foreach ($product->variants as $variant) {
+            $sku = trim((string) $variant->sku);
+            $shopifyIndex = null;
+
+            if ($sku !== '' && isset($shopifyBySku[$sku]) && $shopifyBySku[$sku] !== []) {
+                $shopifyIndex = array_shift($shopifyBySku[$sku]);
+            }
+
+            if ($shopifyIndex === null) {
+                continue;
+            }
+
+            $node = $shopifyVariants[$shopifyIndex];
+            $inventoryItemId = $node['inventoryItem']['id'] ?? null;
+
+            if (! is_string($inventoryItemId) || $inventoryItemId === '') {
+                continue;
+            }
+
+            $usedShopifyIndexes[$shopifyIndex] = true;
+            $matches[] = [
+                'variant' => $variant,
+                'inventory_item_id' => $inventoryItemId,
+                'tracked' => (bool) ($node['inventoryItem']['tracked'] ?? false),
+            ];
+        }
+
+        $unmatchedLocal = $product->variants
+            ->reject(fn (ProductVariant $variant) => collect($matches)->contains(
+                fn (array $match) => (int) $match['variant']->getKey() === (int) $variant->getKey(),
+            ))
+            ->values();
+
+        $unmatchedShopifyIndexes = [];
+
+        foreach ($shopifyVariants as $index => $node) {
+            if (! isset($usedShopifyIndexes[$index])) {
+                $unmatchedShopifyIndexes[] = $index;
+            }
+        }
+
+        if ($unmatchedLocal->count() === count($unmatchedShopifyIndexes) && $unmatchedLocal->isNotEmpty()) {
+            foreach ($unmatchedLocal as $offset => $variant) {
+                $node = $shopifyVariants[$unmatchedShopifyIndexes[$offset]];
+                $inventoryItemId = $node['inventoryItem']['id'] ?? null;
+
+                if (! is_string($inventoryItemId) || $inventoryItemId === '') {
+                    continue;
+                }
+
+                $matches[] = [
+                    'variant' => $variant,
+                    'inventory_item_id' => $inventoryItemId,
+                    'tracked' => (bool) ($node['inventoryItem']['tracked'] ?? false),
+                ];
+            }
+        }
+
+        return $matches;
+    }
+
+    private function activateInventoryAtLocation(string $inventoryItemId, string $locationId, int $quantity): void
+    {
+        $response = $this->query([
+            'query' => self::INVENTORY_ACTIVATE_MUTATION,
+            'variables' => [
+                'inventoryItemId' => $inventoryItemId,
+                'locationId' => $locationId,
+                'available' => $quantity,
+            ],
+        ]);
+
+        $this->assertNoUserErrors(
+            $this->withoutAlreadyActivatedErrors($response->data['inventoryActivate']['userErrors'] ?? []),
+        );
+    }
+
+    private function setInventoryQuantity(string $inventoryItemId, string $locationId, int $quantity): void
+    {
+        $response = $this->query([
+            'query' => self::INVENTORY_SET_QUANTITIES_MUTATION,
+            'variables' => [
+                'input' => [
+                    'name' => 'available',
+                    'reason' => 'correction',
+                    'quantities' => [[
+                        'inventoryItemId' => $inventoryItemId,
+                        'locationId' => $locationId,
+                        'quantity' => $quantity,
+                        'changeFromQuantity' => null,
+                    ]],
+                ],
+            ],
+        ]);
+
+        $this->assertNoUserErrors($response->data['inventorySetQuantities']['userErrors'] ?? []);
+    }
+
+    /**
+     * @param  array<int, mixed>  $errors
+     * @return array<int, mixed>
+     */
+    private function withoutAlreadyActivatedErrors(array $errors): array
+    {
+        return array_values(array_filter($errors, function ($error) {
+            $message = is_array($error) ? strtolower((string) ($error['message'] ?? '')) : '';
+
+            return ! str_contains($message, 'already')
+                && ! str_contains($message, 'stocked at this location');
+        }));
+    }
+
+    private function syncedProductsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Product::query()
+            ->whereNotNull('shopify_product_id')
+            ->where('shopify_product_id', '!=', '');
+    }
+
+    private function enableInventoryTracking(string $inventoryItemId): void
+    {
+        $response = $this->query([
+            'query' => self::INVENTORY_ITEM_UPDATE_MUTATION,
+            'variables' => [
+                'id' => $inventoryItemId,
+                'input' => ['tracked' => true],
+            ],
+        ]);
+
+        $this->assertNoUserErrors($response->data['inventoryItemUpdate']['userErrors'] ?? []);
+    }
+
     private function queueSync(Product $product): void
     {
         $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Unsynced])->save();
@@ -467,11 +824,12 @@ class ProductSyncService
             ];
         }
 
-        // Only attach the image on the first push; on re-syncs (matched by
-        // handle) the product already carries it, so re-sending would duplicate.
-        if (empty($product->shopify_product_id) && ! empty($product->image_url)) {
+        if (! empty($product->image_url)) {
             $input['files'] = [
-                ['originalSource' => $product->image_url, 'contentType' => 'IMAGE'],
+                [
+                    'originalSource' => $product->image_url,
+                    'contentType' => 'IMAGE',
+                ],
             ];
         }
 
@@ -726,21 +1084,87 @@ class ProductSyncService
                 $data['sku'] = $variant->sku;
             }
 
-            $weightUnit = $this->weightUnit($variant->weight_unit);
-
-            if ($weightUnit !== null && $variant->weight !== null) {
-                $data['inventoryItem'] = [
-                    'measurement' => [
-                        'weight' => [
-                            'value' => (float) $variant->weight,
-                            'unit' => $weightUnit,
-                        ],
-                    ],
-                ];
-            }
+            $data['inventoryItem'] = $this->buildInventoryItem($variant);
+            $data['inventoryQuantities'] = $this->buildInventoryQuantities($variant);
         }
 
         return $data;
+    }
+
+    private function buildInventoryItem(ProductVariant $variant): array
+    {
+        $inventoryItem = [
+            'tracked' => true,
+        ];
+
+        $weightUnit = $this->weightUnit($variant->weight_unit);
+
+        if ($weightUnit !== null && $variant->weight !== null) {
+            $inventoryItem['measurement'] = [
+                'weight' => [
+                    'value' => (float) $variant->weight,
+                    'unit' => $weightUnit,
+                ],
+            ];
+        }
+
+        return $inventoryItem;
+    }
+
+    /**
+     * @return array<int, array{locationId: string, name: string, quantity: int}>
+     */
+    private function buildInventoryQuantities(ProductVariant $variant): array
+    {
+        $locationId = $this->inventoryLocationId();
+
+        if ($locationId === null) {
+            return [];
+        }
+
+        return [[
+            'locationId' => $locationId,
+            'name' => 'available',
+            'quantity' => max(0, (int) $variant->stock_quantity),
+        ]];
+    }
+
+    private function inventoryLocationId(): ?string
+    {
+        if ($this->inventoryLocationId !== null) {
+            return $this->inventoryLocationId;
+        }
+
+        $configured = config('sales.shopify.inventory_location_id');
+
+        if (is_string($configured) && $configured !== '') {
+            return $this->inventoryLocationId = $configured;
+        }
+
+        $response = $this->query(['query' => self::LOCATIONS_QUERY]);
+        $edges = $response->data['locations']['edges'] ?? [];
+
+        foreach ($edges as $edge) {
+            $node = is_array($edge) ? ($edge['node'] ?? null) : null;
+
+            if (! is_array($node)) {
+                continue;
+            }
+
+            if (($node['isActive'] ?? true) === false) {
+                continue;
+            }
+
+            $id = $node['id'] ?? null;
+
+            if (is_string($id) && $id !== '') {
+                return $this->inventoryLocationId = $id;
+            }
+        }
+
+        Log::warning('Shopify inventory location was not found; stock quantities were not pushed.');
+
+        return null;
     }
 
     /**

@@ -172,7 +172,7 @@ components:
             $ref: '#/components/schemas/Error'
 
 paths:
-  /auth/login:
+  /api/auth/login:
     post:
       tags:
         - Authentication

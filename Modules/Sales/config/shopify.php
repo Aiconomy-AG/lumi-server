@@ -12,6 +12,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Inventory location
+    |--------------------------------------------------------------------------
+    |
+    | Shopify location GID used when pushing variant stock quantities, e.g.
+    | gid://shopify/Location/123456789. When omitted, the first active
+    | location returned by the Admin API is used.
+    |
+    */
+    'inventory_location_id' => env('SHOPIFY_INVENTORY_LOCATION_ID'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Legacy local category → Shopify collection handle
     |--------------------------------------------------------------------------
     |
