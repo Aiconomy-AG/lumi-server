@@ -207,13 +207,16 @@ class ProductSyncService
 
         try {
             $shopifyId = $this->push($product);
+
+            // Persist the link right away: if a later step (metafields,
+            // publish, collections) fails, the product already exists in
+            // Shopify and retries must update it instead of appearing unsynced.
+            $product->forceFill(['shopify_product_id' => $shopifyId])->save();
+
             $this->pushIngredientsMetafield($shopifyId, $product);
             $this->publishToOnlineStore($shopifyId);
 
-            $product->forceFill([
-                'shopify_product_id' => $shopifyId,
-                'shopify_sync_status' => ShopifySyncStatus::Synced,
-            ])->save();
+            $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Synced])->save();
 
             $this->assignProductCollection($product, $shopifyId);
         } catch (ShopifyException $exception) {
@@ -849,7 +852,10 @@ class ProductSyncService
         $publicationId = $this->onlineStorePublicationId();
 
         if ($publicationId === null) {
-            throw new ShopifyException('Online Store publication was not found.');
+            throw new ShopifyException(
+                'Online Store publication was not found. Grant the app read_publications/write_publications scopes '
+                .'or set SHOPIFY_ONLINE_STORE_PUBLICATION_ID.',
+            );
         }
 
         $response = $this->query([
@@ -882,6 +888,7 @@ class ProductSyncService
 
         $response = $this->query(['query' => self::PUBLICATIONS_QUERY]);
         $edges = $response->data['publications']['edges'] ?? [];
+        $names = [];
 
         foreach ($edges as $edge) {
             $node = is_array($edge) ? ($edge['node'] ?? null) : null;
@@ -891,11 +898,19 @@ class ProductSyncService
             }
 
             $name = strtolower(trim((string) ($node['name'] ?? '')));
+            $names[] = $name;
 
             if ($name === 'online store' || str_contains($name, 'online store')) {
                 return $this->onlineStorePublicationId = (string) $node['id'];
             }
         }
+
+        // An empty list usually means the app token is missing the
+        // read_publications scope; otherwise the channel has a custom name and
+        // SHOPIFY_ONLINE_STORE_PUBLICATION_ID must be set explicitly.
+        Log::warning('Shopify Online Store publication not found', [
+            'publications' => $names,
+        ]);
 
         return null;
     }
