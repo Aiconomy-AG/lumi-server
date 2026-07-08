@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Sales\Models\Category;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Transformers\ProductResource;
 
@@ -13,7 +14,7 @@ class ProductController extends Controller
 {
     public function index()
     {
-        return ProductResource::collection(Product::with('variants')->get());
+        return ProductResource::collection(Product::with(['variants', 'category'])->get());
     }
 
     public function store(Request $request)
@@ -24,6 +25,7 @@ class ProductController extends Controller
             'description' => ['nullable', 'string'],
             'image_url' => ['nullable', 'url'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'category_name' => ['nullable', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:255'],
             'variants' => ['sometimes', 'array', 'min:1'],
             'variants.*.sku' => ['required_with:variants', 'string', 'max:255', 'unique:product_variants,sku'],
@@ -33,10 +35,15 @@ class ProductController extends Controller
             'variants.*.stock_quantity' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $productData = collect($validated)->except(['variants'])->all();
+        $productData = collect($validated)->except(['variants', 'category_name'])->all();
         $variantData = $validated['variants'] ?? [];
 
-        $product = DB::transaction(function () use ($productData, $variantData): Product {
+        $product = DB::transaction(function () use ($productData, $variantData, $validated): Product {
+            if (! isset($productData['category_id']) && ! empty($validated['category_name'])) {
+                $category = Category::firstOrCreate(['name' => $validated['category_name']]);
+                $productData['category_id'] = $category->id;
+            }
+
             $product = Product::create($productData);
 
             if ($variantData !== []) {
@@ -55,7 +62,7 @@ class ProductController extends Controller
             return $product;
         });
 
-        return (new ProductResource($product->load('variants')))
+        return (new ProductResource($product->load(['variants', 'category'])))
             ->response()
             ->setStatusCode(201);
     }
@@ -70,12 +77,19 @@ class ProductController extends Controller
             'description' => ['nullable', 'string'],
             'image_url' => ['nullable', 'url'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'category_name' => ['nullable', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:255'],
         ]);
 
+        if (! isset($validated['category_id']) && ! empty($validated['category_name'])) {
+            $category = Category::firstOrCreate(['name' => $validated['category_name']]);
+            $validated['category_id'] = $category->id;
+        }
+
+        unset($validated['category_name']);
         $product->update($validated);
 
-        return new ProductResource($product->load('variants'));
+        return new ProductResource($product->load(['variants', 'category']));
     }
 
     public function destroy(int $productId)
