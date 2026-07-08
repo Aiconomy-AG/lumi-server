@@ -13,26 +13,36 @@ components:
 
 paths:
   /shop/products:
-    : './paths/products.yaml'
+    $ref: './sales/paths/products.yaml'
   /shop/products/{productId}:
-    : './paths/product_details.yaml'
+    $ref: './sales/paths/product_details.yaml'
+  /shop/products/{productId}/variants:
+    $ref: './sales/paths/product_variants.yaml'
+  /shop/variants/{variantId}:
+    $ref: './sales/paths/product_variant_detail.yaml'
+  /shop/ingredients:
+    $ref: './sales/paths/ingredients.yaml'
+  /shop/ingredients/{ingredientId}:
+    $ref: './sales/paths/ingredient_detail.yaml'
+  /shop/products/{productId}/ingredients:
+    $ref: './sales/paths/product_ingredients.yaml'
   /shop/categories:
-    : './paths/categories.yaml'
+    $ref: './sales/paths/categories.yaml'
   /shop/customers/{customerId}:
-    : './paths/customer_profile.yaml'
+    $ref: './sales/paths/customer_profile.yaml'
   /shop/customers/{customerId}/cart:
-    : './paths/cart.yaml'
+    $ref: './sales/paths/cart.yaml'
   /shop/customers/{customerId}/cart/items:
-    : './paths/cart_items.yaml'
+    $ref: './sales/paths/cart_items.yaml'
   /shop/customers/{customerId}/cart/items/{productId}:
-    : './paths/cart_item_detail.yaml'
+    $ref: './sales/paths/cart_item_detail.yaml'
   /shop/customers/{customerId}/wishlist:
-    : './paths/wishlist.yaml'
+    $ref: './sales/paths/wishlist.yaml'
   /shop/customers/{customerId}/wishlist/{productId}:
-    : './paths/wishlist_item.yaml'
+    $ref: './sales/paths/wishlist_item.yaml'
   /shop/orders:
-    : './paths/orders.yaml'
+    $ref: './sales/paths/orders.yaml'
   /shop/customers/{customerId}/orders:
-    : './paths/customer_orders.yaml'
+    $ref: './sales/paths/customer_orders.yaml'
   /shop/orders/{orderId}:
-    : './paths/order_detail.yaml'
+    $ref: './sales/paths/order_detail.yaml'

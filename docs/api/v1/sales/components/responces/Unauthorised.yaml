@@ -1,5 +1,0 @@
-description: Authentication is required or invalid.
-content:
-  application/json:
-    schema:
-      $ref: '../schemas/Error.yaml'

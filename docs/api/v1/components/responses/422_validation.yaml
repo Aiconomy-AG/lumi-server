@@ -1,0 +1,12 @@
+description: Unprocessable Content. The request payload failed server-side validation rules.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/error.yaml'
+    example:
+      message: "The given data was invalid."
+      errors:
+        conversation_id:
+          - "The conversation id field is required."
+        sender_id:
+          - "The selected sender id is invalid."

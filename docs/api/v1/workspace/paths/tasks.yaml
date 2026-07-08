@@ -9,7 +9,7 @@ get:
       in: query
       schema:
         type: string
-        enum: [pending, in_progress, completed, overdue]
+        enum: [complete, to_do, in_progress, blocked]
     - name: assigneeId
       in: query
       schema:
@@ -48,10 +48,14 @@ post:
               type: string
             status:
               type: string
-              enum: [pending, in_progress, completed, overdue]
+              enum: [complete, to_do, in_progress, blocked]
             due_date:
               type: string
               format: date-time
+            parent_id:
+              type: integer
+            project_id:
+              type: integer
   responses:
     '201':
       description: Task successfully created

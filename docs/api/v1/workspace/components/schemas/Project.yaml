@@ -1,0 +1,14 @@
+type: object
+properties:
+  id:
+    type: integer
+  name:
+    type: string
+  deadline:
+    type: string
+    format: date-time
+  description:
+    type: string
+  status:
+    type: string
+    enum: [complete, to_do, in_progress, blocked]

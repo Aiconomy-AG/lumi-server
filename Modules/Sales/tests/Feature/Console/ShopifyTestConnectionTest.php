@@ -25,7 +25,7 @@ class ShopifyTestConnectionTest extends TestCase
             ]),
             'test-sales.myshopify.com/admin/api/2026-07/graphql.json' => Http::response([
                 'data' => [
-                    'sales' => [
+                    'shop' => [
                         'name' => 'Test Shop',
                         'myshopifyDomain' => 'test-sales.myshopify.com',
                     ],

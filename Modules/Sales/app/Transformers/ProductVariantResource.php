@@ -15,6 +15,7 @@ class ProductVariantResource extends JsonResource
             'weight' => $this->weight,
             'weight_unit' => $this->weight_unit,
             'stock_quantity' => $this->stock_quantity,
+            "colour" =>$this->colour,
         ];
     }
 }

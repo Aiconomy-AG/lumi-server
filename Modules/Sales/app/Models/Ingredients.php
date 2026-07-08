@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Sales\Database\Factories\IngredientsFactory;
 
 // use Modules\Sales\Database\Factories\IngredientsFactory;
 
@@ -31,5 +32,10 @@ class Ingredients extends Model
     {
         return $this->belongsToMany(Product::class, 'product_ingredients', 'ingredient_id', 'product_id')
             ->withTimestamps();
+    }
+
+    protected static function newFactory(): IngredientsFactory
+    {
+        return IngredientsFactory::new();
     }
 }

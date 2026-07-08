@@ -1,0 +1,7 @@
+description: Forbidden. The authenticated user does not have permission to access this resource.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/error.yaml'
+    example:
+      message: "This action is unauthorized."

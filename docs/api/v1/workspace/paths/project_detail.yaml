@@ -1,0 +1,84 @@
+get:
+  tags:
+    - Projects
+  summary: Get project details by ID
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: projectId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Project details
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Project.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+put:
+  tags:
+    - Projects
+  summary: Update project properties or status
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: projectId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+            deadline:
+              type: string
+              format: date-time
+            description:
+              type: string
+            status:
+              type: string
+              enum: [complete, to_do, in_progress, blocked]
+  responses:
+    '200':
+      description: Project successfully updated
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Project.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+delete:
+  tags:
+    - Projects
+  summary: Delete a project
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: projectId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Project successfully deleted
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'

@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Sales\Database\Factories\ProductVariantFactory;
 
 // use Modules\Sales\Database\Factories\ProductVariantFactory;
 
@@ -21,6 +22,7 @@ class ProductVariant extends Model
         'weight',
         'weight_unit',
         'stock_quantity',
+        'colour',
     ];
 
     protected $casts = [
@@ -32,5 +34,10 @@ class ProductVariant extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    protected static function newFactory(): ProductVariantFactory
+    {
+        return ProductVariantFactory::new();
     }
 }

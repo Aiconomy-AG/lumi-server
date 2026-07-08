@@ -1,0 +1,7 @@
+description: Unauthorized. Authenticating with a valid token is required to access this resource.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/error.yaml'
+    example:
+      message: "Unauthenticated."

@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Sales\Database\Factories\CategoryFactory;
 
 // use Modules\Sales\Database\Factories\CategoryFactory;
 
@@ -27,5 +28,9 @@ class Category extends Model
     public function children()
     {
         return $this->hasMany(Category::class, 'parent_id');
+    }
+    protected static function newFactory(): CategoryFactory
+    {
+        return CategoryFactory::new();
     }
 }
