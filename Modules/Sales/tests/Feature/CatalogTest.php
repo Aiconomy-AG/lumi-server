@@ -90,7 +90,6 @@ class CatalogTest extends TestCase
     #[Test]
     public function it_can_filter_ingredients_by_boolean_flags_and_search()
     {
-        // Create an allergen vegan ingredient
         Ingredients::factory()->create([
             'name' => 'Almond Milk',
             'is_allergen' => true,
@@ -98,7 +97,6 @@ class CatalogTest extends TestCase
             'is_natural' => true,
         ]);
 
-        // Create a non-vegan ingredient
         Ingredients::factory()->create([
             'name' => 'Heavy Cream',
             'is_allergen' => true,
@@ -106,7 +104,6 @@ class CatalogTest extends TestCase
             'is_natural' => true,
         ]);
 
-        // Filter for vegan ingredients matching search query 'Almond'
         $response = $this->getJson('/api/v1/shop/ingredients?is_vegan=true&search=Almond');
 
         $response->assertStatus(200)
