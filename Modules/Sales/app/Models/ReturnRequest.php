@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ReturnRequest extends Model
 {
     protected $fillable = [
+        'order_id',
         'customer_id',
         'shop_domain',
         'shopify_customer_id',
@@ -16,13 +17,24 @@ class ReturnRequest extends Model
         'email',
         'items',
         'reason',
+        'refund_amount',
+        'received_at',
+        'refunded_at',
         'notes',
         'status',
     ];
 
     protected $casts = [
         'items' => 'array',
+        'refund_amount' => 'decimal:2',
+        'received_at' => 'datetime',
+        'refunded_at' => 'datetime',
     ];
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
 
     public function customer(): BelongsTo
     {

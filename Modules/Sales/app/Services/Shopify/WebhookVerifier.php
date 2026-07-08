@@ -14,13 +14,34 @@ class WebhookVerifier
             return false;
         }
 
-        $calculated = base64_encode(hash_hmac(
-            'sha256',
-            $request->getContent(),
-            (string) config('sales.shopify.client_secret'),
-            true,
-        ));
+        foreach ($this->secrets() as $secret) {
+            $calculated = base64_encode(hash_hmac(
+                'sha256',
+                $request->getContent(),
+                $secret,
+                true,
+            ));
 
-        return hash_equals($calculated, $hmac);
+            if (hash_equals($calculated, $hmac)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function secrets(): array
+    {
+        return collect([
+            config('sales.shopify.client_secret'),
+            config('sales.shopify.webhook_secret'),
+        ])
+            ->filter(fn ($secret) => is_string($secret) && $secret !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 }

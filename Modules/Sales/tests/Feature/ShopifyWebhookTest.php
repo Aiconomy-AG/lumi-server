@@ -44,6 +44,28 @@ class ShopifyWebhookTest extends TestCase
         ]);
     }
 
+    public function test_webhook_accepts_manual_shopify_admin_secret(): void
+    {
+        config(['sales.shopify.webhook_secret' => 'manual-webhook-secret']);
+
+        $payload = [
+            'id' => 321,
+            'email' => 'manual@example.com',
+            'first_name' => 'Manual',
+            'last_name' => 'Webhook',
+        ];
+
+        $this->postSignedWebhook('/api/shopify/webhooks/customers/create', $payload, 'manual-webhook-secret')
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertDatabaseHas('customers', [
+            'shopify_customer_id' => '321',
+            'email' => 'manual@example.com',
+            'username' => 'Manual Webhook',
+        ]);
+    }
+
     public function test_hyphenated_webhook_paths_are_not_accepted(): void
     {
         $payload = [
@@ -92,10 +114,10 @@ class ShopifyWebhookTest extends TestCase
         ]);
     }
 
-    private function postSignedWebhook(string $url, array $payload)
+    private function postSignedWebhook(string $url, array $payload, string $secret = 'webhook-secret')
     {
         $json = json_encode($payload);
-        $hmac = base64_encode(hash_hmac('sha256', $json, 'webhook-secret', true));
+        $hmac = base64_encode(hash_hmac('sha256', $json, $secret, true));
 
         return $this->call(
             'POST',
