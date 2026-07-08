@@ -6,6 +6,10 @@ properties:
     type: integer
   sku:
     type: string
+  name:
+    type: string
+    nullable: true
+    description: Display name of the variant, e.g. "Sex Bomb Shower Gel, 120 g"
   price:
     type: number
     format: double
@@ -18,3 +22,9 @@ properties:
     type: string
   stock_quantity:
     type: integer
+  options:
+    type: object
+    nullable: true
+    additionalProperties:
+      type: string
+    description: 'Variant option values keyed by option name, e.g. {"Grösse": "100g", "Farbe": "rot"}'
