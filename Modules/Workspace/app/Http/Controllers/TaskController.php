@@ -26,7 +26,7 @@ class TaskController
 
     public function store(
         StoreTaskRequest $request
-    ): TaskResource {
+    ): TaskResource|\Illuminate\Http\JsonResponse {
         $task = $this->taskService->create(
             $request->validated()
         );
@@ -34,9 +34,13 @@ class TaskController
         return new TaskResource($task);
     }
 
-    public function show(int $taskId): TaskResource
+    public function show(int $taskId): TaskResource|\Illuminate\Http\JsonResponse
     {
         $task = $this->taskService->getById($taskId);
+
+        if (!$task) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
+        }
 
         return new TaskResource($task);
     }
@@ -44,8 +48,12 @@ class TaskController
     public function update(
         UpdateTaskRequest $request,
         int $taskId
-    ): TaskResource {
+    ): TaskResource|\Illuminate\Http\JsonResponse {
         $task = $this->taskService->getById($taskId);
+
+        if (!$task) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
+        }
 
         $task = $this->taskService->update(
             $task,
@@ -59,6 +67,10 @@ class TaskController
     {
         $task = $this->taskService->getById($taskId);
 
+        if (!$task) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
+        }
+
         $this->taskService->delete($task);
 
         return response()->json([
@@ -69,8 +81,12 @@ class TaskController
     public function assignEmployees(
         AssignTaskEmployeesRequest $request,
         int $taskId
-    ): TaskResource {
+    ): TaskResource|\Illuminate\Http\JsonResponse {
         $task = $this->taskService->getById($taskId);
+
+        if (!$task) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
+        }
 
         $task = $this->taskService->assignEmployees(
             $task,
@@ -83,8 +99,12 @@ class TaskController
     public function removeEmployee(
         int $taskId,
         int $employeeId
-    ): TaskResource {
+    ): TaskResource|\Illuminate\Http\JsonResponse {
         $task = $this->taskService->getById($taskId);
+
+        if (!$task) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
+        }
 
         $task = $this->taskService->removeEmployee(
             $task,

@@ -25,7 +25,7 @@ class ProjectController
 
     public function store(
         StoreProjectRequest $request
-    ): ProjectResource {
+    ): ProjectResource|\Illuminate\Http\JsonResponse {
         $project = $this->projectService->create(
             $request->validated()
         );
@@ -33,9 +33,13 @@ class ProjectController
         return new ProjectResource($project);
     }
 
-    public function show(int $projectId): ProjectResource
+    public function show(int $projectId): ProjectResource|\Illuminate\Http\JsonResponse
     {
         $project = $this->projectService->getById($projectId);
+
+        if (!$project) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Project not found.'], 404);
+        }
 
         return new ProjectResource($project);
     }
@@ -43,8 +47,12 @@ class ProjectController
     public function update(
         UpdateProjectRequest $request,
         int $projectId
-    ): ProjectResource {
+    ): ProjectResource|\Illuminate\Http\JsonResponse {
         $project = $this->projectService->getById($projectId);
+
+        if (!$project) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Project not found.'], 404);
+        }
 
         $project = $this->projectService->update(
             $project,
@@ -57,6 +65,10 @@ class ProjectController
     public function destroy(int $projectId): JsonResponse
     {
         $project = $this->projectService->getById($projectId);
+
+        if (!$project) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Project not found.'], 404);
+        }
 
         $this->projectService->delete($project);
 

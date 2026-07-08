@@ -12,23 +12,27 @@ components:
       bearerFormat: JWT
 
   schemas:
-    Employee:
+    User:
       type: object
       properties:
         id:
           type: integer
         role:
           type: string
-          enum: [admin, manager, employee]
+          enum: [admin, employee]
         email:
           type: string
         name:
           type: string
         phone_number:
           type: string
+        language_flag:
+          type: string
         status:
           type: string
-          enum: [active, inactive]
+          enum: [available, busy, offline, away]
+        is_active:
+          type: boolean
 
     Conversation:
       type: object
@@ -45,7 +49,7 @@ components:
         participants:
           type: array
           items:
-            $ref: '#/components/schemas/Employee'
+            $ref: '#/components/schemas/User'
 
     Message:
       type: object
@@ -102,7 +106,7 @@ components:
         assignees:
           type: array
           items:
-            $ref: '#/components/schemas/Employee'
+            $ref: '#/components/schemas/User'
 
     Task_Time_Entry:
       type: object
@@ -165,7 +169,7 @@ components:
             $ref: '#/components/schemas/Error'
 
 paths:
-  /workspace/auth/login:
+  /auth/login:
     post:
       tags:
         - Authentication
@@ -195,11 +199,11 @@ paths:
                   token:
                     type: string
                   employee:
-                    $ref: '#/components/schemas/Employee'
+                    $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /workspace/profile:
+  /auth/me:
     get:
       tags:
         - Authentication
@@ -212,15 +216,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Employee'
+                $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /workspace/employees:
+  /v1/admin/users:
     get:
       tags:
-        - Employees
-      summary: List all employees
+        - Users
+      summary: List all users
       security:
         - bearerAuth: []
       parameters:
@@ -228,12 +232,12 @@ paths:
           in: query
           schema:
             type: string
-            enum: [active, inactive]
+            enum: [available, busy, offline, away]
         - name: role
           in: query
           schema:
             type: string
-            enum: [admin, manager, employee]
+            enum: [admin, employee]
       responses:
         '200':
           description: A list of employees
@@ -242,14 +246,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Employee'
+                  $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
     post:
       tags:
-        - Employees
-      summary: Create/Onboard a new employee
+        - Users
+      summary: Create a new user
       security:
         - bearerAuth: []
       requestBody:
@@ -266,7 +270,7 @@ paths:
               properties:
                 role:
                   type: string
-                  enum: [admin, manager, employee]
+                  enum: [admin, employee]
                 email:
                   type: string
                 password:
@@ -277,23 +281,23 @@ paths:
                   type: string
       responses:
         '201':
-          description: Employee successfully onboarded
+          description: User successfully created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Employee'
+                $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /workspace/employees/{employeeId}:
+  /v1/admin/users/{userId}:
     get:
       tags:
-        - Employees
-      summary: Get employee profile by ID
+        - Users
+      summary: Get user by ID
       security:
         - bearerAuth: []
       parameters:
-        - name: employeeId
+        - name: userId
           in: path
           required: true
           schema:
@@ -304,7 +308,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Employee'
+                $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -312,12 +316,12 @@ paths:
 
     put:
       tags:
-        - Employees
-      summary: Update employee details
+        - Users
+      summary: Update user details
       security:
         - bearerAuth: []
       parameters:
-        - name: employeeId
+        - name: userId
           in: path
           required: true
           schema:
@@ -331,7 +335,7 @@ paths:
               properties:
                 role:
                   type: string
-                  enum: [admin, manager, employee]
+                  enum: [admin, employee]
                 email:
                   type: string
                 name:
@@ -340,14 +344,14 @@ paths:
                   type: string
                 status:
                   type: string
-                  enum: [active, inactive]
+                  enum: [available, busy, offline, away]
       responses:
         '200':
-          description: Employee successfully updated
+          description: User successfully updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Employee'
+                $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -355,25 +359,25 @@ paths:
 
     delete:
       tags:
-        - Employees
-      summary: Deactivate/Delete an employee
+        - Users
+      summary: Deactivate a user
       security:
         - bearerAuth: []
       parameters:
-        - name: employeeId
+        - name: userId
           in: path
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: Employee successfully deactivated
+          description: User successfully deactivated
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/projects:
+  /v1/workspace/projects:
     get:
       tags:
         - Projects
@@ -434,7 +438,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /workspace/projects/{projectId}:
+  /v1/workspace/projects/{projectId}:
     get:
       tags:
         - Projects
@@ -520,7 +524,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/tasks:
+  /v1/workspace/tasks:
     get:
       tags:
         - Tasks
@@ -589,7 +593,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /workspace/tasks/{taskId}:
+  /v1/workspace/tasks/{taskId}:
     get:
       tags:
         - Tasks
@@ -679,7 +683,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/tasks/{taskId}/assignees:
+  /v1/workspace/tasks/{taskId}/assignees:
     post:
       tags:
         - Tasks
@@ -717,7 +721,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/tasks/{taskId}/assignees/{employeeId}:
+  /v1/workspace/tasks/{taskId}/assignees/{employeeId}:
     delete:
       tags:
         - Tasks
@@ -730,7 +734,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: employeeId
+        - name: userId
           in: path
           required: true
           schema:
@@ -747,7 +751,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/tasks/{taskId}/time-entries/start:
+  /v1/workspace/tasks/{taskId}/time-entries/start:
     post:
       tags:
         - Time Tracking
@@ -772,7 +776,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/tasks/{taskId}/time-entries/{entryId}/stop:
+  /v1/workspace/tasks/{taskId}/time-entries/{entryId}/stop:
     post:
       tags:
         - Time Tracking
@@ -802,7 +806,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /workspace/tasks/{taskId}/time-entries:
+  /v1/workspace/tasks/{taskId}/time-entries:
     get:
       tags:
         - Time Tracking
@@ -837,7 +841,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: employeeId
+        - name: userId
           in: query
           schema:
             type: integer
@@ -1156,7 +1160,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: employeeId
+        - name: userId
           in: path
           required: true
           schema:

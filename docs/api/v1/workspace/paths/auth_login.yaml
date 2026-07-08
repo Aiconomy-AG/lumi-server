@@ -27,6 +27,6 @@ post:
               token:
                 type: string
               employee:
-                $ref: '../components/schemas/Employee.yaml'
+                $ref: '../components/schemas/User.yaml'
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
