@@ -48,6 +48,11 @@ class Customer extends Model
         return $this->belongsToMany(Product::class, 'wishlist_items')->withTimestamps();
     }
 
+    public function returnRequests()
+    {
+        return $this->hasMany(ReturnRequest::class);
+    }
+
     public function carts()
     {
         return $this->hasMany(Cart::class);

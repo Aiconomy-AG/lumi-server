@@ -16,6 +16,9 @@ class Order extends Model
      */
     protected $fillable = [
         'customer_id',
+        'shopify_order_id',
+        'shopify_order_name',
+        'shopify_customer_id',
         'status',
         'subtotal',
         'shipping_cost',

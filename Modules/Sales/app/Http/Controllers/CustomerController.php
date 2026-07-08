@@ -10,18 +10,22 @@ use Modules\Sales\Transformers\CustomerResource;
 class CustomerController extends Controller
 {
     /**
-     * Retrieve the current authenticated customer profile (GET /shop/me).
+     * Retrieve the current authenticated customer profile (GET /v1/shop/me).
      */
     public function me(Request $request)
     {
         $user = $request->user();
+
+        // Assuming your Customer model handles resolving the relationship cleanly
         $customer = Customer::resolveFromUser($user);
 
         return new CustomerResource($customer);
     }
 
     /**
-     * Get a customer profile by ID (GET /shop/customers/{customerId}).
+     * Get a customer profile by ID (GET /v1/shop/customers/{customerId}).
+     * * Note: Ownership / Admin validation is already handled at the routing layer
+     * via the VerifyCustomerOwnership middleware.
      */
     public function show(Request $request, $customerId)
     {
@@ -32,17 +36,6 @@ class CustomerController extends Controller
                 'code' => 'NOT_FOUND',
                 'message' => 'Customer profile not found.'
             ], 404);
-        }
-
-        $user = $request->user();
-        $currentCustomer = Customer::resolveFromUser($user);
-
-        // Restrict to profile owner unless the requesting user is an admin
-        if (!$user->isAdmin() && $currentCustomer->id !== (int) $customerId) {
-            return response()->json([
-                'code' => 'FORBIDDEN',
-                'message' => 'Access denied.'
-            ], 403);
         }
 
         return new CustomerResource($customer);

@@ -6,14 +6,17 @@ return [
     'shop' => env('SHOPIFY_SHOP'),
     'app_url' => env('SHOPIFY_APP_URL'),
     'api_version' => env('SHOPIFY_API_VERSION', '2026-07'),
+    'proxy_subpath' => env('SHOPIFY_PROXY_SUBPATH', 'lumi'),
+    'publish_products' => env('SHOPIFY_PUBLISH_PRODUCTS', true),
+    'online_store_publication_id' => env('SHOPIFY_ONLINE_STORE_PUBLICATION_ID'),
 
     /*
     |--------------------------------------------------------------------------
-    | Local category → Shopify collection handle
+    | Legacy local category → Shopify collection handle
     |--------------------------------------------------------------------------
     |
-    | Maps local categories.id to the Shopify manual collection handle (URL
-    | slug). Used when assigning synced products to collections.
+    | Optional fallback only. The sync now stores Shopify collection IDs and
+    | handles on categories directly, but existing configured maps still work.
     |
     */
     'category_collections' => [
