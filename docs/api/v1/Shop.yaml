@@ -284,6 +284,25 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Catalog
+      summary: Delete an existing product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product successfully deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /shop/products/{productId}/variants:
     get:
@@ -307,6 +326,100 @@ paths:
                   $ref: "#/components/schemas/Product_Variant"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+          - Catalog
+      summary: Add a variant to a product
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sku
+                - price
+              properties:
+                sku:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                weight:
+                  type: number
+                  format: double
+                weight_unit:
+                  type: string
+                colour:
+                  type: string
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        "201":
+          description: Product variant successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Catalog
+      summary: Update a product variant
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sku:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                weight:
+                  type: number
+                  format: double
+                weight_unit:
+                  type: string
+                colour:
+                  type: string
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          description: Product variant successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 
   /shop/variants/{variantId}:
     get:
@@ -328,6 +441,25 @@ paths:
                 $ref: "#/components/schemas/Product_Variant"
         "404":
           $ref: "#/components/responses/NotFound"
+      delete:
+        tags:
+          - Catalog
+        summary: Delete a product variant
+        security:
+          - bearerAuth: [ ]
+        parameters:
+          - name: variantId
+            in: path
+            required: true
+            schema:
+              type: integer
+        responses:
+          "200":
+            description: Product variant successfully deleted
+          "401":
+            $ref: "#/components/responses/Unauthorized"
+          "404":
+            $ref: "#/components/responses/NotFound"
 
   /shop/ingredients:
     get:

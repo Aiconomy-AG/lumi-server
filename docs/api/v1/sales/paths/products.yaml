@@ -44,3 +44,22 @@ post:
             $ref: '../components/schemas/Product.yaml'
     "401":
       $ref: '../components/responses/Unauthorized.yaml'
+delete:
+  tags:
+    - Catalog
+  summary: Delete an existing product
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: productId
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "200":
+      description: Product successfully deleted
+    "401":
+      $ref: '../components/responses/Unauthorized'
+    "404":
+      $ref: '../components/responses/NotFound'
