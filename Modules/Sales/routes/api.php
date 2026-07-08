@@ -35,6 +35,13 @@ Route::prefix('v1/shop')->group(function (): void {
     Route::get('products', [CatalogController::class, 'index']);
     Route::get('products/{productId}', [CatalogController::class, 'show']);
     Route::get('categories', [CatalogController::class, 'categories']);
+
+    Route::get('products/{productId}/variants', [CatalogController::class, 'productVariants']);
+    Route::get('variants/{variantId}', [CatalogController::class, 'variantDetails']);
+
+    Route::get('ingredients', [CatalogController::class, 'ingredients']);
+    Route::get('ingredients/{ingredientId}', [CatalogController::class, 'ingredientDetails']);
+    Route::get('products/{productId}/ingredients', [CatalogController::class, 'productIngredients']);
 });
 
 Route::middleware(['auth:sanctum'])
