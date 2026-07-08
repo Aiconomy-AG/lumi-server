@@ -23,3 +23,24 @@ get:
               $ref: '../components/schemas/Product.yaml'
     '404':
       $ref: '../components/responses/NotFound.yaml'
+post:
+  tags:
+    - Catalog
+  summary: Create a new product
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/Product.yaml'
+  responses:
+    "201":
+      description: Product successfully created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Product.yaml'
+    "401":
+      $ref: '../components/responses/Unauthorized.yaml'

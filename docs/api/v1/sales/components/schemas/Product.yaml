@@ -2,6 +2,7 @@ type: object
 properties:
   id:
     type: integer
+    readOnly: true
   price:
     type: number
     format: double
