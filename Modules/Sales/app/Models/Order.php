@@ -50,4 +50,9 @@ class Order extends Model
             ->withPivot(['quantity'])
             ->withTimestamps();
     }
+
+    public function returnRequests()
+    {
+        return $this->hasMany(ReturnRequest::class);
+    }
 }

@@ -66,12 +66,12 @@ Route::middleware(['auth:sanctum'])
                 );
 
                 Route::put(
-                    'cart/items/{productId}',
+                    'cart/items/{productVariantId}',
                     [CartController::class, 'updateItem']
                 );
 
                 Route::delete(
-                    'cart/items/{productId}',
+                    'cart/items/{productVariantId}',
                     [CartController::class, 'destroyItem']
                 );
 

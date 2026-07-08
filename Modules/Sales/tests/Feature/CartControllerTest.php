@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Sales\Models\Cart;
 use Modules\Sales\Models\CartItem;
 use Modules\Sales\Models\Customer;
-use Modules\Sales\Models\Product;
+use Modules\Sales\Models\ProductVariant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -20,13 +20,6 @@ class CartControllerTest extends TestCase
     {
         parent::setUp();
 
-        /*
-         * Customer is not an App\Models\User and is not currently
-         * authenticated through Sanctum.
-         *
-         * These tests focus on cart routes, controllers, validation,
-         * services and database behaviour.
-         */
         $this->withoutMiddleware();
 
         $this->customer = Customer::factory()->create([
@@ -43,11 +36,11 @@ class CartControllerTest extends TestCase
             'customer_id' => $this->customer->id,
         ]);
 
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         CartItem::create([
             'cart_id' => $cart->id,
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 2,
         ]);
 
@@ -61,8 +54,8 @@ class CartControllerTest extends TestCase
             )
             ->assertJsonCount(1, 'data.items')
             ->assertJsonPath(
-                'data.items.0.product_id',
-                $product->id
+                'data.items.0.product_variant_id',
+                $variant->id
             )
             ->assertJsonPath(
                 'data.items.0.quantity',
@@ -71,14 +64,14 @@ class CartControllerTest extends TestCase
     }
 
     #[Test]
-    public function customer_can_add_a_product_to_their_cart(): void
+    public function customer_can_add_a_product_variant_to_their_cart(): void
     {
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         $response = $this->postJson(
             "/api/v1/shop/customers/{$this->customer->id}/cart/items",
             [
-                'product_id' => $product->id,
+                'product_variant_id' => $variant->id,
                 'quantity' => 3,
             ]
         );
@@ -91,8 +84,8 @@ class CartControllerTest extends TestCase
             )
             ->assertJsonCount(1, 'data.items')
             ->assertJsonPath(
-                'data.items.0.product_id',
-                $product->id
+                'data.items.0.product_variant_id',
+                $variant->id
             )
             ->assertJsonPath(
                 'data.items.0.quantity',
@@ -105,25 +98,25 @@ class CartControllerTest extends TestCase
 
         $this->assertDatabaseHas('cart_items', [
             'cart_id' => $cart->id,
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 3,
         ]);
     }
 
     #[Test]
-    public function adding_the_same_product_again_increases_its_quantity(): void
+    public function adding_the_same_product_variant_again_increases_its_quantity(): void
     {
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         $url = "/api/v1/shop/customers/{$this->customer->id}/cart/items";
 
         $this->postJson($url, [
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 2,
         ])->assertCreated();
 
         $this->postJson($url, [
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 3,
         ])->assertOk();
 
@@ -133,7 +126,7 @@ class CartControllerTest extends TestCase
 
         $this->assertDatabaseHas('cart_items', [
             'cart_id' => $cart->id,
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 5,
         ]);
 
@@ -147,16 +140,16 @@ class CartControllerTest extends TestCase
             'customer_id' => $this->customer->id,
         ]);
 
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         CartItem::create([
             'cart_id' => $cart->id,
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 1,
         ]);
 
         $response = $this->putJson(
-            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$product->id}",
+            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$variant->id}",
             [
                 'quantity' => 4,
             ]
@@ -165,8 +158,8 @@ class CartControllerTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath(
-                'data.items.0.product_id',
-                $product->id
+                'data.items.0.product_variant_id',
+                $variant->id
             )
             ->assertJsonPath(
                 'data.items.0.quantity',
@@ -175,7 +168,7 @@ class CartControllerTest extends TestCase
 
         $this->assertDatabaseHas('cart_items', [
             'cart_id' => $cart->id,
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 4,
         ]);
     }
@@ -187,16 +180,16 @@ class CartControllerTest extends TestCase
             'customer_id' => $this->customer->id,
         ]);
 
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         $cartItem = CartItem::create([
             'cart_id' => $cart->id,
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 2,
         ]);
 
         $response = $this->deleteJson(
-            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$product->id}"
+            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$variant->id}"
         );
 
         $response
@@ -209,30 +202,30 @@ class CartControllerTest extends TestCase
     }
 
     #[Test]
-    public function cart_item_requires_an_existing_product(): void
+    public function cart_item_requires_an_existing_product_variant(): void
     {
         $response = $this->postJson(
             "/api/v1/shop/customers/{$this->customer->id}/cart/items",
             [
-                'product_id' => 999999,
+                'product_variant_id' => 999999,
                 'quantity' => 1,
             ]
         );
 
         $response
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('product_id');
+            ->assertJsonValidationErrors('product_variant_id');
     }
 
     #[Test]
     public function cart_item_quantity_must_be_at_least_one(): void
     {
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         $response = $this->postJson(
             "/api/v1/shop/customers/{$this->customer->id}/cart/items",
             [
-                'product_id' => $product->id,
+                'product_variant_id' => $variant->id,
                 'quantity' => 0,
             ]
         );
@@ -245,10 +238,10 @@ class CartControllerTest extends TestCase
     #[Test]
     public function updating_a_missing_cart_item_returns_not_found(): void
     {
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         $this->putJson(
-            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$product->id}",
+            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$variant->id}",
             [
                 'quantity' => 2,
             ]
@@ -258,10 +251,10 @@ class CartControllerTest extends TestCase
     #[Test]
     public function removing_a_missing_cart_item_returns_not_found(): void
     {
-        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->create();
 
         $this->deleteJson(
-            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$product->id}"
+            "/api/v1/shop/customers/{$this->customer->id}/cart/items/{$variant->id}"
         )->assertNotFound();
     }
 }

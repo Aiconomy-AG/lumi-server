@@ -5,13 +5,13 @@ namespace Modules\Sales\Services;
 use Illuminate\Support\Facades\DB;
 use Modules\Sales\Models\Cart;
 use Modules\Sales\Models\CartItem;
-use Modules\Sales\Models\Product;
+use Modules\Sales\Models\ProductVariant;
 
 class CartService
 {
     public function getCart(int $customerId): Cart
     {
-        $cart = Cart::query()->firstOrCreate([
+        $cart = Cart::firstOrCreate([
             'customer_id' => $customerId,
         ]);
 
@@ -20,90 +20,86 @@ class CartService
 
     public function addItem(
         int $customerId,
-        int $productId,
+        int $productVariantId,
         int $quantity
-    ): Cart {
+    ): array {
         return DB::transaction(function () use (
             $customerId,
-            $productId,
+            $productVariantId,
             $quantity
-        ): Cart {
-            Product::query()->findOrFail($productId);
+        ): array {
+            ProductVariant::query()->findOrFail($productVariantId);
 
-            $cart = Cart::query()->firstOrCreate([
+            $cart = Cart::firstOrCreate([
                 'customer_id' => $customerId,
             ]);
 
-            $item = CartItem::query()->firstOrNew([
+            $cartItem = CartItem::query()->firstOrNew([
                 'cart_id' => $cart->id,
-                'product_id' => $productId,
+                'product_variant_id' => $productVariantId,
             ]);
 
-            $item->quantity = $item->exists
-                ? $item->quantity + $quantity
-                : $quantity;
+            $created = ! $cartItem->exists;
 
-            $item->save();
+            if ($cartItem->exists) {
+                $cartItem->quantity += $quantity;
+            } else {
+                $cartItem->quantity = $quantity;
+            }
 
-            return $this->loadCart($cart);
+            $cartItem->save();
+
+            return [
+                'cart' => $this->loadCart($cart),
+                'created' => $created,
+            ];
         });
     }
 
     public function updateItem(
         int $customerId,
-        int $productId,
+        int $productVariantId,
         int $quantity
     ): Cart {
-        return DB::transaction(function () use (
-            $customerId,
-            $productId,
-            $quantity
-        ): Cart {
-            $cart = Cart::query()
-                ->where('customer_id', $customerId)
-                ->firstOrFail();
+        $cart = Cart::query()
+            ->where('customer_id', $customerId)
+            ->firstOrFail();
 
-            $item = CartItem::query()
-                ->where('cart_id', $cart->id)
-                ->where('product_id', $productId)
-                ->firstOrFail();
+        $cartItem = CartItem::query()
+            ->where('cart_id', $cart->id)
+            ->where('product_variant_id', $productVariantId)
+            ->firstOrFail();
 
-            $item->update([
-                'quantity' => $quantity,
-            ]);
+        $cartItem->update([
+            'quantity' => $quantity,
+        ]);
 
-            return $this->loadCart($cart);
-        });
+        return $this->loadCart($cart);
     }
 
     public function removeItem(
         int $customerId,
-        int $productId
+        int $productVariantId
     ): Cart {
-        return DB::transaction(function () use (
-            $customerId,
-            $productId
-        ): Cart {
-            $cart = Cart::query()
-                ->where('customer_id', $customerId)
-                ->firstOrFail();
+        $cart = Cart::query()
+            ->where('customer_id', $customerId)
+            ->firstOrFail();
 
-            $item = CartItem::query()
-                ->where('cart_id', $cart->id)
-                ->where('product_id', $productId)
-                ->firstOrFail();
+        $cartItem = CartItem::query()
+            ->where('cart_id', $cart->id)
+            ->where('product_variant_id', $productVariantId)
+            ->firstOrFail();
 
-            $item->delete();
+        $cartItem->delete();
 
-            return $this->loadCart($cart);
-        });
+        return $this->loadCart($cart);
     }
 
     private function loadCart(Cart $cart): Cart
     {
         return $cart->load([
-            'items.product.variants',
-            'items.product.ingredients',
+            'items.variant.product',
+            'items.variant.product.ingredients',
         ]);
     }
 }

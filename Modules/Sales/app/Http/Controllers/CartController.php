@@ -2,6 +2,7 @@
 
 namespace Modules\Sales\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Modules\Sales\Http\Requests\AddCartItemRequest;
 use Modules\Sales\Http\Requests\UpdateCartItemRequest;
 use Modules\Sales\Services\CartService;
@@ -24,24 +25,26 @@ class CartController
     public function storeItem(
         AddCartItemRequest $request,
         int $customerId
-    ): CartResource {
-        $cart = $this->cartService->addItem(
+    ): JsonResponse {
+        $result = $this->cartService->addItem(
             customerId: $customerId,
-            productId: $request->integer('product_id'),
+            productVariantId: $request->integer('product_variant_id'),
             quantity: $request->integer('quantity'),
         );
 
-        return new CartResource($cart);
+        return (new CartResource($result['cart']))
+            ->response()
+            ->setStatusCode($result['created'] ? 201 : 200);
     }
 
     public function updateItem(
         UpdateCartItemRequest $request,
         int $customerId,
-        int $productId
+        int $productVariantId
     ): CartResource {
         $cart = $this->cartService->updateItem(
             customerId: $customerId,
-            productId: $productId,
+            productVariantId: $productVariantId,
             quantity: $request->integer('quantity'),
         );
 
@@ -50,11 +53,11 @@ class CartController
 
     public function destroyItem(
         int $customerId,
-        int $productId
+        int $productVariantId
     ): CartResource {
         $cart = $this->cartService->removeItem(
             customerId: $customerId,
-            productId: $productId,
+            productVariantId: $productVariantId,
         );
 
         return new CartResource($cart);
