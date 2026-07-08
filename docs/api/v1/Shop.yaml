@@ -374,6 +374,30 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+
+
+
+
+  /shop/variants/{variantId}:
+    get:
+      tags:
+        - Catalog
+      summary: Get product variant details
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product variant details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "404":
+          $ref: "#/components/responses/NotFound"
     put:
       tags:
         - Catalog
@@ -419,13 +443,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-
-
-  /shop/variants/{variantId}:
-    get:
+    delete:
       tags:
         - Catalog
-      summary: Get product variant details
+      summary: Delete a product variant
+      security:
+        - bearerAuth: [ ]
       parameters:
         - name: variantId
           in: path
@@ -434,32 +457,11 @@ paths:
             type: integer
       responses:
         "200":
-          description: Product variant details
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Product_Variant"
+          description: Product variant successfully deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-      delete:
-        tags:
-          - Catalog
-        summary: Delete a product variant
-        security:
-          - bearerAuth: [ ]
-        parameters:
-          - name: variantId
-            in: path
-            required: true
-            schema:
-              type: integer
-        responses:
-          "200":
-            description: Product variant successfully deleted
-          "401":
-            $ref: "#/components/responses/Unauthorized"
-          "404":
-            $ref: "#/components/responses/NotFound"
 
   /shop/ingredients:
     get:
