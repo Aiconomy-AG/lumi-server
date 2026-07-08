@@ -47,6 +47,6 @@ class SalesServiceProvider extends ModuleServiceProvider
 
         $this->app->when(ShopifyAccessTokenProvider::class)
             ->needs(CacheRepository::class)
-            ->give(fn () => Cache::store('redis'));
+            ->give(fn () => Cache::store());
     }
 }

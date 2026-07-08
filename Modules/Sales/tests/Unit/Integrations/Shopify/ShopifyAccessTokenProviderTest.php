@@ -85,7 +85,7 @@ class ShopifyAccessTokenProviderTest extends TestCase
 
     public function test_it_validates_shop_hostname(): void
     {
-        $this->configureShopify(['sales' => 'https://bad-shop.myshopify.com']);
+        $this->configureShopify(['shop' => 'https://bad-shop.myshopify.com']);
 
         $this->expectException(ShopifyException::class);
         $this->expectExceptionMessage('Invalid SHOPIFY_SHOP format.');
