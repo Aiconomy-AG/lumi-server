@@ -67,5 +67,9 @@ class Product extends Model
         return ProductFactory::new();
     }
 
+    public function wishlistItems()
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
 
 }
