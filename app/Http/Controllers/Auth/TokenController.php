@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\TokenRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,9 +26,14 @@ class TokenController extends Controller
             ]);
         }
 
+        if ($user->role === UserRole::Client || ! $user->is_active) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         return response()->json([
             'token' => $user->createToken('api')->plainTextToken,
-        ],201);
+            'user' => new UserResource($user),
+        ], 201);
     }
 
     public function destroy(Request $request): Response
@@ -38,5 +45,10 @@ class TokenController extends Controller
         }
 
         return response()->noContent();
+    }
+
+    public function me(Request $request): UserResource
+    {
+        return new UserResource($request->user());
     }
 }

@@ -20,6 +20,22 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
+            'role' => 'employee',
+            'status' => 'available',
+            'phone_number' => '',
+            'language_flag' => 'en',
+            'is_active' => true,
+        ]);
+
+        User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'available',
+            'phone_number' => '',
+            'language_flag' => 'en',
+            'is_active' => true,
         ]);
 
         $this->call(SalesDatabaseSeeder::class);
