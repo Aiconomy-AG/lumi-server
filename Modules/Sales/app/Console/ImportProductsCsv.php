@@ -63,13 +63,12 @@ class ImportProductsCsv extends Command
             $stats['ingredients'],
         ));
 
-//        $this->components->info('Deleting existing Shopify products...');
-//        $deleted = $shopify->deleteAll();
-//        $this->components->info(sprintf('Deleted %d Shopify products.', $deleted));
-//
-//        $this->components->info('Syncing products to Shopify...');
-//        $shopify->seed();
-//        $this->components->info('Shopify sync complete.');
+        $this->components->info('Queueing products for Shopify sync...');
+        $queued = $shopify->queueAll();
+        $this->components->info(sprintf(
+            'Queued %d products. Ensure your Forge worker is running on the shopify-sync queue.',
+            $queued,
+        ));
 
         return self::SUCCESS;
     }
