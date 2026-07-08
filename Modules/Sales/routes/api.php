@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Sales\Http\Controllers\Admin\OrderController;
+use Modules\Sales\Http\Controllers\Admin\ProductController;
+use Modules\Sales\Http\Controllers\Admin\ProductVariantController;
 use Modules\Sales\Http\Controllers\CartController;
 use Modules\Sales\Http\Controllers\CatalogController;
 use Modules\Sales\Http\Controllers\CheckoutController;
@@ -75,4 +78,15 @@ Route::middleware(['auth:sanctum'])
             'orders/{orderId}',
             [CheckoutController::class, 'show']
         );
+    });
+
+Route::middleware(['auth:sanctum', 'staff'])
+    ->prefix('v1/admin')
+    ->group(function (): void {
+        Route::get('products', [ProductController::class, 'index']);
+        Route::post('products', [ProductController::class, 'store']);
+        Route::put('products/{productId}', [ProductController::class, 'update']);
+        Route::delete('products/{productId}', [ProductController::class, 'destroy'])->middleware('admin');
+        Route::patch('products/{productId}/variants/{variantId}', [ProductVariantController::class, 'updateStock']);
+        Route::get('orders', [OrderController::class, 'index']);
     });
