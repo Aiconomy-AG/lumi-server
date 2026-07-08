@@ -249,11 +249,13 @@ class ImportProductsCsv extends Command
             ['sku' => $sku],
             [
                 'product_id' => $product->id,
+                'name' => $this->variantName($row),
                 'price' => $this->price($row),
                 'weight' => $attributes['weight'],
                 'weight_unit' => $attributes['unit'],
                 'colour' => $attributes['colour'],
                 'stock_quantity' => max(0, (int) $this->value($row, 'Stock Quantity')),
+                'options' => ProductVariantAttributeParser::options($this->value($row, 'Variant Option Values')),
             ],
         );
     }
@@ -268,13 +270,26 @@ class ImportProductsCsv extends Command
             ['sku' => $sku],
             [
                 'product_id' => $product->id,
+                'name' => $this->variantName($row),
                 'price' => $this->price($row),
                 'weight' => $attributes['weight'],
                 'weight_unit' => $attributes['unit'],
                 'colour' => $attributes['colour'],
                 'stock_quantity' => max(0, (int) $this->value($row, 'Stock Quantity')),
+                'options' => ProductVariantAttributeParser::options($this->value($row, 'Variant Option Values')),
             ],
         );
+    }
+
+    private function variantName(array $row): ?string
+    {
+        $name = $this->value($row, 'Variant Name');
+
+        if ($name === '') {
+            $name = $this->value($row, 'Name');
+        }
+
+        return $name !== '' ? $name : null;
     }
 
     /**

@@ -11,11 +11,13 @@ class ProductVariantResource extends JsonResource
             'id' => $this->id,
             'product_id' => $this->product_id,
             'sku' => $this->sku,
+            'name' => $this->name,
             'price' => $this->price,
             'weight' => $this->weight,
             'weight_unit' => $this->weight_unit,
             'stock_quantity' => $this->stock_quantity,
             "colour" =>$this->colour,
+            'options' => $this->options,
         ];
     }
 }
