@@ -234,7 +234,7 @@ class CollectionAssignService
         Product::query()
             ->whereNotNull('shopify_product_id')
             ->where('shopify_product_id', '!=', '')
-            ->select(['category_id', 'shopify_product_id'])
+            ->select(['id', 'category_id', 'shopify_product_id'])
             ->orderBy('id')
             ->chunkById(500, function ($products) use (&$byCategory, &$allSynced): void {
                 foreach ($products as $product) {
