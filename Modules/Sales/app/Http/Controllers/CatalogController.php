@@ -16,7 +16,7 @@ class CatalogController extends Controller
     {
         $limit = $request->query('limit', 20);
 
-        $query = Product::with(['variants', 'ingredients']);
+        $query = Product::with(['category', 'variants', 'ingredients']);
 
         if ($request->has('category_id')) {
             $query->where('category_id', $request->query('category_id'));
@@ -29,7 +29,7 @@ class CatalogController extends Controller
 
     public function show($productId)
     {
-        $product = Product::with(['variants', 'ingredients'])->find($productId);
+        $product = Product::with(['category', 'variants', 'ingredients'])->find($productId);
 
         if (!$product) {
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Product not found.'], 404);

@@ -55,8 +55,28 @@ class ProductSyncService
     }
     GRAPHQL;
 
+    private const PUBLICATIONS_QUERY = <<<'GRAPHQL'
+    query Publications {
+        publications(first: 50) {
+            edges { node { id name } }
+        }
+    }
+    GRAPHQL;
+
+    private const PUBLISHABLE_PUBLISH_MUTATION = <<<'GRAPHQL'
+    mutation PublishablePublish($id: ID!, $input: [PublicationInput!]!) {
+        publishablePublish(id: $id, input: $input) {
+            publishable { __typename }
+            userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
+    private ?string $onlineStorePublicationId = null;
+
     public function __construct(
         private readonly ShopifyConnector $connector,
+        private readonly CollectionAssignService $collectionAssignService,
     ) {}
 
     public function sync(Product $product): void
@@ -68,11 +88,14 @@ class ProductSyncService
         try {
             $shopifyId = $this->push($product);
             $this->pushIngredientsMetafield($shopifyId, $product);
+            $this->publishToOnlineStore($shopifyId);
 
             $product->forceFill([
                 'shopify_product_id' => $shopifyId,
                 'shopify_sync_status' => ShopifySyncStatus::Synced,
             ])->save();
+
+            $this->assignProductCollection($product, $shopifyId);
         } catch (ShopifyException $exception) {
             $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Error])->save();
 
@@ -314,6 +337,7 @@ class ProductSyncService
     private function loadSyncRelations(Product $product): void
     {
         $product->loadMissing([
+            'category',
             'variants',
             'ingredients' => fn ($query) => $query->orderBy('product_ingredients.id'),
         ]);
@@ -363,6 +387,15 @@ class ProductSyncService
             'variants' => $variants,
         ];
 
+        if ($product->category) {
+            $input['productType'] = $product->category->name;
+            $input['tags'] = [
+                $product->category->name,
+                'category:'.$product->category->name,
+                'category-handle:'.($product->category->shopify_collection_handle ?: str($product->category->name)->slug()),
+            ];
+        }
+
         // Only attach the image on the first push; on re-syncs (matched by
         // handle) the product already carries it, so re-sending would duplicate.
         if (empty($product->shopify_product_id) && ! empty($product->image_url)) {
@@ -372,6 +405,90 @@ class ProductSyncService
         }
 
         return $input;
+    }
+
+    private function publishToOnlineStore(string $shopifyProductId): void
+    {
+        if (! (bool) config('sales.shopify.publish_products', true)) {
+            return;
+        }
+
+        $publicationId = $this->onlineStorePublicationId();
+
+        if ($publicationId === null) {
+            throw new ShopifyException('Online Store publication was not found.');
+        }
+
+        $response = $this->query([
+            'query' => self::PUBLISHABLE_PUBLISH_MUTATION,
+            'variables' => [
+                'id' => $shopifyProductId,
+                'input' => [['publicationId' => $publicationId]],
+            ],
+        ]);
+
+        $result = $response->data['publishablePublish'] ?? [];
+        $this->assertNoUserErrors($this->withoutAlreadyPublishedErrors($result['userErrors'] ?? []));
+    }
+
+    private function onlineStorePublicationId(): ?string
+    {
+        if ($this->onlineStorePublicationId !== null) {
+            return $this->onlineStorePublicationId;
+        }
+
+        $configured = config('sales.shopify.online_store_publication_id');
+
+        if (is_string($configured) && $configured !== '') {
+            return $this->onlineStorePublicationId = $configured;
+        }
+
+        $response = $this->query(['query' => self::PUBLICATIONS_QUERY]);
+        $edges = $response->data['publications']['edges'] ?? [];
+
+        foreach ($edges as $edge) {
+            $node = is_array($edge) ? ($edge['node'] ?? null) : null;
+
+            if (! is_array($node)) {
+                continue;
+            }
+
+            if (strtolower((string) ($node['name'] ?? '')) === 'online store') {
+                return $this->onlineStorePublicationId = (string) $node['id'];
+            }
+        }
+
+        return null;
+    }
+
+    private function assignProductCollection(Product $product, string $shopifyProductId): void
+    {
+        if ($product->category_id === null) {
+            return;
+        }
+
+        try {
+            $this->collectionAssignService->assignProducts((int) $product->category_id, [$shopifyProductId]);
+        } catch (ShopifyException $exception) {
+            Log::warning('Shopify collection assignment after product sync failed', [
+                'product_id' => $product->getKey(),
+                'category_id' => $product->category_id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, mixed>  $errors
+     * @return array<int, mixed>
+     */
+    private function withoutAlreadyPublishedErrors(array $errors): array
+    {
+        return array_values(array_filter($errors, function ($error) {
+            $message = is_array($error) ? strtolower((string) ($error['message'] ?? '')) : '';
+
+            return ! str_contains($message, 'already');
+        }));
     }
 
     /**
