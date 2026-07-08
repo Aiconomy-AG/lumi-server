@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Sales\Database\Factories\CustomerFactory;
 
 class Customer extends Model
 {
@@ -50,5 +51,10 @@ class Customer extends Model
     public function carts()
     {
         return $this->hasMany(Cart::class);
+    }
+
+    protected static function newFactory(): CustomerFactory
+    {
+        return CustomerFactory::new();
     }
 }
