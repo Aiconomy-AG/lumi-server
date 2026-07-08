@@ -114,6 +114,9 @@ Route::middleware(['auth:sanctum', 'staff'])
         Route::post('products', [ProductController::class, 'store']);
         Route::put('products/{productId}', [ProductController::class, 'update']);
         Route::delete('products/{productId}', [ProductController::class, 'destroy'])->middleware('admin');
+        Route::post('products/{productId}/variants', [ProductVariantController::class, 'store']);
+        Route::put('products/{productId}/variants/{variantId}', [ProductVariantController::class, 'update']);
+        Route::delete('products/{productId}/variants/{variantId}', [ProductVariantController::class, 'destroy'])->middleware('admin');
         Route::patch('products/{productId}/variants/{variantId}', [ProductVariantController::class, 'updateStock']);
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('returns', [ReturnRequestController::class, 'index']);

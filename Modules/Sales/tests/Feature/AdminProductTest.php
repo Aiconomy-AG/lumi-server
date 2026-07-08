@@ -163,6 +163,8 @@ class AdminProductTest extends TestCase
 
     public function test_store_accepts_variant_name_and_options(): void
     {
+        Queue::fake();
+
         Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/products', [
