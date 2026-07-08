@@ -12,4 +12,4 @@ properties:
   participants:
     type: array
     items:
-      $ref: './Employee.yaml'
+      $ref: './User.yaml'

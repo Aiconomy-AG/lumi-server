@@ -19,9 +19,9 @@ class ProjectService
         return Project::query()->create($data);
     }
 
-    public function getById(int $projectId): Project
+    public function getById(int $projectId): ?Project
     {
-        return Project::query()->findOrFail($projectId);
+        return Project::query()->find($projectId);
     }
 
     public function update(

@@ -16,7 +16,7 @@ get:
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Employee.yaml'
+            $ref: '../components/schemas/User.yaml'
     '401':
       $ref: '../components/responses/Unauthorized.yaml'
     '404':
@@ -24,8 +24,8 @@ get:
 
 put:
   tags:
-    - Employees
-  summary: Update employee details
+    - User
+  summary: Update user details
   security:
     - bearerAuth: []
   parameters:

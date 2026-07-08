@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Workspace\Http\Controllers\WorkspaceController;
+use Modules\Workspace\Http\Controllers\TimeTrackingController;
 use Modules\Workspace\Http\Controllers\ProjectController;
 use Modules\Workspace\Http\Controllers\TaskController;
 
@@ -29,6 +29,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
             'tasks/{taskId}/assignees/{employeeId}',
             [TaskController::class, 'removeEmployee']
         );
+        
+        Route::prefix('tasks/{taskId}')->group(function (): void {
+            Route::post('time-entries/start', [TimeTrackingController::class, 'start']);
+            Route::post('time-entries/{entryId}/stop', [TimeTrackingController::class, 'stop']);
+            Route::get('time-entries', [TimeTrackingController::class, 'index']);
+        });
     });
-    Route::apiResource('workspaces', WorkspaceController::class)->names('workspace');
 });

@@ -28,14 +28,14 @@ class TaskService
         ]);
     }
 
-    public function getById(int $taskId): Task
+    public function getById(int $taskId): ?Task
     {
         return Task::query()
             ->with([
                 'assignees',
                 'subtasks',
             ])
-            ->findOrFail($taskId);
+            ->find($taskId);
     }
 
     public function update(
