@@ -18,6 +18,8 @@ class Category extends Model
     protected $fillable = [
         'parent_id',
         'name',
+        'shopify_collection_id',
+        'shopify_collection_handle',
     ];
 
     public function parent()

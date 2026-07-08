@@ -4,12 +4,32 @@ use Illuminate\Support\Facades\Route;
 use Modules\Sales\Http\Controllers\Admin\OrderController;
 use Modules\Sales\Http\Controllers\Admin\ProductController;
 use Modules\Sales\Http\Controllers\Admin\ProductVariantController;
+use Modules\Sales\Http\Controllers\Admin\ReturnRequestController;
 use Modules\Sales\Http\Controllers\CartController;
 use Modules\Sales\Http\Controllers\CatalogController;
 use Modules\Sales\Http\Controllers\CheckoutController;
 use Modules\Sales\Http\Controllers\CustomerController;
+use Modules\Sales\Http\Controllers\Shopify\ProxyReturnController;
+use Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController;
+use Modules\Sales\Http\Controllers\Shopify\WebhookController;
 use Modules\Sales\Http\Controllers\WishlistController;
 use Modules\Sales\Http\Middleware\VerifyCustomerOwnership;
+
+Route::prefix('shopify/proxy')->group(function (): void {
+    Route::get('wishlist', [ProxyWishlistController::class, 'index']);
+    Route::post('wishlist/items', [ProxyWishlistController::class, 'store']);
+    Route::delete('wishlist/items/{shopifyProductId}', [ProxyWishlistController::class, 'destroy'])
+        ->where('shopifyProductId', '.*');
+    Route::post('returns', [ProxyReturnController::class, 'store']);
+});
+
+Route::prefix('shopify/webhooks')->group(function (): void {
+    Route::post('customers-create', [WebhookController::class, 'customer']);
+    Route::post('customers-update', [WebhookController::class, 'customer']);
+    Route::post('orders-create', [WebhookController::class, 'order']);
+    Route::post('orders-updated', [WebhookController::class, 'order']);
+    Route::post('products-update', [WebhookController::class, 'product']);
+});
 
 Route::prefix('v1/shop')->group(function (): void {
     Route::get('products', [CatalogController::class, 'index']);
@@ -96,4 +116,7 @@ Route::middleware(['auth:sanctum', 'staff'])
         Route::delete('products/{productId}', [ProductController::class, 'destroy'])->middleware('admin');
         Route::patch('products/{productId}/variants/{variantId}', [ProductVariantController::class, 'updateStock']);
         Route::get('orders', [OrderController::class, 'index']);
+        Route::get('returns', [ReturnRequestController::class, 'index']);
+        Route::get('returns/{returnRequestId}', [ReturnRequestController::class, 'show']);
+        Route::patch('returns/{returnRequestId}', [ReturnRequestController::class, 'update']);
     });
