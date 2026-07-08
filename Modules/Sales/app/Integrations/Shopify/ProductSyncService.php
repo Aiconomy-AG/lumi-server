@@ -155,9 +155,9 @@ class ProductSyncService
     /**
      * Queue product field changes for re-sync to Shopify.
      */
-    public function update(Product $product): void
+    public function update(Product $product, ?int $previousCategoryId = null): void
     {
-        $this->queueSync($product);
+        $this->queueSync($product, $previousCategoryId);
     }
 
     /**
@@ -207,7 +207,7 @@ class ProductSyncService
         $this->deleteById($shopifyProductId);
     }
 
-    public function sync(Product $product): void
+    public function sync(Product $product, ?int $previousCategoryId = null): void
     {
         $this->loadSyncRelations($product);
 
@@ -223,7 +223,7 @@ class ProductSyncService
 
             $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Synced])->save();
 
-            $this->assignProductCollection($product, $shopifyId);
+            $this->assignProductCollection($product, $shopifyId, $previousCategoryId);
         } catch (ShopifyException $exception) {
             $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Error])->save();
 
@@ -707,11 +707,11 @@ class ProductSyncService
         $this->assertNoUserErrors($response->data['inventoryItemUpdate']['userErrors'] ?? []);
     }
 
-    private function queueSync(Product $product): void
+    private function queueSync(Product $product, ?int $previousCategoryId = null): void
     {
         $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Unsynced])->save();
 
-        SyncShopifyProductJob::dispatch($product->id);
+        SyncShopifyProductJob::dispatch($product->id, $previousCategoryId);
     }
 
     /**
@@ -960,8 +960,21 @@ class ProductSyncService
         return $nodes;
     }
 
-    private function assignProductCollection(Product $product, string $shopifyProductId): void
+    private function assignProductCollection(Product $product, string $shopifyProductId, ?int $previousCategoryId = null): void
     {
+        if ($previousCategoryId !== null
+            && ($product->category_id === null || $previousCategoryId !== (int) $product->category_id)) {
+            try {
+                $this->collectionAssignService->removeProducts($previousCategoryId, [$shopifyProductId]);
+            } catch (ShopifyException $exception) {
+                Log::warning('Shopify collection removal after category change failed', [
+                    'product_id' => $product->getKey(),
+                    'previous_category_id' => $previousCategoryId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
         if ($product->category_id === null) {
             return;
         }
@@ -1017,13 +1030,18 @@ class ProductSyncService
      */
     private function buildVariants(Product $product): array
     {
+        if ($product->variants->isEmpty()) {
+            throw new ShopifyException('Product has no variants to sync to Shopify.');
+        }
+
         $combined = $this->buildColourSizeVariants($product);
 
         if ($combined !== null) {
             return $combined;
         }
 
-        if ($this->hasDistinctLabels($product->variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
+        if ($product->variants->count() > 1
+            && $this->hasDistinctLabels($product->variants, fn (ProductVariant $variant) => $this->colourLabel($variant))) {
             return $this->buildOptionVariants($product, 'Color', fn (ProductVariant $variant) => $this->colourLabel($variant));
         }
 
@@ -1032,9 +1050,15 @@ class ProductSyncService
             return $this->buildOptionVariants($product, 'Size', fn (ProductVariant $variant) => $this->sizeLabel($variant));
         }
 
+        $variant = $product->variants->first();
+
+        if (! $variant instanceof ProductVariant) {
+            throw new ShopifyException('Product has no variants to sync to Shopify.');
+        }
+
         return [
             [['name' => 'Title', 'values' => [['name' => 'Default Title']]]],
-            [$this->buildVariant($product->variants->first(), $product, [
+            [$this->buildVariant($variant, $product, [
                 ['optionName' => 'Title', 'name' => 'Default Title'],
             ])],
         ];

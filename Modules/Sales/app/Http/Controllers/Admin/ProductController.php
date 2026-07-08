@@ -181,10 +181,13 @@ class ProductController extends Controller
         }
 
         unset($validated['category_name']);
+
+        $previousCategoryId = $product->category_id !== null ? (int) $product->category_id : null;
+
         $product->update($validated);
 
         $product->load(['variants', 'category']);
-        $this->shopify->update($product);
+        $this->shopify->update($product, $previousCategoryId);
 
         return new ProductResource($product);
     }

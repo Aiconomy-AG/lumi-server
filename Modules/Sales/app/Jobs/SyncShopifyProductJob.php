@@ -17,6 +17,7 @@ class SyncShopifyProductJob implements ShouldQueue
 
     public function __construct(
         private readonly int $productId,
+        private readonly ?int $previousCategoryId = null,
     ) {
         $this->onConnection('redis');
         $this->onQueue('shopify-sync');
@@ -35,7 +36,7 @@ class SyncShopifyProductJob implements ShouldQueue
         ])->find($this->productId);
 
         if ($product !== null) {
-            $service->sync($product);
+            $service->sync($product, $this->previousCategoryId);
         }
     }
 }

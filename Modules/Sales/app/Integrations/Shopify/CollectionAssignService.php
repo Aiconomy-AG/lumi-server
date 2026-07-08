@@ -44,6 +44,14 @@ class CollectionAssignService
     }
     GRAPHQL;
 
+    private const COLLECTION_REMOVE_PRODUCTS_MUTATION = <<<'GRAPHQL'
+    mutation CollectionRemoveProducts($id: ID!, $productIds: [ID!]!) {
+        collectionRemoveProducts(id: $id, productIds: $productIds) {
+            userErrors { field message }
+        }
+    }
+    GRAPHQL;
+
     private const PUBLICATIONS_QUERY = <<<'GRAPHQL'
     query Publications {
         publications(first: 50) {
@@ -159,6 +167,38 @@ class CollectionAssignService
     }
 
     /**
+     * @param  array<int, string>  $shopifyProductIds
+     * @return int Number of products removed.
+     */
+    public function removeProducts(int $categoryId, array $shopifyProductIds): int
+    {
+        if ($shopifyProductIds === []) {
+            return 0;
+        }
+
+        $handle = $this->categoryCollectionMap->handleForCategory($categoryId);
+
+        if ($handle === null) {
+            throw new ShopifyException("No Shopify collection handle configured for category {$categoryId}.");
+        }
+
+        $collectionId = $this->findCollectionId($categoryId, $handle);
+
+        if ($collectionId === null) {
+            return 0;
+        }
+
+        $removed = 0;
+
+        foreach (array_chunk($shopifyProductIds, self::MAX_PRODUCTS_PER_REQUEST) as $chunk) {
+            $this->removeProductsFromCollection($collectionId, $chunk);
+            $removed += count($chunk);
+        }
+
+        return $removed;
+    }
+
+    /**
      * @return array<int, string>
      */
     private function syncedProductIdsForCategory(int $categoryId): array
@@ -172,6 +212,37 @@ class CollectionAssignService
     }
 
     private function resolveCollectionId(int $categoryId, string $handle): string
+    {
+        $collectionId = $this->findCollectionId($categoryId, $handle);
+
+        if ($collectionId !== null) {
+            return $collectionId;
+        }
+
+        $category = null;
+
+        try {
+            $category = Category::query()->find($categoryId);
+        } catch (Throwable) {
+            // Isolated unit tests may exercise this service before migrations.
+        }
+
+        $created = $this->createCollection($category, $handle);
+        $collectionId = $created['id'];
+        $resolvedHandle = $created['handle'];
+        $this->publishCollection($collectionId);
+
+        if ($category) {
+            $category->forceFill([
+                'shopify_collection_id' => $collectionId,
+                'shopify_collection_handle' => $resolvedHandle,
+            ])->save();
+        }
+
+        return $this->resolvedCollectionIds[$handle] = $collectionId;
+    }
+
+    private function findCollectionId(int $categoryId, string $handle): ?string
     {
         if (isset($this->resolvedCollectionIds[$handle])) {
             return $this->resolvedCollectionIds[$handle];
@@ -198,16 +269,15 @@ class CollectionAssignService
         $resolvedHandle = $response->data['collectionByHandle']['handle'] ?? $handle;
 
         if (! is_string($collectionId) || $collectionId === '') {
-            $created = $this->createCollection($category, $handle);
-            $collectionId = $created['id'];
-            $resolvedHandle = $created['handle'];
-            $this->publishCollection($collectionId);
+            return null;
         }
 
         if ($category) {
             $category->forceFill([
                 'shopify_collection_id' => $collectionId,
-                'shopify_collection_handle' => $resolvedHandle,
+                'shopify_collection_handle' => is_string($resolvedHandle) && $resolvedHandle !== ''
+                    ? $resolvedHandle
+                    : $handle,
             ])->save();
         }
 
@@ -263,6 +333,24 @@ class CollectionAssignService
         $result = $response->data['collectionAddProducts'] ?? [];
 
         $this->assertNoUserErrors($this->withoutAlreadyAssignedErrors($result['userErrors'] ?? []));
+    }
+
+    /**
+     * @param  array<int, string>  $shopifyProductIds
+     */
+    private function removeProductsFromCollection(string $collectionId, array $shopifyProductIds): void
+    {
+        $response = $this->query([
+            'query' => self::COLLECTION_REMOVE_PRODUCTS_MUTATION,
+            'variables' => [
+                'id' => $collectionId,
+                'productIds' => array_values($shopifyProductIds),
+            ],
+        ]);
+
+        $result = $response->data['collectionRemoveProducts'] ?? [];
+
+        $this->assertNoUserErrors($this->withoutAlreadyRemovedErrors($result['userErrors'] ?? []));
     }
 
     private function publishCollection(string $collectionId): void
@@ -363,6 +451,21 @@ class CollectionAssignService
             $message = is_array($error) ? strtolower((string) ($error['message'] ?? '')) : '';
 
             return ! str_contains($message, 'already');
+        }));
+    }
+
+    /**
+     * @param  array<int, mixed>  $errors
+     * @return array<int, mixed>
+     */
+    private function withoutAlreadyRemovedErrors(array $errors): array
+    {
+        return array_values(array_filter($errors, function ($error) {
+            $message = is_array($error) ? strtolower((string) ($error['message'] ?? '')) : '';
+
+            return ! str_contains($message, 'already')
+                && ! str_contains($message, 'not found')
+                && ! str_contains($message, 'does not exist');
         }));
     }
 
