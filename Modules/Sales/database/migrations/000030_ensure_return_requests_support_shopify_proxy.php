@@ -77,28 +77,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        foreach (['shopify_customer_id', 'shopify_order_id', 'shopify_order_name'] as $column) {
-            if (Schema::hasIndex('return_requests', [$column])) {
-                Schema::table('return_requests', function (Blueprint $table) use ($column): void {
-                    $table->dropIndex([$column]);
-                });
-            }
-        }
-
-        foreach ([
-            'shop_domain',
-            'shopify_customer_id',
-            'shopify_order_id',
-            'shopify_order_name',
-            'email',
-            'items',
-            'notes',
-        ] as $column) {
-            if (Schema::hasColumn('return_requests', $column)) {
-                Schema::table('return_requests', function (Blueprint $table) use ($column): void {
-                    $table->dropColumn($column);
-                });
-            }
-        }
+        // Keep Shopify proxy return data intact if this migration is rolled back.
     }
 };
