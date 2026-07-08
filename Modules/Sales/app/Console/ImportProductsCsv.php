@@ -8,17 +8,22 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Category;
+use Modules\Sales\Models\Ingredients;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
+use Modules\Sales\Services\IngredientListParser;
 use SplFileObject;
 
 #[Signature('sales:import-products {path : Path to the products export CSV}')]
-#[Description('Import products, variants and categories from a products export CSV')]
+#[Description('Import products, variants, categories and ingredients from a products export CSV')]
 class ImportProductsCsv extends Command
 {
     private array $columns = [];
 
     private array $categories = [];
+
+  /** @var array<string, int> */
+    private array $ingredients = [];
 
     public function handle(ProductSyncService $shopify): int
     {
@@ -38,7 +43,7 @@ class ImportProductsCsv extends Command
 
         [$weightGroups, $colourGroups] = $this->classifyRows($rows);
 
-        $stats = ['products' => 0, 'variants' => 0];
+        $stats = ['products' => 0, 'variants' => 0, 'ingredients' => 0];
 
         DB::transaction(function () use ($weightGroups, $colourGroups, &$stats) {
             foreach ($weightGroups as $group) {
@@ -51,10 +56,11 @@ class ImportProductsCsv extends Command
         });
 
         $this->components->info(sprintf(
-            'Imported %d products (%d variants, %d categories).',
+            'Imported %d products (%d variants, %d categories, %d ingredients).',
             $stats['products'],
             $stats['variants'],
             count($this->categories),
+            $stats['ingredients'],
         ));
 
 //        $this->components->info('Deleting existing Shopify products...');
@@ -153,6 +159,8 @@ class ImportProductsCsv extends Command
             ],
         );
 
+        $this->importIngredients($product, $parent, $stats);
+
         $stats['products']++;
 
         // A product with no extra rows is a simple product; give it a single
@@ -189,6 +197,8 @@ class ImportProductsCsv extends Command
                 'category_id' => $this->categoryId($parent),
             ],
         );
+
+        $this->importIngredients($product, $parent, $stats);
 
         $stats['products']++;
 
@@ -367,6 +377,85 @@ class ImportProductsCsv extends Command
             ?: $this->value($row, 'Description (en)')
             ?: $this->value($row, 'Description')
             ?: null;
+    }
+
+    /**
+     * @param  array{products: int, variants: int, ingredients: int}  $stats
+     */
+    private function importIngredients(Product $product, array $row, array &$stats): void
+    {
+        $parsed = IngredientListParser::parse($this->value($row, 'Ingredients (de_CH)'));
+
+        if ($parsed === []) {
+            $product->ingredients()->detach();
+
+            return;
+        }
+
+        $ingredientIds = [];
+
+        foreach ($parsed as $ingredient) {
+            $ingredientIds[] = $this->ingredientId($ingredient, $stats);
+        }
+
+        $product->ingredients()->sync($ingredientIds);
+    }
+
+    /**
+     * @param  array{name: string, is_natural: bool, is_allergen: bool}  $ingredient
+     * @param  array{products: int, variants: int, ingredients: int}  $stats
+     */
+    private function ingredientId(array $ingredient, array &$stats): int
+    {
+        $name = $ingredient['name'];
+
+        if (isset($this->ingredients[$name])) {
+            $this->mergeIngredientFlags($this->ingredients[$name], $ingredient);
+
+            return $this->ingredients[$name];
+        }
+
+        $model = Ingredients::firstOrCreate(
+            ['name' => $name],
+            [
+                'is_vegan' => false,
+                'is_natural' => $ingredient['is_natural'],
+                'is_allergen' => $ingredient['is_allergen'],
+            ],
+        );
+
+        if ($model->wasRecentlyCreated) {
+            $stats['ingredients']++;
+        }
+
+        $this->mergeIngredientFlags($model->getKey(), $ingredient);
+
+        return $this->ingredients[$name] = $model->getKey();
+    }
+
+    /**
+     * @param  array{name: string, is_natural: bool, is_allergen: bool}  $ingredient
+     */
+    private function mergeIngredientFlags(int $ingredientId, array $ingredient): void
+    {
+        $model = Ingredients::query()->find($ingredientId);
+
+        if ($model === null) {
+            return;
+        }
+
+        $isNatural = $model->is_natural || $ingredient['is_natural'];
+        $isAllergen = $model->is_allergen || $ingredient['is_allergen'];
+
+        if ($model->is_natural === $isNatural && $model->is_allergen === $isAllergen) {
+            return;
+        }
+
+        $model->update([
+            'is_natural' => $isNatural,
+            'is_allergen' => $isAllergen,
+            'is_vegan' => false,
+        ]);
     }
 
     private function value(array $row, string $column): string
