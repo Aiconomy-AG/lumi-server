@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Modules\Sales\Enums\ShopifySyncStatus;
 use Modules\Sales\Exceptions\Shopify\ShopifyException;
 use Modules\Sales\Exceptions\Shopify\ShopifyThrottledException;
+use Modules\Sales\Jobs\DeleteShopifyProductJob;
 use Modules\Sales\Jobs\SyncShopifyProductJob;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
@@ -58,6 +59,45 @@ class ProductSyncService
     public function __construct(
         private readonly ShopifyConnector $connector,
     ) {}
+
+    /**
+     * Queue a newly created local product for its first Shopify push.
+     */
+    public function create(Product $product): void
+    {
+        $this->queueSync($product);
+    }
+
+    /**
+     * Queue product field changes for re-sync to Shopify.
+     */
+    public function update(Product $product): void
+    {
+        $this->queueSync($product);
+    }
+
+    /**
+     * Queue removal of a product from Shopify when the local record is deleted.
+     */
+    public function queueDelete(Product $product): void
+    {
+        $shopifyProductId = $product->shopify_product_id;
+
+        if (! is_string($shopifyProductId) || $shopifyProductId === '') {
+            return;
+        }
+
+        DeleteShopifyProductJob::dispatch($shopifyProductId);
+    }
+
+    /**
+     * Delete a product from Shopify by its remote id. Idempotent when the
+     * product has already been removed.
+     */
+    public function deleteRemote(string $shopifyProductId): void
+    {
+        $this->deleteById($shopifyProductId);
+    }
 
     public function sync(Product $product): void
     {
@@ -251,6 +291,13 @@ class ProductSyncService
             });
 
         return $queued;
+    }
+
+    private function queueSync(Product $product): void
+    {
+        $product->forceFill(['shopify_sync_status' => ShopifySyncStatus::Unsynced])->save();
+
+        SyncShopifyProductJob::dispatch($product->id);
     }
 
     /**

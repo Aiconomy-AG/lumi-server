@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Category;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Transformers\ProductResource;
 
 class ProductController extends Controller
 {
+    public function __construct(
+        private readonly ProductSyncService $shopify,
+    ) {}
     public function index()
     {
         return ProductResource::collection(Product::with(['variants', 'category'])->get());
@@ -62,7 +66,10 @@ class ProductController extends Controller
             return $product;
         });
 
-        return (new ProductResource($product->load(['variants', 'category'])))
+        $product->load(['variants', 'category']);
+        $this->shopify->create($product);
+
+        return (new ProductResource($product))
             ->response()
             ->setStatusCode(201);
     }
@@ -89,12 +96,17 @@ class ProductController extends Controller
         unset($validated['category_name']);
         $product->update($validated);
 
-        return new ProductResource($product->load(['variants', 'category']));
+        $product->load(['variants', 'category']);
+        $this->shopify->update($product);
+
+        return new ProductResource($product);
     }
 
     public function destroy(int $productId)
     {
         $product = Product::findOrFail($productId);
+
+        $this->shopify->queueDelete($product);
 
         try {
             $product->delete();
