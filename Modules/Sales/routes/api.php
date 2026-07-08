@@ -24,11 +24,11 @@ Route::prefix('shopify/proxy')->group(function (): void {
 });
 
 Route::prefix('shopify/webhooks')->group(function (): void {
-    Route::post('customers-create', [WebhookController::class, 'customer']);
-    Route::post('customers-update', [WebhookController::class, 'customer']);
-    Route::post('orders-create', [WebhookController::class, 'order']);
-    Route::post('orders-updated', [WebhookController::class, 'order']);
-    Route::post('products-update', [WebhookController::class, 'product']);
+    Route::post('customers/create', [WebhookController::class, 'customer']);
+    Route::post('customers/update', [WebhookController::class, 'customer']);
+    Route::post('orders/create', [WebhookController::class, 'order']);
+    Route::post('orders/updated', [WebhookController::class, 'order']);
+    Route::post('products/update', [WebhookController::class, 'product']);
 });
 
 Route::prefix('v1/shop')->group(function (): void {

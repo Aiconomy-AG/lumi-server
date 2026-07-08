@@ -19,7 +19,7 @@ class ShopifyWebhookTest extends TestCase
 
     public function test_webhooks_reject_invalid_hmac(): void
     {
-        $this->postJson('/api/shopify/webhooks/customers-create', ['id' => 123], [
+        $this->postJson('/api/shopify/webhooks/customers/create', ['id' => 123], [
             'X-Shopify-Hmac-Sha256' => 'bad',
         ])->assertUnauthorized();
     }
@@ -33,7 +33,7 @@ class ShopifyWebhookTest extends TestCase
             'last_name' => 'Shopper',
         ];
 
-        $this->postSignedWebhook('/api/shopify/webhooks/customers-create', $payload)
+        $this->postSignedWebhook('/api/shopify/webhooks/customers/create', $payload)
             ->assertOk()
             ->assertJsonPath('ok', true);
 
@@ -42,6 +42,19 @@ class ShopifyWebhookTest extends TestCase
             'email' => 'customer@example.com',
             'username' => 'Fresh Shopper',
         ]);
+    }
+
+    public function test_hyphenated_webhook_paths_are_not_accepted(): void
+    {
+        $payload = [
+            'id' => 456,
+            'email' => 'legacy@example.com',
+            'first_name' => 'Legacy',
+            'last_name' => 'Customer',
+        ];
+
+        $this->postSignedWebhook('/api/shopify/webhooks/customers-create', $payload)
+            ->assertNotFound();
     }
 
     public function test_order_webhook_creates_order_for_shopify_customer(): void
@@ -67,7 +80,7 @@ class ShopifyWebhookTest extends TestCase
             'line_items' => [],
         ];
 
-        $this->postSignedWebhook('/api/shopify/webhooks/orders-create', $payload)
+        $this->postSignedWebhook('/api/shopify/webhooks/orders/create', $payload)
             ->assertOk()
             ->assertJsonPath('ok', true);
 
