@@ -1,12 +1,13 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+Broadcast::channel('App.Models.User.{id}', function (User $user, int $id) {
     return (int) $user->id === (int) $id;
-});
+}, ['guards' => ['sanctum']]);
 
-Broadcast::channel('presence-team', function ($user) {
+Broadcast::channel('team', function (User $user) {
     if ($user->status === 'offline') {
         $user->update(['status' => 'available']);
     }
@@ -14,7 +15,7 @@ Broadcast::channel('presence-team', function ($user) {
     return [
         'id' => $user->id,
         'name' => $user->name,
-        'role' => $user->role,
+        'role' => $user->role->value,
         'status' => $user->status,
     ];
-});
+}, ['guards' => ['sanctum']]);
