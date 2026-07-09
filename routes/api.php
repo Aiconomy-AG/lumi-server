@@ -10,7 +10,7 @@ Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Route::prefix('auth')->group(function () {
     Route::post('login', [TokenController::class, 'store'])->middleware('throttle:auth');
-    
+
     Route::get('reset-password/validate', [PasswordResetController::class, 'validateToken'])
     ->middleware('throttle:auth');
     Route::post('reset-password', [PasswordResetController::class, 'reset'])
@@ -25,14 +25,13 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'staff', 'admin'])
-    ->prefix('v1/admin')
+    ->prefix('admin')
     ->group(function (): void {
         Route::apiResource('users', UserController::class);
         Route::post('users/{userId}/resend-invite', [UserController::class, 'resendInvite']);
     });
 
 Route::middleware(['auth:sanctum', 'staff'])
-    ->prefix('v1')
     ->group(function (): void {
         Route::get('users', [UserController::class, 'index']);
     });

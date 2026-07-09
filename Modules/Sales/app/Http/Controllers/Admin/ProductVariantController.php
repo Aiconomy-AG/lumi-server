@@ -20,7 +20,7 @@ class ProductVariantController extends Controller
     public function store(Request $request, int $productId)
     {
         $product = Product::findOrFail($productId);
-
+        $this->authorize('update', $product);
         $validated = $request->validate([
             'sku' => ['required', 'string', 'max:255', 'unique:product_variants,sku'],
             'name' => ['nullable', 'string', 'max:255'],
@@ -50,6 +50,7 @@ class ProductVariantController extends Controller
     public function update(Request $request, int $productId, int $variantId): ProductResource
     {
         $product = Product::findOrFail($productId);
+        $this->authorize('update', $product);
         $variant = $this->findVariant($product, $variantId);
 
         $validated = $request->validate([
@@ -78,6 +79,7 @@ class ProductVariantController extends Controller
     public function destroy(int $productId, int $variantId)
     {
         $product = Product::findOrFail($productId);
+        $this->authorize('delete', $product);
         $variant = $this->findVariant($product, $variantId);
 
         try {
@@ -99,11 +101,12 @@ class ProductVariantController extends Controller
 
     public function updateStock(Request $request, int $productId, int $variantId): ProductResource
     {
+        $product = Product::findOrFail($productId);
+        $this->authorize('updateStock', $product);
         $validated = $request->validate([
             'stock_quantity' => ['required', 'integer', 'min:0'],
         ]);
 
-        $product = Product::findOrFail($productId);
         $variant = $this->findVariant($product, $variantId);
 
         $variant->update([

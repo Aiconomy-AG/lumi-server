@@ -7,9 +7,12 @@ use Modules\Workspace\Http\Controllers\NotificationController;
 use Modules\Workspace\Http\Controllers\ProjectController;
 use Modules\Workspace\Http\Controllers\TaskController;
 use Modules\Workspace\Http\Controllers\TimeTrackingController;
+use Modules\Workspace\Http\Controllers\WorkspaceController;
 use Modules\Workspace\Http\Middleware\VerifyConversationParticipant;
 
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::apiResource('workspaces', WorkspaceController::class)->names('workspace');
+
     Route::prefix('workspace')->group(function (): void {
         Route::get('projects', [ProjectController::class, 'index']);
         Route::post('projects', [ProjectController::class, 'store']);
@@ -38,20 +41,18 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::put('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
 
-        Route::post(
-            'tasks/{taskId}/assignees',
-            [TaskController::class, 'assignEmployees']
-        );
-
-        Route::delete(
-            'tasks/{taskId}/assignees/{employeeId}',
-            [TaskController::class, 'removeEmployee']
-        );
-
         Route::prefix('tasks/{taskId}')->group(function (): void {
-            Route::post('time-entries/start', [TimeTrackingController::class, 'start']);
-            Route::post('time-entries/{entryId}/stop', [TimeTrackingController::class, 'stop']);
-            Route::get('time-entries', [TimeTrackingController::class, 'index']);
+
+            // Assignees
+            Route::post('assignees', [TaskController::class, 'assignEmployees']);
+            Route::delete('assignees/{employeeId}', [TaskController::class, 'removeEmployee']);
+
+            // Time Entries
+            Route::controller(TimeTrackingController::class)->prefix('time-entries')->group(function () {
+                Route::get('/', 'index');
+                Route::post('start', 'start');
+                Route::post('{entryId}/stop', 'stop');
+            });
         });
     });
 });

@@ -4,12 +4,15 @@ namespace Modules\Sales\Providers;
 
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Modules\Sales\Console\AssignShopifyCollections;
 use Modules\Sales\Console\ImportProductsCsv;
 use Modules\Sales\Console\ShopifyTestConnection;
 use Modules\Sales\Console\SyncShopifyInventory;
 use Modules\Sales\Console\SyncShopifyProducts;
 use Modules\Sales\Integrations\Shopify\ShopifyAccessTokenProvider;
+use Modules\Sales\Models\Product;
+use Modules\Sales\Policies\ProductPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class SalesServiceProvider extends ModuleServiceProvider
@@ -54,5 +57,12 @@ class SalesServiceProvider extends ModuleServiceProvider
         $this->app->when(ShopifyAccessTokenProvider::class)
             ->needs(CacheRepository::class)
             ->give(fn () => Cache::store());
+    }
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        Gate::policy(Product::class, ProductPolicy::class);
     }
 }
