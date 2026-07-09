@@ -3,8 +3,10 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
+use App\Mail\UserInviteMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -21,21 +23,20 @@ class UserCrudTest extends TestCase
 
     public function test_admin_can_create_update_and_deactivate_user(): void
     {
+        Mail::fake();
+
         $admin = User::factory()->admin()->create();
         Sanctum::actingAs($admin);
 
         $createResponse = $this->postJson('/api/v1/admin/users', [
-            'name' => 'Jane Employee',
             'email' => 'jane@example.com',
-            'password' => 'secret123',
             'role' => 'employee',
-            'status' => 'available',
-            'phone_number' => '123',
-            'language_flag' => 'en',
         ]);
 
         $createResponse->assertCreated();
         $userId = $createResponse->json('data.id');
+        $this->assertTrue((bool) User::findOrFail($userId)->must_change_password);
+        Mail::assertSent(UserInviteMail::class);
 
         $this->putJson("/api/v1/admin/users/{$userId}", [
             'name' => 'Jane Updated',
@@ -53,9 +54,7 @@ class UserCrudTest extends TestCase
         Sanctum::actingAs(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/users', [
-            'name' => 'Bad Role',
             'email' => 'bad@example.com',
-            'password' => 'secret123',
             'role' => 'manager',
         ])->assertUnprocessable();
     }
@@ -67,5 +66,22 @@ class UserCrudTest extends TestCase
 
         $this->deleteJson("/api/v1/admin/users/{$admin->id}")
             ->assertStatus(422);
+    }
+
+    public function test_admin_can_resend_invite_for_user_that_must_change_password(): void
+    {
+        Mail::fake();
+
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'must_change_password' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/v1/admin/users/{$user->id}/resend-invite")
+            ->assertOk();
+
+        Mail::assertSent(UserInviteMail::class);
     }
 }

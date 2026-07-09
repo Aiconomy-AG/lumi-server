@@ -26,7 +26,7 @@ class AuthTest extends TestCase
         $response->assertCreated()
             ->assertJsonStructure([
                 'token',
-                'user' => ['id', 'name', 'email', 'role', 'status', 'phone_number', 'language_flag', 'is_active'],
+                'user' => ['id', 'name', 'email', 'role', 'status', 'phone_number', 'language_flag', 'is_active', 'must_change_password'],
             ]);
     }
 
@@ -56,6 +56,20 @@ class AuthTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_user_that_must_change_password_cannot_login(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'must_change_password' => true,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertForbidden();
+    }
+
     public function test_me_requires_token(): void
     {
         $this->getJson('/api/auth/me')->assertUnauthorized();
@@ -63,8 +77,8 @@ class AuthTest extends TestCase
 
     public function test_time_entries_routes_require_token(): void
     {
-        $this->getJson('/api/auth/tasks/1/time-entries')->assertUnauthorized();
-        $this->postJson('/api/auth/tasks/1/time-entries/start')->assertUnauthorized();
-        $this->postJson('/api/auth/tasks/1/time-entries/1/stop')->assertUnauthorized();
+        $this->getJson('/api/v1/workspace/tasks/1/time-entries')->assertUnauthorized();
+        $this->postJson('/api/v1/workspace/tasks/1/time-entries/start')->assertUnauthorized();
+        $this->postJson('/api/v1/workspace/tasks/1/time-entries/1/stop')->assertUnauthorized();
     }
 }

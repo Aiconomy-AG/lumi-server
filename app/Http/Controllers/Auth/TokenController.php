@@ -30,6 +30,12 @@ class TokenController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        if ($user->must_change_password) {
+            return response()->json([
+                'message' => 'You must reset your password using the invite link before signing in.',
+            ], 403);
+        }
+
         return response()->json([
             'token' => $user->createToken('api')->plainTextToken,
             'user' => new UserResource($user),

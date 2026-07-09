@@ -7,6 +7,10 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Mail\UserInviteMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -34,20 +38,23 @@ class UserController extends Controller
         $validated = $request->validate([
             'role' => ['required', 'string', Rule::in(['admin', 'employee'])],
             'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6'],
-            'name' => ['required', 'string', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:20'],
-            'language_flag' => ['nullable', 'string', 'max:10'],
-            'status' => ['sometimes', 'string', Rule::in(['available', 'busy', 'offline', 'away'])],
-            'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $validated['status'] ??= 'offline';
-        $validated['phone_number'] ??= '';
-        $validated['language_flag'] ??= 'en';
-        $validated['is_active'] ??= true;
+        $temporaryPassword = Str::password(16);
 
-        $user = User::create($validated);
+        $user = User::create([
+            'email' => strtolower(trim($validated['email'])),
+            'role' => $validated['role'],
+            'name' => Str::before($validated['email'], '@'),
+            'password' => $temporaryPassword,
+            'status' => 'offline',
+            'phone_number' => '',
+            'language_flag' => 'en',
+            'is_active' => true,
+            'must_change_password' => true,
+        ]);
+
+        $this->sendInvite($user, $temporaryPassword);
 
         return (new UserResource($user))
             ->response()
@@ -72,6 +79,7 @@ class UserController extends Controller
             'language_flag' => ['nullable', 'string', 'max:10'],
             'status' => ['sometimes', 'required', 'string', Rule::in(['available', 'busy', 'offline', 'away'])],
             'is_active' => ['sometimes', 'boolean'],
+            'must_change_password' => ['sometimes', 'boolean'],
         ]);
 
         if (array_key_exists('password', $validated) && ! $validated['password']) {
@@ -97,5 +105,31 @@ class UserController extends Controller
         $user->tokens()->delete();
 
         return response()->noContent();
+    }
+
+    public function resendInvite(int $userId)
+    {
+        $user = User::findOrFail($userId);
+        if (! $user->must_change_password) {
+            return response()->json([
+                'message' => 'Invite can only be resent for users who have not reset their password yet.',
+            ], 422);
+        }
+        $temporaryPassword = Str::password(16);
+        $user->update(['password' => $temporaryPassword]);
+        $this->sendInvite($user, $temporaryPassword);
+        return response()->json(['message' => 'Invite resent successfully.']);
+    }
+
+    private function sendInvite(User $user, string $temporaryPassword): void
+    {
+        $token = Password::broker()->createToken($user);
+        $frontendUrl = rtrim((string) config('app.frontend_url'), '/');
+        $resetUrl = $frontendUrl.'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email);
+        Mail::to($user->email)->send(new UserInviteMail(
+            user: $user,
+            temporaryPassword: $temporaryPassword,
+            resetUrl: $resetUrl,
+        ));
     }
 }

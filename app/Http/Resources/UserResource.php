@@ -21,6 +21,7 @@ class UserResource extends JsonResource
             'phone_number' => $this->phone_number,
             'language_flag' => $this->language_flag,
             'is_active' => (bool) $this->is_active,
+            'must_change_password' => (bool) $this->must_change_password,
         ];
     }
 }
