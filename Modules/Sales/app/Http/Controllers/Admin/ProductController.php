@@ -18,11 +18,12 @@ class ProductController extends Controller
     public function __construct(
         private readonly ProductSyncService $shopify,
     ) {}
-    
+
     private const LOW_STOCK_THRESHOLD = 5;
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Product::class);
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],
@@ -101,6 +102,7 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Product::class);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0'],
@@ -164,7 +166,7 @@ class ProductController extends Controller
     public function update(Request $request, int $productId): ProductResource
     {
         $product = Product::findOrFail($productId);
-
+        $this->authorize('update', $product);
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'price' => ['sometimes', 'required', 'numeric', 'min:0'],
@@ -195,7 +197,7 @@ class ProductController extends Controller
     public function destroy(int $productId)
     {
         $product = Product::findOrFail($productId);
-
+        $this->authorize('delete', $product);
         $this->shopify->queueDelete($product);
 
         try {

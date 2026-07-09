@@ -2,10 +2,18 @@ openapi: 3.0.0
 info:
   title: Workspace Collaboration API
   version: 1.0.0
-  description: OpenAPI specification for the internal workspace, employee, chat, and tasks database schema.
+  description: OpenAPI specification for the internal workspace, employee, chat, and tasks database schema. Example "api/v1/auth/login"
 
 servers:
-  - url: /api
+  - url: /api/{version}
+    description: Main API Server.
+    variables:
+      version:
+        default: v1
+        enum:
+          - v1
+#          - v2
+        description: Select the API version
 
 components:
   securitySchemes:
@@ -172,7 +180,7 @@ components:
             $ref: '#/components/schemas/Error'
 
 paths:
-  /api/auth/login:
+  /auth/login:
     post:
       tags:
         - Authentication
@@ -236,7 +244,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/admin/users:
+  /admin/users:
     get:
       tags:
         - Users
@@ -305,7 +313,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/admin/users/{userId}:
+  /admin/users/{userId}:
     get:
       tags:
         - Users
@@ -393,7 +401,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/projects:
+  /workspace/projects:
     get:
       tags:
         - Projects
@@ -454,7 +462,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/workspace/projects/{projectId}:
+  /workspace/projects/{projectId}:
     get:
       tags:
         - Projects
@@ -540,7 +548,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks:
+  /workspace/tasks:
     get:
       tags:
         - Tasks
@@ -609,7 +617,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/workspace/tasks/{taskId}:
+  /workspace/tasks/{taskId}:
     get:
       tags:
         - Tasks
@@ -699,7 +707,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks/{taskId}/assignees:
+  /workspace/tasks/{taskId}/assignees:
     post:
       tags:
         - Tasks
@@ -737,7 +745,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks/{taskId}/assignees/{employeeId}:
+  /workspace/tasks/{taskId}/assignees/{employeeId}:
     delete:
       tags:
         - Tasks
@@ -767,7 +775,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks/{taskId}/time-entries:
+  /workspace/tasks/{taskId}/time-entries:
     get:
       tags:
         - Time Tracking
@@ -794,7 +802,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks/{taskId}/time-entries/start:
+  /workspace/tasks/{taskId}/time-entries/start:
     post:
       tags:
         - Time Tracking
@@ -819,7 +827,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks/{taskId}/time-entries/{entryId}/stop:
+  /workspace/tasks/{taskId}/time-entries/{entryId}/stop:
     post:
       tags:
         - Time Tracking
@@ -849,32 +857,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/workspace/tasks/{taskId}/time-entries:
-    get:
-      tags:
-        - Time Tracking
-      summary: List time entries for a task
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: taskId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: A list of time entries
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Task_Time_Entry'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
   /workspace/time-entries:
     get:
