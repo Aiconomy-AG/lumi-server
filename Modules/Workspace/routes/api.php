@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Workspace\Http\Controllers\ConversationController;
 use Modules\Workspace\Http\Controllers\TimeTrackingController;
 use Modules\Workspace\Http\Controllers\ProjectController;
 use Modules\Workspace\Http\Controllers\TaskController;
@@ -20,6 +21,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::put('tasks/{taskId}', [TaskController::class, 'update']);
         Route::delete('tasks/{taskId}', [TaskController::class, 'destroy']);
 
+        Route::get('conversations', [ConversationController::class, 'index']);
+        Route::post('conversations', [ConversationController::class, 'store']);
+        Route::get('conversations/{conversationId}', [ConversationController::class, 'show']);
+
+
         Route::post(
             'tasks/{taskId}/assignees',
             [TaskController::class, 'assignEmployees']
@@ -29,7 +35,7 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
             'tasks/{taskId}/assignees/{employeeId}',
             [TaskController::class, 'removeEmployee']
         );
-        
+
         Route::prefix('tasks/{taskId}')->group(function (): void {
             Route::post('time-entries/start', [TimeTrackingController::class, 'start']);
             Route::post('time-entries/{entryId}/stop', [TimeTrackingController::class, 'stop']);
