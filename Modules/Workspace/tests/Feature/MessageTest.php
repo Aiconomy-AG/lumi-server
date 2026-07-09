@@ -4,9 +4,11 @@ namespace Modules\Workspace\Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
 
@@ -39,6 +41,8 @@ class MessageTest extends TestCase
     #[Test]
     public function a_participant_can_send_a_message()
     {
+        Event::fake([MessageSent::class]);
+
         $user = User::factory()->create();
         $other = User::factory()->create();
         $conversation = $this->conversationWith($user, $other);
@@ -58,6 +62,12 @@ class MessageTest extends TestCase
             'sender_id' => $user->id,
             'message' => 'Salut!',
         ]);
+
+        Event::assertDispatched(MessageSent::class, fn (MessageSent $event) =>
+            $event->message->conversation_id === $conversation->id
+                && $event->message->sender_id === $user->id
+                && $event->message->message === 'Salut!'
+        );
     }
 
     #[Test]
