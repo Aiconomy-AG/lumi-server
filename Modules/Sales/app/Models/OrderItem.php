@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 // use Modules\Sales\Database\Factories\OrderItemFactory;
 
@@ -16,7 +17,7 @@ class OrderItem extends Model
      */
     protected $fillable = [
         'order_id',
-        'product_id',
+        'product_variant_id',
         'quantity',
     ];
 
@@ -29,9 +30,12 @@ class OrderItem extends Model
         return $this->belongsTo(Order::class);
     }
 
-    public function product()
+    public function variant(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(
+            ProductVariant::class,
+            'product_variant_id'
+        );
     }
 
     public function returnItems()

@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Sales\Database\Factories\ProductVariantFactory;
 
 // use Modules\Sales\Database\Factories\ProductVariantFactory;
@@ -35,7 +36,7 @@ class ProductVariant extends Model
         'options' => 'array',
     ];
 
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
@@ -44,6 +45,14 @@ class ProductVariant extends Model
     {
         return $this->hasMany(
             CartItem::class,
+            'product_variant_id'
+        );
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(
+            OrderItem::class,
             'product_variant_id'
         );
     }
