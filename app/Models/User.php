@@ -17,6 +17,7 @@ use Laravel\Sanctum\HasApiTokens;
     'password',
     'role',
     'status',
+    'last_seen_at',
     'phone_number',
     'language_flag',
     'is_active',
@@ -38,6 +39,7 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'role' => UserRole::class,
+            'last_seen_at' => 'datetime',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
         ];
@@ -46,5 +48,9 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
+    }
+    public function isEmployee(): bool
+    {
+        return $this->role === UserRole::Employee;
     }
 }

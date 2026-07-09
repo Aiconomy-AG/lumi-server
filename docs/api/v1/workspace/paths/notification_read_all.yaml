@@ -7,5 +7,14 @@ put:
   responses:
     '200':
       description: All notifications marked as read successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              updated_count:
+                type: integer
     '401':
       $ref: '../components/responses/Unauthorized.yaml'

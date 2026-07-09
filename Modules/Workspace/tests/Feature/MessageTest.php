@@ -112,6 +112,32 @@ class MessageTest extends TestCase
     }
 
     #[Test]
+    public function message_listing_returns_the_latest_window_in_chronological_order()
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $conversation = $this->conversationWith($user, $other);
+
+        $messages = Message::factory()
+            ->count(60)
+            ->sequence(fn ($sequence) => [
+                'conversation_id' => $conversation->id,
+                'sender_id' => $sequence->index % 2 === 0 ? $user->id : $other->id,
+                'created_at' => now()->addSeconds($sequence->index),
+                'updated_at' => now()->addSeconds($sequence->index),
+            ])
+            ->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/v1/workspace/conversations/{$conversation->id}/messages");
+
+        $response->assertStatus(200)
+            ->assertJsonCount(50, 'data')
+            ->assertJsonPath('data.0.id', $messages[10]->id)
+            ->assertJsonPath('data.49.id', $messages[59]->id);
+    }
+
+    #[Test]
     public function a_non_participant_is_forbidden()
     {
         $participantOne = User::factory()->create();

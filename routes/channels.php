@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\PresenceService;
 use Illuminate\Support\Facades\Broadcast;
 use Modules\Workspace\Models\Conversation;
 
@@ -8,10 +9,12 @@ Broadcast::channel('App.Models.User.{id}', function (User $user, int $id) {
     return (int) $user->id === (int) $id;
 }, ['guards' => ['sanctum']]);
 
+Broadcast::channel('users.{userId}', function (User $user, int $userId) {
+    return (int) $user->id === (int) $userId;
+}, ['guards' => ['sanctum']]);
+
 Broadcast::channel('team', function (User $user) {
-    if ($user->status === 'offline') {
-        $user->update(['status' => 'available']);
-    }
+    app(PresenceService::class)->markAlive($user);
 
     return [
         'id' => $user->id,

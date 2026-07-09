@@ -18,7 +18,7 @@ class AuthTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
@@ -37,7 +37,7 @@ class AuthTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->postJson('/api/auth/login', [
+        $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
             'password' => 'password',
         ])->assertForbidden();
@@ -50,7 +50,7 @@ class AuthTest extends TestCase
             'is_active' => false,
         ]);
 
-        $this->postJson('/api/auth/login', [
+        $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
             'password' => 'password',
         ])->assertForbidden();
@@ -64,7 +64,7 @@ class AuthTest extends TestCase
             'must_change_password' => true,
         ]);
 
-        $this->postJson('/api/auth/login', [
+        $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
             'password' => 'password',
         ])->assertForbidden();
@@ -72,7 +72,7 @@ class AuthTest extends TestCase
 
     public function test_me_requires_token(): void
     {
-        $this->getJson('/api/auth/me')->assertUnauthorized();
+        $this->getJson('/api/v1/auth/me')->assertUnauthorized();
     }
 
     public function test_time_entries_routes_require_token(): void
@@ -84,9 +84,14 @@ class AuthTest extends TestCase
 
     public function test_me_status_update_requires_token(): void
     {
-        $this->patchJson('/api/auth/me/status', [
+        $this->patchJson('/api/v1/auth/me/status', [
             'status' => 'busy',
         ])->assertUnauthorized();
+    }
+
+    public function test_presence_ping_requires_token(): void
+    {
+        $this->postJson('/api/v1/auth/me/presence/ping')->assertUnauthorized();
     }
 
     public function test_authenticated_user_can_update_own_status(): void
@@ -99,7 +104,7 @@ class AuthTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        $this->patchJson('/api/auth/me/status', [
+        $this->patchJson('/api/v1/auth/me/status', [
             'status' => 'busy',
         ])->assertOk()->assertJsonPath('data.status', 'busy');
 
@@ -116,8 +121,42 @@ class AuthTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        $this->patchJson('/api/auth/me/status', [
+        $this->patchJson('/api/v1/auth/me/status', [
             'status' => 'offline',
         ])->assertUnprocessable();
+    }
+
+    public function test_presence_ping_marks_user_alive_and_available(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'status' => 'offline',
+            'last_seen_at' => null,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $this->postJson('/api/v1/auth/me/presence/ping')->assertNoContent();
+
+        $fresh = $user->fresh();
+        $this->assertSame('available', $fresh->status);
+        $this->assertNotNull($fresh->last_seen_at);
+    }
+
+    public function test_disconnect_with_personal_access_token_marks_user_offline(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'status' => 'busy',
+        ]);
+        $plainTextToken = $user->createToken('test')->plainTextToken;
+
+        $this->postJson('/api/v1/auth/me/presence/disconnect', [
+            'token' => $plainTextToken,
+        ])->assertNoContent();
+
+        $this->assertSame('offline', $user->fresh()->status);
     }
 }

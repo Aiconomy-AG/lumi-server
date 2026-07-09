@@ -3,8 +3,10 @@
 namespace Modules\Sales\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Product;
@@ -20,7 +22,7 @@ class ProductVariantController extends Controller
     public function store(Request $request, int $productId)
     {
         $product = Product::findOrFail($productId);
-
+        $this->authorize('update', $product);
         $validated = $request->validate([
             'sku' => ['required', 'string', 'max:255', 'unique:product_variants,sku'],
             'name' => ['nullable', 'string', 'max:255'],
@@ -50,6 +52,7 @@ class ProductVariantController extends Controller
     public function update(Request $request, int $productId, int $variantId): ProductResource
     {
         $product = Product::findOrFail($productId);
+        $this->authorize('update', $product);
         $variant = $this->findVariant($product, $variantId);
 
         $validated = $request->validate([
@@ -78,6 +81,7 @@ class ProductVariantController extends Controller
     public function destroy(int $productId, int $variantId)
     {
         $product = Product::findOrFail($productId);
+        $this->authorize('delete', $product);
         $variant = $this->findVariant($product, $variantId);
 
         try {
@@ -97,18 +101,38 @@ class ProductVariantController extends Controller
         return response()->noContent();
     }
 
+
     public function updateStock(Request $request, int $productId, int $variantId): ProductResource
     {
+        $product = Product::findOrFail($productId);
+        $this->authorize('updateStock', $product);
         $validated = $request->validate([
             'stock_quantity' => ['required', 'integer', 'min:0'],
+            'reason'         => ['nullable', 'string', 'max:255'],
         ]);
 
-        $product = Product::findOrFail($productId);
         $variant = $this->findVariant($product, $variantId);
 
-        $variant->update([
-            'stock_quantity' => $validated['stock_quantity'],
-        ]);
+        $oldStock = $variant->stock_quantity;
+        $newStock = (int) $validated['stock_quantity'];
+
+        DB::transaction(function () use ($variant, $newStock, $oldStock, $product, $validated): void {
+            $variant->update(['stock_quantity' => $newStock]);
+
+            if ($newStock !== $oldStock) {
+                AuditLog::record(
+                    module: 'sales',
+                    action: 'stock_update',
+                    entity: $variant,
+                    label: $product->name . ' (' . $variant->sku . ')',
+                    changes: [
+                        'old' => ['stock_quantity' => $oldStock],
+                        'new' => ['stock_quantity' => $newStock],
+                    ],
+                    description: $validated['reason'] ?? 'Manual inventory stock adjustment.',
+                );
+            }
+        });
 
         $product->load(['variants', 'category']);
         $this->shopify->updateVariant($product);

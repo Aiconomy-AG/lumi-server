@@ -24,7 +24,7 @@ class ShopifyProxyTest extends TestCase
 
     public function test_wishlist_proxy_requires_valid_signature(): void
     {
-        $this->getJson('/api/shopify/proxy/wishlist?shop=test.myshopify.com&logged_in_customer_id=123&signature=bad')
+        $this->getJson('/api/v1/shopify/proxy/wishlist?shop=test.myshopify.com&logged_in_customer_id=123&signature=bad')
             ->assertUnauthorized();
     }
 
@@ -42,14 +42,14 @@ class ShopifyProxyTest extends TestCase
             'timestamp' => '1234567890',
         ]);
 
-        $this->postJson('/api/shopify/proxy/wishlist/items?'.$query, [
+        $this->postJson('/api/v1/shopify/proxy/wishlist/items?'.$query, [
             'shopify_product_id' => '999',
         ])->assertCreated()->assertJsonPath('saved', true);
 
         $this->assertDatabaseHas('customers', ['shopify_customer_id' => '123']);
         $this->assertDatabaseCount('wishlist_items', 1);
 
-        $this->deleteJson('/api/shopify/proxy/wishlist/items/999?'.$query)
+        $this->deleteJson('/api/v1/shopify/proxy/wishlist/items/999?'.$query)
             ->assertOk()
             ->assertJsonPath('saved', false);
 
@@ -64,7 +64,7 @@ class ShopifyProxyTest extends TestCase
             'timestamp' => '1234567890',
         ]);
 
-        $this->postJson('/api/shopify/proxy/returns?'.$query, [
+        $this->postJson('/api/v1/shopify/proxy/returns?'.$query, [
             'order_identifier' => '1001',
             'email' => 'customer@example.com',
             'reason' => 'damaged',
