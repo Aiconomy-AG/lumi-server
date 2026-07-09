@@ -3,11 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Workspace\Http\Controllers\ConversationController;
 use Modules\Workspace\Http\Controllers\MessageController;
-use Modules\Workspace\Http\Middleware\VerifyConversationParticipant;
-use Modules\Workspace\Http\Controllers\TimeTrackingController;
+use Modules\Workspace\Http\Controllers\NotificationController;
 use Modules\Workspace\Http\Controllers\ProjectController;
 use Modules\Workspace\Http\Controllers\TaskController;
-
+use Modules\Workspace\Http\Controllers\TimeTrackingController;
+use Modules\Workspace\Http\Middleware\VerifyConversationParticipant;
 
 Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     Route::prefix('workspace')->group(function (): void {
@@ -34,6 +34,9 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
                 Route::post('messages', [MessageController::class, 'store']);
             });
 
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::put('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::put('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
 
         Route::post(
             'tasks/{taskId}/assignees',
