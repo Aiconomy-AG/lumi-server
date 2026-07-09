@@ -28,7 +28,8 @@ class TaskController
         StoreTaskRequest $request
     ): TaskResource|JsonResponse {
         $task = $this->taskService->create(
-            $request->validated()
+            $request->validated(),
+            (int) $request->user()->id
         );
 
         return new TaskResource($task);

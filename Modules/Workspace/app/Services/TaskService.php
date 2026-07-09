@@ -2,6 +2,7 @@
 
 namespace Modules\Workspace\Services;
 
+use App\Jobs\SendPushNotificationJob;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Modules\Workspace\Models\Task;
@@ -23,9 +24,16 @@ class TaskService
             ->get();
     }
 
-    public function create(array $data): Task
+    public function create(array $data, ?int $actorUserId = null): Task
     {
+        $employeeIds = $data['employee_ids'] ?? [];
+        unset($data['employee_ids']);
+
         $task = Task::query()->create($data);
+
+        if ($employeeIds !== []) {
+            return $this->assignEmployees($task, $employeeIds, $actorUserId);
+        }
 
         return $task->load([
             'assignees',
@@ -122,16 +130,30 @@ class TaskService
 
         $newEmployeeIds = array_values(array_diff($employeeIds, $existingEmployeeIds));
 
+        $recipientUserIds = $this->excludeActor($newEmployeeIds, $actorUserId);
+
         $this->notificationService->createForRecipients(
             type: 'task_assigned',
             source: 'task',
-            recipientUserIds: $this->excludeActor($newEmployeeIds, $actorUserId),
+            recipientUserIds: $recipientUserIds,
             actorUserId: $actorUserId,
             taskId: $task->id,
             payload: [
                 'task_title' => $task->title,
             ],
         );
+
+        foreach ($recipientUserIds as $recipientUserId) {
+            SendPushNotificationJob::dispatch(
+                $recipientUserId,
+                'Task assigned',
+                "You were assigned: {$task->title}",
+                [
+                    'type' => 'task_assigned',
+                    'task_id' => (string) $task->id,
+                ],
+            );
+        }
 
         return $task;
     }

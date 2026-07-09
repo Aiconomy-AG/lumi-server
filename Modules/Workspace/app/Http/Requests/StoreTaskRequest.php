@@ -47,6 +47,16 @@ class StoreTaskRequest extends FormRequest
                 'integer',
                 'exists:projects,id',
             ],
+            'employee_ids' => [
+                'sometimes',
+                'array',
+            ],
+            'employee_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:users,id',
+            ],
         ];
     }
 }

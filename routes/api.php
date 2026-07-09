@@ -1,12 +1,13 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditLogController;
-use App\Http\Controllers\Auth\TokenController;
 use App\Http\Controllers\Admin\UserController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\PasswordResetController;
-use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\TokenController;
+use App\Http\Controllers\DeviceTokenController;
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Route;
 
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
@@ -15,7 +16,7 @@ Route::prefix('auth')->group(function () {
     Route::post('me/presence/disconnect', [TokenController::class, 'disconnect']);
 
     Route::get('reset-password/validate', [PasswordResetController::class, 'validateToken'])
-    ->middleware('throttle:auth');
+        ->middleware('throttle:auth');
     Route::post('reset-password', [PasswordResetController::class, 'reset'])
         ->middleware('throttle:auth');
 
@@ -26,6 +27,11 @@ Route::prefix('auth')->group(function () {
         Route::post('me/presence/ping', [TokenController::class, 'ping']);
 
     });
+});
+
+Route::middleware('auth:sanctum')->group(function (): void {
+    Route::post('device-tokens', [DeviceTokenController::class, 'store']);
+    Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
 });
 
 Route::middleware(['auth:sanctum', 'staff', 'admin'])
