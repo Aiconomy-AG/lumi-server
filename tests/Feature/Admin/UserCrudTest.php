@@ -21,6 +21,13 @@ class UserCrudTest extends TestCase
         $this->getJson('/api/v1/admin/users')->assertForbidden();
     }
 
+    public function test_employee_can_access_staff_users_index_route(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => UserRole::Employee]));
+
+        $this->getJson('/api/v1/users')->assertOk();
+    }
+
     public function test_admin_can_create_update_and_deactivate_user(): void
     {
         Mail::fake();

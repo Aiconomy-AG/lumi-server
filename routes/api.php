@@ -30,3 +30,8 @@ Route::middleware(['auth:sanctum', 'staff', 'admin'])
         Route::apiResource('users', UserController::class);
         Route::post('users/{userId}/resend-invite', [UserController::class, 'resendInvite']);
     });
+
+Route::middleware(['auth:sanctum', 'staff'])
+    ->group(function (): void {
+        Route::get('users', [UserController::class, 'index']);
+    });

@@ -2,17 +2,53 @@ type: object
 properties:
   id:
     type: integer
-  type:
-    type: string
-    enum: [TASK, CHAT]
-  title:
-    type: string
-  message:
-    type: string
-  actor_employee_id:
+  notification_event_id:
     type: integer
-  is_read:
-    type: boolean
+  recipient_user_id:
+    type: integer
   read_at:
     type: string
     format: date-time
+    nullable: true
+  seen_at:
+    type: string
+    format: date-time
+    nullable: true
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time
+  event:
+    type: object
+    properties:
+      id:
+        type: integer
+      actor_user_id:
+        type: integer
+        nullable: true
+      type:
+        type: string
+        example: task_due_date_changed
+      source:
+        type: string
+        enum: [task, chat]
+      task_id:
+        type: integer
+        nullable: true
+      conversation_id:
+        type: integer
+        nullable: true
+      message_id:
+        type: integer
+        nullable: true
+      payload:
+        type: object
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
