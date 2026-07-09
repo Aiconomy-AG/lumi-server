@@ -5,6 +5,7 @@ namespace Modules\Workspace\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 // use Modules\Workspace\Database\Factories\TaskTimeEntryFactory;
+use App\Models\User;
 
 class TaskTimeEntry extends Model
 {

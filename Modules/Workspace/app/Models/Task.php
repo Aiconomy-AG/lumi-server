@@ -5,6 +5,7 @@ namespace Modules\Workspace\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 // use Modules\Workspace\Database\Factories\TaskFactory;
+use App\Models\User;
 
 class Task extends Model
 {
@@ -19,6 +20,7 @@ class Task extends Model
         'status',
         'due_date',
         'parent_id',
+        'project_id',
     ];
 
     protected $casts = [
