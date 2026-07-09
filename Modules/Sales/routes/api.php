@@ -25,7 +25,11 @@ Route::prefix('shopify/proxy')->group(function (): void {
         Route::delete('items/{shopifyProductId}', 'destroy')->where('shopifyProductId', '.*');
     });
 
-    Route::post('returns', [ProxyReturnController::class, 'store']);
+    Route::controller(ProxyReturnController::class)
+        ->prefix('returns')
+        ->group(function (): void {
+            Route::post('/', 'store');
+        });
 });
 
 Route::prefix('shopify/webhooks')->controller(WebhookController::class)->group(function (): void {
@@ -102,9 +106,11 @@ Route::middleware(['auth:sanctum', 'staff'])->prefix('admin')->group(function ()
 
     Route::get('orders', [OrderController::class, 'index']);
 
-    Route::controller(ReturnRequestController::class)->prefix('returns')->group(function () {
-        Route::get('/', 'index');
-        Route::get('{returnRequestId}', 'show');
-        Route::patch('{returnRequestId}', 'update');
-    });
+    Route::controller(ReturnRequestController::class)
+        ->prefix('returns')
+        ->group(function (): void {
+            Route::get('/', 'index');
+            Route::get('{returnRequestId}', 'show');
+            Route::patch('{returnRequestId}', 'update');
+        });
 });
