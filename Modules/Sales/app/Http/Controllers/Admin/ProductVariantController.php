@@ -5,6 +5,7 @@ namespace Modules\Sales\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Product;
@@ -99,19 +100,46 @@ class ProductVariantController extends Controller
         return response()->noContent();
     }
 
+
     public function updateStock(Request $request, int $productId, int $variantId): ProductResource
     {
         $product = Product::findOrFail($productId);
         $this->authorize('updateStock', $product);
         $validated = $request->validate([
             'stock_quantity' => ['required', 'integer', 'min:0'],
+            'reason'         => ['nullable', 'string', 'max:255'],
         ]);
 
         $variant = $this->findVariant($product, $variantId);
 
-        $variant->update([
-            'stock_quantity' => $validated['stock_quantity'],
-        ]);
+        $oldStock = $variant->stock_quantity;
+        $newStock = (int) $validated['stock_quantity'];
+        $changeAmount = $newStock - $oldStock;
+        $user = auth()->user();
+
+        DB::transaction(function () use ($variant, $newStock, $oldStock, $changeAmount, $user, $product, $request) {
+            $variant->update(['stock_quantity' => $newStock]);
+
+            if ($changeAmount !== 0) {
+                DB::table('audit_logs')->insert([
+                    'module'       => 'sales',
+                    'action'       => 'update',
+                    'entity_type'  => 'product_variant',
+                    'entity_id'    => $variant->id,
+                    'entity_label' => $product->name . ' (' . $variant->sku . ')',
+
+                    'actor_user_id'=> $user?->id,
+                    'actor_name'   => $user ? $user->name : 'System/Automated',
+
+                    'description'  => $request->input('reason', 'Manual inventory stock adjustment.'),
+                    'changes'      => json_encode([
+                        'old' => ['stock_quantity' => $oldStock],
+                        'new' => ['stock_quantity' => $newStock]
+                    ]),
+                    'occurred_at'  => now(),
+                ]);
+            }
+        });
 
         $product->load(['variants', 'category']);
         $this->shopify->updateVariant($product);
