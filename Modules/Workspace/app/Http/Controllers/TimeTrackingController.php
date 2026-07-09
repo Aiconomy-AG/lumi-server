@@ -2,14 +2,45 @@
 namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Modules\Workspace\Models\Task;
 use Modules\Workspace\Models\TaskTimeEntry;
 use Modules\Workspace\Http\Resources\TaskTimeEntryResource;
+use Modules\Workspace\Services\TimeTrackingService;
 
 class TimeTrackingController extends Controller
 {
+    public function __construct(
+        private readonly TimeTrackingService $timeTracking
+    ) {}
+
+    public function dailyTotal(Request $request, int $userId): JsonResponse
+    {
+        $dateInput = $request->query('date');
+
+        try {
+            $day = $dateInput !== null
+                ? Carbon::parse((string) $dateInput)->toDateString()
+                : Carbon::now()->toDateString();
+        } catch (\Throwable) {
+            return response()->json([
+                'code' => 'BAD_REQUEST',
+                'message' => 'Invalid date. Expected format YYYY-MM-DD.',
+            ], 422);
+        }
+
+        $totalSeconds = $this->timeTracking->dailyTotalSeconds($userId, $day);
+
+        return response()->json([
+            'user_id' => $userId,
+            'date' => $day,
+            'total_seconds' => $totalSeconds,
+        ]);
+    }
+
     public function start(Request $request, $taskId)
     {
         $task = Task::find($taskId);
