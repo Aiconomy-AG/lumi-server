@@ -105,4 +105,19 @@ class AuthTest extends TestCase
 
         $this->assertSame('busy', $user->fresh()->status);
     }
+
+    public function test_authenticated_user_cannot_set_status_to_offline(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'status' => 'available',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $this->patchJson('/api/auth/me/status', [
+            'status' => 'offline',
+        ])->assertUnprocessable();
+    }
 }

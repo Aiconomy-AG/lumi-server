@@ -4,6 +4,9 @@ use App\Http\Controllers\Auth\TokenController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PasswordResetController;
+use Illuminate\Support\Facades\Broadcast;
+
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Route::prefix('auth')->group(function () {
     Route::post('login', [TokenController::class, 'store'])->middleware('throttle:auth');

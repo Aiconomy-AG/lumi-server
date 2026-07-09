@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Events\UserStatusUpdated;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\TokenRequest;
@@ -37,6 +38,11 @@ class TokenController extends Controller
             ], 403);
         }
 
+        if ($user->status === 'offline') {
+            $user->update(['status' => 'available']);
+            event(new UserStatusUpdated((int) $user->id, 'available'));
+        }
+
         return response()->json([
             'token' => $user->createToken('api')->plainTextToken,
             'user' => new UserResource($user),
@@ -45,10 +51,16 @@ class TokenController extends Controller
 
     public function destroy(Request $request): Response
     {
-        $token = $request->user()->currentAccessToken();
+        $user = $request->user();
+        $token = $user->currentAccessToken();
 
         if($token instanceof PersonalAccessToken) {
             $token->delete();
+        }
+
+        if ($user->status !== 'offline') {
+            $user->update(['status' => 'offline']);
+            event(new UserStatusUpdated((int) $user->id, 'offline'));
         }
 
         return response()->noContent();
@@ -62,13 +74,14 @@ class TokenController extends Controller
     public function updateStatus(Request $request): UserResource
     {
         $validated = $request->validate([
-            'status' => ['required', 'string', Rule::in(['available', 'busy', 'offline', 'away'])],
+            'status' => ['required', 'string', Rule::in(['available', 'busy', 'away'])],
         ]);
 
         $user = $request->user();
         $user->update([
             'status' => $validated['status'],
         ]);
+        event(new UserStatusUpdated((int) $user->id, $validated['status']));
 
         return new UserResource($user->fresh());
     }
