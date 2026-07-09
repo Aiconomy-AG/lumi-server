@@ -121,7 +121,7 @@ components:
       properties:
         cart_id:
           type: integer
-        product_id:
+        product_variant_id:
           type: integer
         quantity:
           type: integer
@@ -175,6 +175,36 @@ components:
         product_id:
           type: integer
 
+    Return_Request:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        customer_id:
+          type: integer
+        status:
+          type: string
+          enum: [requested, approved, rejected, completed]
+        reason:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              order_item_id:
+                type: integer
+              quantity:
+                type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     Error:
       type: object
       properties:
@@ -198,6 +228,23 @@ components:
             $ref: "#/components/schemas/Error"
 
 paths:
+  /shop/me:
+    get:
+      tags:
+        - Customer
+      summary: Get the authenticated customer's profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Customer profile details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /shop/products:
     get:
       tags:
@@ -224,27 +271,6 @@ paths:
                   $ref: "#/components/schemas/Product"
         "404":
           $ref: "#/components/responses/NotFound"
-    post:
-      tags:
-        - Catalog
-      summary: Create a new product
-      security:
-        - bearerAuth: [ ]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Product"
-      responses:
-        "201":
-          description: Product successfully created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Product"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
 
   /shop/products/{productId}:
     get:
@@ -264,54 +290,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Product"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    put:
-      tags:
-        - Catalog
-      summary: Update an existing product
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - name: productId
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Product"
-      responses:
-        "200":
-          description: Product successfully updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Product"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      tags:
-        - Catalog
-      summary: Delete an existing product
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: productId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Product successfully deleted
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -337,57 +315,6 @@ paths:
                   $ref: "#/components/schemas/Product_Variant"
         "404":
           $ref: "#/components/responses/NotFound"
-    post:
-      tags:
-          - Catalog
-      summary: Add a variant to a product
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - name: productId
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - sku
-                - price
-              properties:
-                sku:
-                  type: string
-                price:
-                  type: number
-                  format: double
-                weight:
-                  type: number
-                  format: double
-                weight_unit:
-                  type: string
-                colour:
-                  type: string
-                stock_quantity:
-                  type: integer
-                  minimum: 0
-      responses:
-        "201":
-          description: Product variant successfully created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Product_Variant"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-
-
 
   /shop/variants/{variantId}:
     get:
@@ -407,70 +334,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Product_Variant"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    put:
-      tags:
-        - Catalog
-      summary: Update a product variant
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - name: variantId
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                sku:
-                  type: string
-                price:
-                  type: number
-                  format: double
-                weight:
-                  type: number
-                  format: double
-                weight_unit:
-                  type: string
-                colour:
-                  type: string
-                stock_quantity:
-                  type: integer
-                  minimum: 0
-      responses:
-        "200":
-          description: Product variant successfully updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Product_Variant"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      tags:
-        - Catalog
-      summary: Delete a product variant
-      security:
-        - bearerAuth: [ ]
-      parameters:
-        - name: variantId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Product variant successfully deleted
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -635,10 +498,10 @@ paths:
             schema:
               type: object
               required:
-                - product_id
+                - product_variant_id
                 - quantity
               properties:
-                product_id:
+                product_variant_id:
                   type: integer
                 quantity:
                   type: integer
@@ -655,7 +518,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /shop/customers/{customerId}/cart/items/{productId}:
+  /shop/customers/{customerId}/cart/items/{productVariantId}:
     put:
       tags:
         - Cart
@@ -668,7 +531,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: productId
+        - name: productVariantId
           in: path
           required: true
           schema:
@@ -709,7 +572,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: productId
+        - name: productVariantId
           in: path
           required: true
           schema:
@@ -880,3 +743,567 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------
+  # Admin routes (Modules\Sales\Http\Controllers\Admin\*)
+  # ---------------------------------------------------------------------
+
+  /admin/products:
+    get:
+      tags:
+        - Admin - Catalog
+      summary: List all products (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - Admin - Catalog
+      summary: Create a new product
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Product"
+      responses:
+        "201":
+          description: Product successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/products/{productId}:
+    put:
+      tags:
+        - Admin - Catalog
+      summary: Update an existing product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Product"
+      responses:
+        "200":
+          description: Product successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Admin - Catalog
+      summary: Delete an existing product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product successfully deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/products/{productId}/variants:
+    post:
+      tags:
+        - Admin - Catalog
+      summary: Add a variant to a product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sku
+                - price
+              properties:
+                sku:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                weight:
+                  type: number
+                  format: double
+                weight_unit:
+                  type: string
+                colour:
+                  type: string
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        "201":
+          description: Product variant successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/products/{productId}/variants/{variantId}:
+    put:
+      tags:
+        - Admin - Catalog
+      summary: Update a product variant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sku:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                weight:
+                  type: number
+                  format: double
+                weight_unit:
+                  type: string
+                colour:
+                  type: string
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          description: Product variant successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Admin - Catalog
+      summary: Update a product variant's stock quantity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - stock_quantity
+              properties:
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          description: Stock quantity successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product_Variant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Admin - Catalog
+      summary: Delete a product variant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product variant successfully deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/orders:
+    get:
+      tags:
+        - Admin - Orders
+      summary: List all orders (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, shipped, delivered, cancelled]
+        - name: customer_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/returns:
+    get:
+      tags:
+        - Admin - Returns
+      summary: List all return requests
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [requested, approved, rejected, completed]
+        - name: order_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of return requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Return_Request"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/returns/{returnRequestId}:
+    get:
+      tags:
+        - Admin - Returns
+      summary: Get return request details by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: returnRequestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Return request details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return_Request"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Admin - Returns
+      summary: Update a return request (e.g. approve/reject/complete)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: returnRequestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [requested, approved, rejected, completed]
+      responses:
+        "200":
+          description: Return request successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return_Request"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------
+  # Shopify storefront proxy routes (Modules\Sales\Http\Controllers\Shopify\Proxy*)
+  # ---------------------------------------------------------------------
+
+  /shopify/proxy/returns:
+    post:
+      tags:
+        - Shopify Proxy
+      summary: Submit a return request from the Shopify storefront
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - order_id
+                - items
+              properties:
+                order_id:
+                  type: integer
+                reason:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      order_item_id:
+                        type: integer
+                      quantity:
+                        type: integer
+      responses:
+        "201":
+          description: Return request successfully submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return_Request"
+
+  /shopify/proxy/wishlist:
+    get:
+      tags:
+        - Shopify Proxy
+      summary: Get wishlist via Shopify storefront proxy
+      responses:
+        "200":
+          description: Customer wishlist details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /shopify/proxy/wishlist/items:
+    post:
+      tags:
+        - Shopify Proxy
+      summary: Add item to wishlist via Shopify storefront proxy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shopify_product_id
+              properties:
+                shopify_product_id:
+                  type: string
+      responses:
+        "201":
+          description: Product added to wishlist successfully
+
+  /shopify/proxy/wishlist/items/{shopifyProductId}:
+    delete:
+      tags:
+        - Shopify Proxy
+      summary: Remove item from wishlist via Shopify storefront proxy
+      parameters:
+        - name: shopifyProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product removed from wishlist successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------
+  # Shopify webhook routes (Modules\Sales\Http\Controllers\Shopify\WebhookController)
+  # These are called directly by Shopify and are authenticated via HMAC
+  # signature verification rather than bearer tokens.
+  # ---------------------------------------------------------------------
+
+  /shopify/webhooks/customers/create:
+    post:
+      tags:
+        - Shopify Webhooks
+      summary: Shopify webhook - customer created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify customer payload
+      responses:
+        "200":
+          description: Webhook processed successfully
+
+  /shopify/webhooks/customers/update:
+    post:
+      tags:
+        - Shopify Webhooks
+      summary: Shopify webhook - customer updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify customer payload
+      responses:
+        "200":
+          description: Webhook processed successfully
+
+  /shopify/webhooks/orders/create:
+    post:
+      tags:
+        - Shopify Webhooks
+      summary: Shopify webhook - order created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify order payload
+      responses:
+        "200":
+          description: Webhook processed successfully
+
+  /shopify/webhooks/orders/updated:
+    post:
+      tags:
+        - Shopify Webhooks
+      summary: Shopify webhook - order updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify order payload
+      responses:
+        "200":
+          description: Webhook processed successfully
+
+  /shopify/webhooks/products/update:
+    post:
+      tags:
+        - Shopify Webhooks
+      summary: Shopify webhook - product updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify product payload
+      responses:
+        "200":
+          description: Webhook processed successfully
