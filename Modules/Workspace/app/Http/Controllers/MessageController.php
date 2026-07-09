@@ -3,26 +3,52 @@
 namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-<<<<<<< Updated upstream
-=======
 use Illuminate\Http\Request;
 use Modules\Workspace\Events\MessageSent;
->>>>>>> Stashed changes
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
+use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
+use Modules\Workspace\Services\NotificationService;
 use Modules\Workspace\Transformers\MessageResource;
 
 class MessageController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notificationService
+    ) {}
+
     /**
      * Display a paginated listing of the conversation's messages.
      */
-    public function index(int $conversationId)
+    public function index(Request $request, int $conversationId)
     {
-        $messages = Message::where('conversation_id', $conversationId)
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->paginate(50);
+        $perPage = min(max((int) $request->query('per_page', 50), 1), 100);
+        $afterId = (int) $request->query('after_id', 0);
+
+        $query = Message::query()
+            ->where('conversation_id', $conversationId);
+
+        if ($afterId > 0) {
+            $messages = $query
+                ->where('id', '>', $afterId)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->limit($perPage)
+                ->get();
+
+            return MessageResource::collection($messages);
+        }
+
+        $messages = $query
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($perPage)
+            ->get()
+            ->sortBy([
+                ['created_at', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values();
 
         return MessageResource::collection($messages);
     }
@@ -32,14 +58,16 @@ class MessageController extends Controller
      */
     public function store(StoreMessageRequest $request, int $conversationId)
     {
+        $conversation = Conversation::query()
+            ->with('participants')
+            ->findOrFail($conversationId);
+
         $message = Message::create([
             'conversation_id' => $conversationId,
             'sender_id' => $request->user()->id,
             'message' => $request->validated('message'),
         ]);
 
-<<<<<<< Updated upstream
-=======
         $recipientIds = $conversation->participants
             ->pluck('id')
             ->filter(fn (int $userId) => $userId !== (int) $request->user()->id)
@@ -62,7 +90,6 @@ class MessageController extends Controller
 
         MessageSent::dispatch($message);
 
->>>>>>> Stashed changes
         return (new MessageResource($message))
             ->response()
             ->setStatusCode(201);
