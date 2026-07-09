@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Workspace\Http\Controllers\ConversationController;
+use Modules\Workspace\Http\Controllers\MessageController;
+use Modules\Workspace\Http\Middleware\VerifyConversationParticipant;
 use Modules\Workspace\Http\Controllers\TimeTrackingController;
 use Modules\Workspace\Http\Controllers\ProjectController;
 use Modules\Workspace\Http\Controllers\TaskController;
@@ -24,6 +26,13 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::get('conversations', [ConversationController::class, 'index']);
         Route::post('conversations', [ConversationController::class, 'store']);
         Route::get('conversations/{conversationId}', [ConversationController::class, 'show']);
+
+        Route::middleware([VerifyConversationParticipant::class])
+            ->prefix('conversations/{conversationId}')
+            ->group(function (): void {
+                Route::get('messages', [MessageController::class, 'index']);
+                Route::post('messages', [MessageController::class, 'store']);
+            });
 
 
         Route::post(
