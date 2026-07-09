@@ -15,6 +15,7 @@
         "laravel/tinker": "^3.0",
         "meilisearch/meilisearch-php": "^1.16",
         "nwidart/laravel-modules": "^13.0",
+        "pusher/pusher-php-server": "^7.2",
         "resend/resend-php": "^1.5"
     },
     "require-dev": {
