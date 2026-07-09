@@ -4,6 +4,7 @@ namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
@@ -86,6 +87,8 @@ class MessageController extends Controller
                 'message_preview' => str($message->message)->limit(120)->toString(),
             ],
         );
+
+        MessageSent::dispatch($message);
 
         return (new MessageResource($message))
             ->response()
