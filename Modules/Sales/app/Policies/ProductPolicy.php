@@ -21,7 +21,7 @@ class ProductPolicy
         return true;
     }
 
-    // Only Admins can create, update, or delete the main product details
+    // Admins and Employees can manage products
     public function create(User $user): bool
     {
         return $user->isAdmin() || $user->isEmployee();
@@ -32,9 +32,10 @@ class ProductPolicy
         return $user->isAdmin() || $user->isEmployee();
     }
 
+    // Only Admins can delete
     public function delete(User $user, Product $product): bool
     {
-        return $user->isAdmin() || $user->isEmployee();
+        return $user->isAdmin();
     }
 
     // Both Admins and Employees can update stock

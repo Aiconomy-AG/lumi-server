@@ -74,7 +74,7 @@ class ProductControllerTest extends TestCase
 
         $this->makeProduct();
 
-        $this->getJson('/api/v1/products')
+        $this->getJson('/api/v1/admin/products')
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
@@ -86,18 +86,18 @@ class ProductControllerTest extends TestCase
 
         $this->makeProduct();
 
-        $this->getJson('/api/v1/products')
+        $this->getJson('/api/v1/admin/products')
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
 
     public function test_index_requires_authentication(): void
     {
-        $this->getJson('/api/v1/products')->assertStatus(401);
+        $this->getJson('/api/v1/admin/products')->assertStatus(401);
     }
 
     // -------------------------------------------------------------------------
-    // Create / Update / Delete Product (Admin Only)
+    // Create / Update / Delete Product (Admins & Employees)
     // -------------------------------------------------------------------------
 
     public function test_store_creates_a_product_when_user_is_admin(): void
@@ -107,7 +107,7 @@ class ProductControllerTest extends TestCase
 
         $category = $this->makeCategory();
 
-        $response = $this->postJson('/api/v1/products', [
+        $response = $this->postJson('/api/v1/admin/products', [
             'name' => 'New Admin Product',
             'price' => 99.99,
             'sku' => 'ADMIN-123',
@@ -118,22 +118,22 @@ class ProductControllerTest extends TestCase
         $this->assertDatabaseHas('products', ['sku' => 'ADMIN-123']);
     }
 
-    public function test_store_returns_403_when_user_is_employee(): void
+    public function test_store_creates_a_product_when_user_is_employee(): void
     {
         $user = $this->makeUser(UserRole::Employee);
         Sanctum::actingAs($user);
 
         $category = $this->makeCategory();
 
-        $response = $this->postJson('/api/v1/products', [
+        $response = $this->postJson('/api/v1/admin/products', [
             'name' => 'New Employee Product',
             'price' => 49.99,
             'sku' => 'EMP-123',
             'category_id' => $category->id,
         ]);
 
-        $response->assertStatus(403);
-        $this->assertDatabaseMissing('products', ['sku' => 'EMP-123']);
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('products', ['sku' => 'EMP-123']);
     }
 
     public function test_destroy_deletes_product_when_user_is_admin(): void
@@ -143,7 +143,7 @@ class ProductControllerTest extends TestCase
 
         $product = $this->makeProduct();
 
-        $this->deleteJson("/api/v1/products/{$product->id}")->assertNoContent();
+        $this->deleteJson("/api/v1/admin/products/{$product->id}")->assertNoContent();
 
         $this->assertDatabaseMissing('products', ['id' => $product->id]);
     }
@@ -155,7 +155,7 @@ class ProductControllerTest extends TestCase
 
         $product = $this->makeProduct();
 
-        $this->deleteJson("/api/v1/products/{$product->id}")->assertStatus(403);
+        $this->deleteJson("/api/v1/admin/products/{$product->id}")->assertStatus(403);
 
         $this->assertDatabaseHas('products', ['id' => $product->id]);
     }
@@ -164,7 +164,7 @@ class ProductControllerTest extends TestCase
     // Variant Stock & Details (Granular Permissions)
     // -------------------------------------------------------------------------
 
-    public function test_update_variant_details_returns_403_when_user_is_employee(): void
+    public function test_update_variant_details_succeeds_when_user_is_employee(): void
     {
         $user = $this->makeUser(UserRole::Employee);
         Sanctum::actingAs($user);
@@ -172,14 +172,14 @@ class ProductControllerTest extends TestCase
         $product = $this->makeProduct();
         $variant = $this->makeVariant($product, ['price' => 10.00]);
 
-        $response = $this->putJson("/api/v1/products/{$product->id}/variants/{$variant->id}", [
+        $response = $this->putJson("/api/v1/admin/products/{$product->id}/variants/{$variant->id}", [
             'price' => 50.00,
         ]);
 
-        $response->assertStatus(403);
+        $response->assertOk();
         $this->assertDatabaseHas('product_variants', [
             'id' => $variant->id,
-            'price' => 10.00, // Unchanged
+            'price' => 50.00,
         ]);
     }
 
@@ -191,7 +191,7 @@ class ProductControllerTest extends TestCase
         $product = $this->makeProduct();
         $variant = $this->makeVariant($product, ['stock_quantity' => 5]);
 
-        $response = $this->patchJson("/api/v1/products/{$product->id}/variants/{$variant->id}", [
+        $response = $this->patchJson("/api/v1/admin/products/{$product->id}/variants/{$variant->id}", [
             'stock_quantity' => 25,
         ]);
 
@@ -210,7 +210,7 @@ class ProductControllerTest extends TestCase
         $product = $this->makeProduct();
         $variant = $this->makeVariant($product, ['stock_quantity' => 5]);
 
-        $response = $this->patchJson("/api/v1/products/{$product->id}/variants/{$variant->id}", [
+        $response = $this->patchJson("/api/v1/admin/products/{$product->id}/variants/{$variant->id}", [
             'stock_quantity' => 100,
         ]);
 
@@ -229,7 +229,7 @@ class ProductControllerTest extends TestCase
         $product = $this->makeProduct();
         $variant = $this->makeVariant($product);
 
-        $this->patchJson("/api/v1/products/{$product->id}/variants/{$variant->id}", [])
+        $this->patchJson("/api/v1/admin/products/{$product->id}/variants/{$variant->id}", [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['stock_quantity']);
     }

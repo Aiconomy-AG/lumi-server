@@ -79,7 +79,7 @@ class ProductVariantController extends Controller
     public function destroy(int $productId, int $variantId)
     {
         $product = Product::findOrFail($productId);
-        $this->authorize('update', $product);
+        $this->authorize('delete', $product);
         $variant = $this->findVariant($product, $variantId);
 
         try {
