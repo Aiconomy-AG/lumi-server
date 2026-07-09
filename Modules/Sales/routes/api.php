@@ -1,19 +1,13 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Sales\Http\Controllers\Admin\OrderController;
 use Modules\Sales\Http\Controllers\Admin\ProductController;
 use Modules\Sales\Http\Controllers\Admin\ProductVariantController;
-use Modules\Sales\Http\Controllers\Admin\ReturnRequestController;
-use Modules\Sales\Http\Controllers\CartController;
 use Modules\Sales\Http\Controllers\CatalogController;
-use Modules\Sales\Http\Controllers\CheckoutController;
-use Modules\Sales\Http\Controllers\CustomerController;
 use Modules\Sales\Http\Controllers\Shopify\ProxyReturnController;
 use Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController;
 use Modules\Sales\Http\Controllers\Shopify\WebhookController;
-use Modules\Sales\Http\Controllers\WishlistController;
-use Modules\Sales\Http\Middleware\VerifyCustomerOwnership;
+use Modules\Sales\Models\Product;
 
 // -------------------------------------------------------------------------
 // Shopify Integrations
@@ -56,14 +50,14 @@ Route::middleware(['auth:sanctum'])->prefix('shop')->group(function (): void {
     // Writes — same path, policy decides who can do it
     Route::controller(ProductController::class)->prefix('products')->group(function () {
         Route::post('/', 'store')->middleware('can:create,' . Product::class);
-        Route::put('{productId}', 'update')->middleware('can:update,productId');
-        Route::delete('{productId}', 'destroy')->middleware('can:delete,productId');
+        Route::put('{productId}', 'update');
+        Route::delete('{productId}', 'destroy');
     });
 
     Route::controller(ProductVariantController::class)->prefix('products/{productId}/variants')->group(function () {
-        Route::post('/', 'store')->middleware('can:update,productId');
-        Route::put('{variantId}', 'update')->middleware('can:update,productId');
-        Route::patch('{variantId}', 'updateStock')->middleware('can:updateStock,productId');
-        Route::delete('{variantId}', 'destroy')->middleware('can:update,productId');
+        Route::post('/', 'store');
+        Route::put('{variantId}', 'update');
+        Route::patch('{variantId}', 'updateStock');
+        Route::delete('{variantId}', 'destroy');
     });
 });
