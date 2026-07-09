@@ -6,11 +6,11 @@ use Modules\Workspace\Models\TaskTimeEntry;
 
 class TimeTrackingService
 {
-    public function dailyTotalSeconds(int $userId, string $day): int
+    public function todayTotalSeconds(int $userId): int
     {
         return (int) TaskTimeEntry::query()
             ->where('user_id', $userId)
-            ->whereDate('started_at', $day)
+            ->whereDate('started_at', today())
             ->sum('duration_seconds');
     }
 }
