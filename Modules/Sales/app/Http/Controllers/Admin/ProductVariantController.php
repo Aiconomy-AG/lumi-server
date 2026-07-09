@@ -3,6 +3,7 @@
 namespace Modules\Sales\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,30 +115,22 @@ class ProductVariantController extends Controller
 
         $oldStock = $variant->stock_quantity;
         $newStock = (int) $validated['stock_quantity'];
-        $changeAmount = $newStock - $oldStock;
-        $user = auth()->user();
 
-        DB::transaction(function () use ($variant, $newStock, $oldStock, $changeAmount, $user, $product, $request) {
+        DB::transaction(function () use ($variant, $newStock, $oldStock, $product, $validated): void {
             $variant->update(['stock_quantity' => $newStock]);
 
-            if ($changeAmount !== 0) {
-                DB::table('audit_logs')->insert([
-                    'module'       => 'sales',
-                    'action'       => 'update',
-                    'entity_type'  => 'product_variant',
-                    'entity_id'    => $variant->id,
-                    'entity_label' => $product->name . ' (' . $variant->sku . ')',
-
-                    'actor_user_id'=> $user?->id,
-                    'actor_name'   => $user ? $user->name : 'System/Automated',
-
-                    'description'  => $request->input('reason', 'Manual inventory stock adjustment.'),
-                    'changes'      => json_encode([
+            if ($newStock !== $oldStock) {
+                AuditLog::record(
+                    module: 'sales',
+                    action: 'stock_update',
+                    entity: $variant,
+                    label: $product->name . ' (' . $variant->sku . ')',
+                    changes: [
                         'old' => ['stock_quantity' => $oldStock],
-                        'new' => ['stock_quantity' => $newStock]
-                    ]),
-                    'occurred_at'  => now(),
-                ]);
+                        'new' => ['stock_quantity' => $newStock],
+                    ],
+                    description: $validated['reason'] ?? 'Manual inventory stock adjustment.',
+                );
             }
         });
 

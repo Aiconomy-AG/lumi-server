@@ -9,8 +9,6 @@ use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
-Route::get('admin/audit-logs', [AuditLogController::class, 'index']);
-
 Route::prefix('auth')->group(function () {
     Route::post('login', [TokenController::class, 'store'])->middleware('throttle:auth');
 
@@ -32,6 +30,7 @@ Route::middleware(['auth:sanctum', 'staff', 'admin'])
     ->group(function (): void {
         Route::apiResource('users', UserController::class);
         Route::post('users/{userId}/resend-invite', [UserController::class, 'resendInvite']);
+        Route::get('audit-logs', [AuditLogController::class, 'index']);
     });
 
 Route::middleware(['auth:sanctum', 'staff'])
