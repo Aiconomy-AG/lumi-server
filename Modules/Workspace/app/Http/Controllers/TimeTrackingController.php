@@ -2,14 +2,29 @@
 namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Workspace\Models\Task;
 use Modules\Workspace\Models\TaskTimeEntry;
 use Modules\Workspace\Http\Resources\TaskTimeEntryResource;
+use Modules\Workspace\Services\TimeTrackingService;
 
 class TimeTrackingController extends Controller
 {
+    public function __construct(
+        private readonly TimeTrackingService $timeTracking
+    ) {}
+
+    public function dailyTotal(int $userId): JsonResponse
+    {
+        return response()->json([
+            'user_id' => $userId,
+            'date' => today()->toDateString(),
+            'total_seconds' => $this->timeTracking->todayTotalSeconds($userId),
+        ]);
+    }
+
     public function start(Request $request, $taskId)
     {
         $task = Task::find($taskId);

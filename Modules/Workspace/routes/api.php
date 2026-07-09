@@ -41,6 +41,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
 
+        Route::get('users/{userId}/time-entries/daily-total', [TimeTrackingController::class, 'dailyTotal']);
+
         Route::prefix('tasks/{taskId}')->group(function (): void {
 
             // Assignees
