@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PasswordResetController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\Api\ProfileController;
 
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
@@ -39,3 +40,7 @@ Route::middleware(['auth:sanctum', 'staff'])
     ->group(function (): void {
         Route::get('users', [UserController::class, 'index']);
     });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/auth/phone', [ProfileController::class, 'updatePhone']);
+});
