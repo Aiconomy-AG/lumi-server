@@ -16,7 +16,7 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::delete('logout', [TokenController::class, 'destroy']);
         Route::get('me', [TokenController::class, 'me']);
-
+        Route::patch('me/status', [TokenController::class, 'updateStatus']);
 
     });
 });

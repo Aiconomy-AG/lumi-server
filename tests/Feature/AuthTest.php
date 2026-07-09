@@ -81,4 +81,28 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/workspace/tasks/1/time-entries/start')->assertUnauthorized();
         $this->postJson('/api/v1/workspace/tasks/1/time-entries/1/stop')->assertUnauthorized();
     }
+
+    public function test_me_status_update_requires_token(): void
+    {
+        $this->patchJson('/api/auth/me/status', [
+            'status' => 'busy',
+        ])->assertUnauthorized();
+    }
+
+    public function test_authenticated_user_can_update_own_status(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'status' => 'offline',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $this->patchJson('/api/auth/me/status', [
+            'status' => 'busy',
+        ])->assertOk()->assertJsonPath('data.status', 'busy');
+
+        $this->assertSame('busy', $user->fresh()->status);
+    }
 }

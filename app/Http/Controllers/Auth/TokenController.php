@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -56,5 +57,19 @@ class TokenController extends Controller
     public function me(Request $request): UserResource
     {
         return new UserResource($request->user());
+    }
+
+    public function updateStatus(Request $request): UserResource
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'string', Rule::in(['available', 'busy', 'offline', 'away'])],
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'status' => $validated['status'],
+        ]);
+
+        return new UserResource($user->fresh());
     }
 }
