@@ -3,6 +3,7 @@
 namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
@@ -18,12 +19,35 @@ class MessageController extends Controller
     /**
      * Display a paginated listing of the conversation's messages.
      */
-    public function index(int $conversationId)
+    public function index(Request $request, int $conversationId)
     {
-        $messages = Message::where('conversation_id', $conversationId)
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->paginate(50);
+        $perPage = min(max((int) $request->query('per_page', 50), 1), 100);
+        $afterId = (int) $request->query('after_id', 0);
+
+        $query = Message::query()
+            ->where('conversation_id', $conversationId);
+
+        if ($afterId > 0) {
+            $messages = $query
+                ->where('id', '>', $afterId)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->limit($perPage)
+                ->get();
+
+            return MessageResource::collection($messages);
+        }
+
+        $messages = $query
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($perPage)
+            ->get()
+            ->sortBy([
+                ['created_at', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values();
 
         return MessageResource::collection($messages);
     }

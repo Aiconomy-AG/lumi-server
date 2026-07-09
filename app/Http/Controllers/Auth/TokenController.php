@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
+use Throwable;
 
 class TokenController extends Controller
 {
@@ -40,7 +41,7 @@ class TokenController extends Controller
 
         if ($user->status === 'offline') {
             $user->update(['status' => 'available']);
-            event(new UserStatusUpdated((int) $user->id, 'available'));
+            $this->broadcastStatusUpdate((int) $user->id, 'available');
         }
 
         return response()->json([
@@ -60,7 +61,7 @@ class TokenController extends Controller
 
         if ($user->status !== 'offline') {
             $user->update(['status' => 'offline']);
-            event(new UserStatusUpdated((int) $user->id, 'offline'));
+            $this->broadcastStatusUpdate((int) $user->id, 'offline');
         }
 
         return response()->noContent();
@@ -81,8 +82,17 @@ class TokenController extends Controller
         $user->update([
             'status' => $validated['status'],
         ]);
-        event(new UserStatusUpdated((int) $user->id, $validated['status']));
+        $this->broadcastStatusUpdate((int) $user->id, $validated['status']);
 
         return new UserResource($user->fresh());
+    }
+
+    private function broadcastStatusUpdate(int $userId, string $status): void
+    {
+        try {
+            event(new UserStatusUpdated($userId, $status));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 }
