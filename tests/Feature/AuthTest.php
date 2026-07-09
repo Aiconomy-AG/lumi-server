@@ -89,6 +89,11 @@ class AuthTest extends TestCase
         ])->assertUnauthorized();
     }
 
+    public function test_presence_ping_requires_token(): void
+    {
+        $this->postJson('/api/v1/auth/me/presence/ping')->assertUnauthorized();
+    }
+
     public function test_authenticated_user_can_update_own_status(): void
     {
         $user = User::factory()->create([
@@ -119,5 +124,39 @@ class AuthTest extends TestCase
         $this->patchJson('/api/v1/auth/me/status', [
             'status' => 'offline',
         ])->assertUnprocessable();
+    }
+
+    public function test_presence_ping_marks_user_alive_and_available(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'status' => 'offline',
+            'last_seen_at' => null,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $this->postJson('/api/v1/auth/me/presence/ping')->assertNoContent();
+
+        $fresh = $user->fresh();
+        $this->assertSame('available', $fresh->status);
+        $this->assertNotNull($fresh->last_seen_at);
+    }
+
+    public function test_disconnect_with_personal_access_token_marks_user_offline(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'status' => 'busy',
+        ]);
+        $plainTextToken = $user->createToken('test')->plainTextToken;
+
+        $this->postJson('/api/v1/auth/me/presence/disconnect', [
+            'token' => $plainTextToken,
+        ])->assertNoContent();
+
+        $this->assertSame('offline', $user->fresh()->status);
     }
 }

@@ -11,6 +11,7 @@ Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Route::prefix('auth')->group(function () {
     Route::post('login', [TokenController::class, 'store'])->middleware('throttle:auth');
+    Route::post('me/presence/disconnect', [TokenController::class, 'disconnect']);
 
     Route::get('reset-password/validate', [PasswordResetController::class, 'validateToken'])
     ->middleware('throttle:auth');
@@ -21,6 +22,7 @@ Route::prefix('auth')->group(function () {
         Route::delete('logout', [TokenController::class, 'destroy']);
         Route::get('me', [TokenController::class, 'me']);
         Route::patch('me/status', [TokenController::class, 'updateStatus']);
+        Route::post('me/presence/ping', [TokenController::class, 'ping']);
 
     });
 });

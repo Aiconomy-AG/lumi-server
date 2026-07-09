@@ -2,23 +2,27 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Events\UserStatusUpdated;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\TokenRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\PresenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
-use Throwable;
 
 class TokenController extends Controller
 {
+    public function __construct(
+        private readonly PresenceService $presenceService,
+    ) {}
+
     public function store(TokenRequest $request): JsonResponse
     {
         $user = User::where('email', $request->email)->first();
@@ -39,10 +43,7 @@ class TokenController extends Controller
             ], 403);
         }
 
-        if ($user->status === 'offline') {
-            $user->update(['status' => 'available']);
-            $this->broadcastStatusUpdate((int) $user->id, 'available');
-        }
+        $this->presenceService->markAlive($user);
 
         return response()->json([
             'token' => $user->createToken('api')->plainTextToken,
@@ -59,10 +60,7 @@ class TokenController extends Controller
             $token->delete();
         }
 
-        if ($user->status !== 'offline') {
-            $user->update(['status' => 'offline']);
-            $this->broadcastStatusUpdate((int) $user->id, 'offline');
-        }
+        $this->presenceService->markOffline($user);
 
         return response()->noContent();
     }
@@ -79,20 +77,35 @@ class TokenController extends Controller
         ]);
 
         $user = $request->user();
-        $user->update([
-            'status' => $validated['status'],
-        ]);
-        $this->broadcastStatusUpdate((int) $user->id, $validated['status']);
+        $this->presenceService->setManualStatus($user, $validated['status']);
 
         return new UserResource($user->fresh());
     }
 
-    private function broadcastStatusUpdate(int $userId, string $status): void
+    public function ping(Request $request): Response
     {
-        try {
-            event(new UserStatusUpdated($userId, $status));
-        } catch (Throwable $exception) {
-            report($exception);
+        $this->presenceService->markAlive($request->user());
+
+        return response()->noContent();
+    }
+
+    public function disconnect(Request $request): Response
+    {
+        $tokenValue = $request->bearerToken() ?: $request->input('token');
+        if (! is_string($tokenValue) || ! Str::contains($tokenValue, '|')) {
+            return response()->noContent();
         }
+
+        $token = PersonalAccessToken::findToken($tokenValue);
+        if (! $token) {
+            return response()->noContent();
+        }
+
+        $user = $token->tokenable;
+        if ($user instanceof User) {
+            $this->presenceService->markOffline($user);
+        }
+
+        return response()->noContent();
     }
 }

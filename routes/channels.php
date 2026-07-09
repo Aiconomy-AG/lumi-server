@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\PresenceService;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function (User $user, int $id) {
@@ -12,9 +13,7 @@ Broadcast::channel('users.{userId}', function (User $user, int $userId) {
 }, ['guards' => ['sanctum']]);
 
 Broadcast::channel('team', function (User $user) {
-    if ($user->status === 'offline') {
-        $user->update(['status' => 'available']);
-    }
+    app(PresenceService::class)->markAlive($user);
 
     return [
         'id' => $user->id,
