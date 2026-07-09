@@ -3,6 +3,7 @@
 namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPushNotificationJob;
 use Illuminate\Http\Request;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
@@ -87,6 +88,19 @@ class MessageController extends Controller
                 'message_preview' => str($message->message)->limit(120)->toString(),
             ],
         );
+
+        foreach ($recipientIds as $recipientId) {
+            SendPushNotificationJob::dispatch(
+                $recipientId,
+                'New message',
+                'You received a new message',
+                [
+                    'type' => 'chat_message_received',
+                    'conversation_id' => (string) $conversation->id,
+                    'message_id' => (string) $message->id,
+                ],
+            );
+        }
 
         MessageSent::dispatch($message);
 

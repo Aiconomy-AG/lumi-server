@@ -106,6 +106,78 @@ class TaskPushNotificationTest extends TestCase
         );
     }
 
+    public function test_unassigning_user_from_task_dispatches_push_job(): void
+    {
+        Queue::fake();
+
+        $actor = User::factory()->create(['role' => UserRole::Employee]);
+        $recipient = User::factory()->create(['role' => UserRole::Employee]);
+        $task = $this->createTask('Remove assignee');
+        $task->assignees()->attach($recipient->id);
+
+        Sanctum::actingAs($actor);
+
+        $this->deleteJson("/api/v1/workspace/tasks/{$task->id}/assignees/{$recipient->id}")
+            ->assertOk();
+
+        Queue::assertPushed(
+            SendPushNotificationJob::class,
+            fn (SendPushNotificationJob $job): bool => $job->userId === $recipient->id
+                && $job->title === 'Task unassigned'
+                && $job->body === 'You were unassigned from: Remove assignee'
+                && $job->data === ['type' => 'task_unassigned', 'task_id' => (string) $task->id]
+        );
+    }
+
+    public function test_unassigning_self_does_not_dispatch_push_job_to_actor(): void
+    {
+        Queue::fake();
+
+        $actor = User::factory()->create(['role' => UserRole::Employee]);
+        $task = $this->createTask('Self unassign');
+        $task->assignees()->attach($actor->id);
+
+        Sanctum::actingAs($actor);
+
+        $this->deleteJson("/api/v1/workspace/tasks/{$task->id}/assignees/{$actor->id}")
+            ->assertOk();
+
+        Queue::assertNotPushed(SendPushNotificationJob::class);
+    }
+
+    public function test_status_change_dispatches_push_to_assignees_except_actor(): void
+    {
+        Queue::fake();
+
+        $actor = User::factory()->create(['role' => UserRole::Employee]);
+        $recipient = User::factory()->create(['role' => UserRole::Employee]);
+        $task = $this->createTask('Change status');
+        $task->assignees()->attach([$actor->id, $recipient->id]);
+
+        Sanctum::actingAs($actor);
+
+        $this->putJson("/api/v1/workspace/tasks/{$task->id}", [
+            'title' => $task->title,
+            'description' => $task->description,
+            'status' => 'in_progress',
+            'due_date' => $task->due_date->toDateString(),
+            'project_id' => $task->project_id,
+        ])->assertOk();
+
+        Queue::assertPushed(
+            SendPushNotificationJob::class,
+            fn (SendPushNotificationJob $job): bool => $job->userId === $recipient->id
+                && $job->title === 'Task status changed'
+                && $job->body === 'Task status changed: Change status'
+                && $job->data === ['type' => 'task_status_changed', 'task_id' => (string) $task->id]
+        );
+
+        Queue::assertNotPushed(
+            SendPushNotificationJob::class,
+            fn (SendPushNotificationJob $job): bool => $job->userId === $actor->id
+        );
+    }
+
     private function createTask(string $title): Task
     {
         return Task::query()->create([

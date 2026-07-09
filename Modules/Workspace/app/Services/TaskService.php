@@ -91,10 +91,12 @@ class TaskService
         ]);
 
         foreach ($changes as $field => $change) {
+            $recipientUserIds = $this->recipientIdsForTask($task, $actorUserId);
+
             $this->notificationService->createForRecipients(
                 type: $change['type'],
                 source: 'task',
-                recipientUserIds: $this->recipientIdsForTask($task, $actorUserId),
+                recipientUserIds: $recipientUserIds,
                 actorUserId: $actorUserId,
                 taskId: $task->id,
                 payload: [
@@ -104,6 +106,20 @@ class TaskService
                     'task_title' => $task->title,
                 ],
             );
+
+            if ($field === 'status') {
+                foreach ($recipientUserIds as $recipientUserId) {
+                    SendPushNotificationJob::dispatch(
+                        $recipientUserId,
+                        'Task status changed',
+                        "Task status changed: {$task->title}",
+                        [
+                            'type' => 'task_status_changed',
+                            'task_id' => (string) $task->id,
+                        ],
+                    );
+                }
+            }
         }
 
         return $task;
@@ -170,16 +186,30 @@ class TaskService
             'subtasks',
         ]);
 
+        $recipientUserIds = $this->excludeActor([$employeeId], $actorUserId);
+
         $this->notificationService->createForRecipients(
             type: 'task_unassigned',
             source: 'task',
-            recipientUserIds: $this->excludeActor([$employeeId], $actorUserId),
+            recipientUserIds: $recipientUserIds,
             actorUserId: $actorUserId,
             taskId: $task->id,
             payload: [
                 'task_title' => $task->title,
             ],
         );
+
+        foreach ($recipientUserIds as $recipientUserId) {
+            SendPushNotificationJob::dispatch(
+                $recipientUserId,
+                'Task unassigned',
+                "You were unassigned from: {$task->title}",
+                [
+                    'type' => 'task_unassigned',
+                    'task_id' => (string) $task->id,
+                ],
+            );
+        }
 
         return $task;
     }
