@@ -40,6 +40,22 @@ class NotificationController
         );
     }
 
+    public function dismiss(Request $request, int $notificationId): JsonResponse
+    {
+        $delivery = NotificationDelivery::query()
+            ->where('recipient_user_id', $request->user()->id)
+            ->whereNull('dismissed_at')
+            ->find($notificationId);
+
+        if (! $delivery) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Notification not found.'], 404);
+        }
+
+        $this->notificationService->dismiss($delivery);
+
+        return response()->json(['message' => 'Notification dismissed successfully.']);
+    }
+
     public function markAllAsRead(Request $request): JsonResponse
     {
         $updatedCount = $this->notificationService->markAllAsRead((int) $request->user()->id);

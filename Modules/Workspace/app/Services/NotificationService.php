@@ -2,6 +2,7 @@
 
 namespace Modules\Workspace\Services;
 
+use App\Events\NotificationDismissed;
 use App\Events\NotificationDelivered;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,7 @@ class NotificationService
     {
         return NotificationDelivery::query()
             ->where('recipient_user_id', $userId)
+            ->whereNull('dismissed_at')
             ->when($unreadOnly, fn ($query) => $query->whereNull('read_at'))
             ->with(['event.actor'])
             ->latest()
@@ -70,10 +72,27 @@ class NotificationService
         return $delivery->refresh()->load(['event.actor']);
     }
 
+    public function dismiss(NotificationDelivery $delivery): NotificationDelivery
+    {
+        if ($delivery->dismissed_at === null) {
+            $delivery->update([
+                'dismissed_at' => Carbon::now(),
+                'read_at' => $delivery->read_at ?? Carbon::now(),
+            ]);
+        }
+
+        $delivery = $delivery->refresh()->load(['event.actor']);
+
+        event(new NotificationDismissed($delivery));
+
+        return $delivery;
+    }
+
     public function markAllAsRead(int $userId): int
     {
         return NotificationDelivery::query()
             ->where('recipient_user_id', $userId)
+            ->whereNull('dismissed_at')
             ->whereNull('read_at')
             ->update(['read_at' => Carbon::now()]);
     }
