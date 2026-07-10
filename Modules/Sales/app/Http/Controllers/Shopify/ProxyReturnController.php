@@ -29,7 +29,7 @@ class ProxyReturnController extends Controller
         }
 
         $validated = $request->validate([
-            'order_identifier' => ['required', 'string', 'max:255'],
+            'order_id' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
 
             'items' => ['required', 'array', 'min:1'],
@@ -107,21 +107,6 @@ class ProxyReturnController extends Controller
         return (new ReturnRequestResource($returnRequest))
             ->response()
             ->setStatusCode(201);
-    }
-
-    public function ping(Request $request): JsonResponse
-    {
-        if (! $this->verifier->verify($request, $this->proxySecretConfigKeys())) {
-            return response()->json([
-                'message' => 'Invalid Shopify proxy signature.',
-            ], 401);
-        }
-
-        return response()->json([
-            'message' => 'Laravel backend reached with valid Shopify proxy signature.',
-            'shop' => $request->query('shop'),
-            'logged_in_customer_id' => $request->query('logged_in_customer_id'),
-        ]);
     }
 
     private function proxySecretConfigKeys(): array
