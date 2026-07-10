@@ -7,15 +7,19 @@ use App\Jobs\SendPushNotificationJob;
 use Illuminate\Http\Request;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
+use Modules\Workspace\Jobs\GenerateAiChatReplyJob;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
+use Modules\Workspace\Services\ChatAiUserResolver;
 use Modules\Workspace\Services\NotificationService;
+use Modules\Workspace\Support\ChatMentionDetector;
 use Modules\Workspace\Transformers\MessageResource;
 
 class MessageController extends Controller
 {
     public function __construct(
-        private readonly NotificationService $notificationService
+        private readonly NotificationService $notificationService,
+        private readonly ChatAiUserResolver $chatAiUserResolver,
     ) {}
 
     /**
@@ -103,6 +107,14 @@ class MessageController extends Controller
         }
 
         MessageSent::dispatch($message);
+
+        if (
+            $this->chatAiUserResolver->isEnabled()
+            && ! $this->chatAiUserResolver->isBotUser((int) $request->user()->id)
+            && ChatMentionDetector::isMentioned($message->message)
+        ) {
+            GenerateAiChatReplyJob::dispatch($message->id);
+        }
 
         return (new MessageResource($message))
             ->response()

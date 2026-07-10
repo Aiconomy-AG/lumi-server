@@ -39,5 +39,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(SalesDatabaseSeeder::class);
+        $this->call(AiAssistantUserSeeder::class);
     }
 }

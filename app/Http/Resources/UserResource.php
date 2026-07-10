@@ -22,6 +22,7 @@ class UserResource extends JsonResource
             'language_flag' => $this->language_flag,
             'is_active' => (bool) $this->is_active,
             'must_change_password' => (bool) $this->must_change_password,
+            'is_bot' => strcasecmp((string) $this->email, (string) config('chat_ai.user_email')) === 0,
         ];
     }
 }
