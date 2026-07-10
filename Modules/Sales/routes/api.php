@@ -14,6 +14,7 @@ use Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController;
 use Modules\Sales\Http\Controllers\Shopify\WebhookController;
 use Modules\Sales\Http\Controllers\WishlistController;
 use Modules\Sales\Http\Middleware\VerifyCustomerOwnership;
+use Modules\Sales\Http\Controllers\ProductSearchController;
 
 // -------------------------------------------------------------------------
 // Shopify Integrations
@@ -43,16 +44,20 @@ Route::prefix('shopify/webhooks')->controller(WebhookController::class)->group(f
 // -------------------------------------------------------------------------
 // Shop Catalog (public reads)
 // -------------------------------------------------------------------------
-Route::prefix('shop')->controller(CatalogController::class)->group(function (): void {
-    Route::get('products', 'index');
-    Route::get('products/{productId}', 'show');
-    Route::get('products/{productId}/variants', 'productVariants');
-    Route::get('products/{productId}/ingredients', 'productIngredients');
+Route::prefix('shop')->group(function (): void {
+    Route::get('products/search', ProductSearchController::class);
 
-    Route::get('categories', 'categories');
-    Route::get('ingredients', 'ingredients');
-    Route::get('ingredients/{ingredientId}', 'ingredientDetails');
-    Route::get('variants/{variantId}', 'variantDetails');
+    Route::controller(CatalogController::class)->group(function (): void {
+        Route::get('products', 'index');
+        Route::get('products/{productId}', 'show');
+        Route::get('products/{productId}/variants', 'productVariants');
+        Route::get('products/{productId}/ingredients', 'productIngredients');
+
+        Route::get('categories', 'categories');
+        Route::get('ingredients', 'ingredients');
+        Route::get('ingredients/{ingredientId}', 'ingredientDetails');
+        Route::get('variants/{variantId}', 'variantDetails');
+    });
 });
 
 // -------------------------------------------------------------------------
