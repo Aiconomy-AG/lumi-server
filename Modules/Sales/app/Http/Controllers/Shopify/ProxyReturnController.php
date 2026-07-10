@@ -25,6 +25,25 @@ class ProxyReturnController extends Controller
         if (! $this->verifier->verify($request)) {
             return response()->json([
                 'message' => 'Invalid Shopify proxy signature.',
+                'debug' => [
+                    'method' => $request->method(),
+                    'full_url' => $request->fullUrl(),
+                    'raw_query_string' => $request->server('QUERY_STRING'),
+                    'query' => $request->query(),
+                    'has_signature' => $request->query('signature') !== null,
+                    'has_shop' => $request->query('shop') !== null,
+                    'has_timestamp' => $request->query('timestamp') !== null,
+                    'has_path_prefix' => $request->query('path_prefix') !== null,
+                    'has_secret' => config('sales.shopify.client_secret') !== null
+                        && config('sales.shopify.client_secret') !== '',
+                    'secret_length' => strlen((string) config('sales.shopify.client_secret')),
+                ],
+            ], 401);
+        }
+
+        if (! $this->verifier->verify($request)) {
+            return response()->json([
+                'message' => 'Invalid Shopify proxy signature.',
             ], 401);
         }
 
