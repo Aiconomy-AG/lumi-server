@@ -125,12 +125,14 @@ class ProxyReturnController extends Controller
 
     public function ping(Request $request): JsonResponse
     {
+        if (! $this->verifier->verify($request)) {
+            return response()->json([
+                'message' => 'Invalid Shopify proxy signature.',
+            ], 401);
+        }
+
         return response()->json([
-            'query' => $request->query(),
-            'has_signature' => $request->query('signature') !== null,
-            'has_secret' => config('sales.shopify.client_secret') !== null
-                && config('sales.shopify.client_secret') !== '',
-            'secret_length' => strlen((string) config('sales.shopify.client_secret')),
+            'message' => 'Laravel backend reached with valid Shopify proxy signature.',
         ]);
     }
 
