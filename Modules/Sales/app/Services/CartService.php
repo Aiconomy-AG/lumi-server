@@ -3,6 +3,7 @@
 namespace Modules\Sales\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Modules\Sales\Models\Cart;
 use Modules\Sales\Models\CartItem;
 use Modules\Sales\Models\ProductVariant;
@@ -11,7 +12,7 @@ class CartService
 {
     public function getCart(int $customerId): Cart
     {
-        $cart = Cart::firstOrCreate([
+        $cart = Cart::query()->firstOrCreate([
             'customer_id' => $customerId,
         ]);
 
@@ -28,26 +29,42 @@ class CartService
             $productVariantId,
             $quantity
         ): array {
-            ProductVariant::query()->findOrFail($productVariantId);
+            $variant = ProductVariant::query()
+                ->lockForUpdate()
+                ->findOrFail($productVariantId);
 
-            $cart = Cart::firstOrCreate([
+            $cart = Cart::query()->firstOrCreate([
                 'customer_id' => $customerId,
             ]);
 
-            $cartItem = CartItem::query()->firstOrNew([
-                'cart_id' => $cart->id,
-                'product_variant_id' => $productVariantId,
-            ]);
+            $cartItem = CartItem::query()
+                ->where('cart_id', $cart->id)
+                ->where('product_variant_id', $productVariantId)
+                ->lockForUpdate()
+                ->first();
 
-            $created = ! $cartItem->exists;
+            $created = $cartItem === null;
 
-            if ($cartItem->exists) {
-                $cartItem->quantity += $quantity;
+            $newQuantity = $cartItem
+                ? $cartItem->quantity + $quantity
+                : $quantity;
+
+            $this->validateQuantity(
+                variant: $variant,
+                quantity: $newQuantity,
+            );
+
+            if ($cartItem) {
+                $cartItem->update([
+                    'quantity' => $newQuantity,
+                ]);
             } else {
-                $cartItem->quantity = $quantity;
+                CartItem::query()->create([
+                    'cart_id' => $cart->id,
+                    'product_variant_id' => $productVariantId,
+                    'quantity' => $newQuantity,
+                ]);
             }
-
-            $cartItem->save();
 
             return [
                 'cart' => $this->loadCart($cart),
@@ -61,43 +78,85 @@ class CartService
         int $productVariantId,
         int $quantity
     ): Cart {
-        $cart = Cart::query()
-            ->where('customer_id', $customerId)
-            ->firstOrFail();
+        return DB::transaction(function () use (
+            $customerId,
+            $productVariantId,
+            $quantity
+        ): Cart {
+            $variant = ProductVariant::query()
+                ->lockForUpdate()
+                ->findOrFail($productVariantId);
 
-        $cartItem = CartItem::query()
-            ->where('cart_id', $cart->id)
-            ->where('product_variant_id', $productVariantId)
-            ->firstOrFail();
+            $cart = Cart::query()
+                ->where('customer_id', $customerId)
+                ->firstOrFail();
 
-        $cartItem->update([
-            'quantity' => $quantity,
-        ]);
+            $cartItem = CartItem::query()
+                ->where('cart_id', $cart->id)
+                ->where('product_variant_id', $productVariantId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return $this->loadCart($cart);
+            $this->validateQuantity(
+                variant: $variant,
+                quantity: $quantity,
+            );
+
+            $cartItem->update([
+                'quantity' => $quantity,
+            ]);
+
+            return $this->loadCart($cart);
+        });
     }
 
     public function removeItem(
         int $customerId,
         int $productVariantId
     ): Cart {
-        $cart = Cart::query()
-            ->where('customer_id', $customerId)
-            ->firstOrFail();
+        return DB::transaction(function () use (
+            $customerId,
+            $productVariantId
+        ): Cart {
+            $cart = Cart::query()
+                ->where('customer_id', $customerId)
+                ->firstOrFail();
 
-        $cartItem = CartItem::query()
-            ->where('cart_id', $cart->id)
-            ->where('product_variant_id', $productVariantId)
-            ->firstOrFail();
+            $cartItem = CartItem::query()
+                ->where('cart_id', $cart->id)
+                ->where('product_variant_id', $productVariantId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $cartItem->delete();
+            $cartItem->delete();
 
-        return $this->loadCart($cart);
+            return $this->loadCart($cart);
+        });
+    }
+
+    private function validateQuantity(
+        ProductVariant $variant,
+        int $quantity
+    ): void {
+        if ($quantity < 1) {
+            throw ValidationException::withMessages([
+                'quantity' => 'Quantity must be at least 1.',
+            ]);
+        }
+
+        if ($quantity > $variant->stock_quantity) {
+            throw ValidationException::withMessages([
+                'quantity' => sprintf(
+                    'Only %d item(s) are available in stock.',
+                    $variant->stock_quantity
+                ),
+            ]);
+        }
     }
 
     private function loadCart(Cart $cart): Cart
     {
-        return $cart->load([
+        return $cart->fresh()->load([
             'items.variant.product',
             'items.variant.product.ingredients',
         ]);
