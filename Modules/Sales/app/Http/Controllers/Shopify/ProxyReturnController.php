@@ -184,6 +184,21 @@ class ProxyReturnController extends Controller
             })->values(),
         ]);
     }
+
+    private function shopifyOrderIdCandidates(string $value): array
+    {
+        $candidates = [$value];
+
+        $numericId = ShopifyId::numeric($value);
+
+        if ($numericId !== null && $numericId !== '') {
+            $candidates[] = $numericId;
+            $candidates[] = ShopifyId::orderGid($numericId);
+        }
+
+        return array_values(array_unique(array_filter($candidates)));
+    }
+
     public function storeFromCustomerAccount(Request $request): JsonResponse
     {
         $validated = $request->validate([
