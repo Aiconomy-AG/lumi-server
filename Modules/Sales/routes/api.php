@@ -29,11 +29,8 @@ Route::prefix('shopify/proxy')->group(function (): void {
     Route::controller(ProxyReturnController::class)
         ->prefix('returns')
         ->group(function (): void {
+            Route::get('/ping', 'ping');
             Route::post('/', 'store');
-            Route::get('/ping', function () {
-                return response()->json([
-                    'message' => 'Laravel backend reached',
-                ]);});
         });
 });
 
