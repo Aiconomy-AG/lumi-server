@@ -20,5 +20,9 @@ class Conversation extends Model{
         return $this->belongsToMany(User::class, 'conversation_participants')->withTimestamps();
     }
 
+    public function messages(){
+        return $this->hasMany(Message::class);
+    }
+
 
 }
