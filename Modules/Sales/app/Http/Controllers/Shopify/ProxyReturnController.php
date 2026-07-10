@@ -116,23 +116,17 @@ class ProxyReturnController extends Controller
         ]);
 
         $shopifyOrderId = $validated['shopify_order_id'];
-
         $orderIdCandidates = $this->shopifyOrderIdCandidates($shopifyOrderId);
 
         $order = Order::query()
-            ->with([
-                'customer',
-                'items.productVariant.product',
-            ])
+            ->with('items')
             ->whereIn('shopify_order_id', $orderIdCandidates)
             ->first();
 
         if (! $order) {
             return response()->json([
                 'message' => 'Order not found.',
-                'debug' => [
-                    'searched_ids' => $orderIdCandidates,
-                ],
+                'searched_ids' => $orderIdCandidates,
             ], 404);
         }
 
@@ -140,35 +134,14 @@ class ProxyReturnController extends Controller
             'order' => [
                 'name' => $order->shopify_order_name,
                 'shopify_order_id' => $order->shopify_order_id,
-                'email' => $order->customer?->email,
+                'email' => null,
             ],
             'items' => $order->items->map(function ($item): array {
-                $variant = $item->productVariant;
-                $product = $variant?->product;
-
-                $title = $product?->name
-                    ?? $product?->title
-                    ?? $variant?->name
-                    ?? $variant?->title
-                    ?? 'Product #'.$item->product_variant_id;
-
-                $variantName = $variant?->name
-                    ?? $variant?->title
-                    ?? null;
-
-                if ($variantName !== null && $product !== null) {
-                    $title .= ' - '.$variantName;
-                }
-
                 return [
                     'shopify_line_item_id' => null,
-
-                    'shopify_product_id' => $product?->shopify_product_id
-                        ?? $variant?->shopify_product_id
-                            ?? null,
-
+                    'shopify_product_id' => null,
                     'product_variant_id' => $item->product_variant_id,
-                    'title' => $title,
+                    'title' => 'Product variant #'.$item->product_variant_id,
                     'unit_price' => (float) $item->unit_price,
                     'quantity' => (int) $item->quantity,
                 ];
