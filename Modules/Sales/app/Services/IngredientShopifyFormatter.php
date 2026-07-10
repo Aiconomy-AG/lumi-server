@@ -7,9 +7,7 @@ use Modules\Sales\Models\Ingredients;
 
 class IngredientShopifyFormatter
 {
-    /**
-     * @param  Collection<int, Ingredients>  $ingredients
-     */
+
     public static function toMetafieldValue(Collection $ingredients, string $type): ?string
     {
         if ($ingredients->isEmpty()) {
@@ -22,9 +20,6 @@ class IngredientShopifyFormatter
         };
     }
 
-    /**
-     * @param  Collection<int, Ingredients>  $ingredients
-     */
     public static function toHtml(Collection $ingredients): string
     {
         $parts = $ingredients
@@ -34,9 +29,6 @@ class IngredientShopifyFormatter
         return '<p>'.implode(', ', $parts).'</p>';
     }
 
-    /**
-     * @param  Collection<int, Ingredients>  $ingredients
-     */
     public static function toRichText(Collection $ingredients): string
     {
         $children = [];

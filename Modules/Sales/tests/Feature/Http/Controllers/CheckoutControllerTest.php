@@ -47,7 +47,6 @@ class CheckoutControllerTest extends TestCase
         ], $overrides));
     }
 
-
     public function test_store_creates_an_order_for_the_resolved_customer(): void
     {
         $user = User::factory()->create();
@@ -198,7 +197,6 @@ class CheckoutControllerTest extends TestCase
             ->assertJsonValidationErrors(['items.0.product_id']);
     }
 
-
     public function test_show_returns_order_for_owning_customer(): void
     {
         $user = User::factory()->create();
@@ -246,8 +244,6 @@ class CheckoutControllerTest extends TestCase
             ->assertStatus(401);
     }
 
-
-
     public function test_customer_orders_returns_orders_for_owning_customer(): void
     {
         $user = User::factory()->create();
@@ -261,7 +257,6 @@ class CheckoutControllerTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $order->id);
     }
-
 
     public function test_customer_orders_returns_403_for_non_owning_non_admin_user(): void
     {

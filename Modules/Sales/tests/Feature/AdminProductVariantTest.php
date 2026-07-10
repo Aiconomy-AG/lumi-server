@@ -35,7 +35,7 @@ class AdminProductVariantTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.variants.0.sku', 'VAR-NEW-1')
             ->assertJsonPath('data.variants.0.options.Farbe', 'Red')
-            // pretul cade pe pretul produsului cand lipseste
+
             ->assertJsonPath('data.variants.0.price', '20.00');
 
         $variantId = ProductVariant::where('sku', 'VAR-NEW-1')->value('id');

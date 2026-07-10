@@ -18,7 +18,7 @@ class CatalogTest extends TestCase
 
     public function it_can_list_all_products_with_relations_and_limit()
     {
-        // Arrange: Create categories and products with their nested relationships
+
         $category = Category::factory()->create();
         Product::factory()->count(25)->create(['category_id' => $category->id])->each(function ($product) {
             ProductVariant::factory()->count(2)->create(['product_id' => $product->id]);
@@ -26,14 +26,11 @@ class CatalogTest extends TestCase
             $product->ingredients()->attach($ingredient);
         });
 
-        // Act: Request the endpoint with a custom limit parameter
         $response = $this->getJson('/api/v1/shop/products?limit=5');
 
-        // Assert: Verify status code and exact JSON pagination limits
         $response->assertStatus(200)
             ->assertJsonCount(5, 'data');
 
-        // Ensure nested structures are present
         $response->assertJsonStructure([
             'data' => [
                 '*' => ['id', 'name', 'price', 'variants', 'ingredients']
@@ -50,7 +47,6 @@ class CatalogTest extends TestCase
         Product::factory()->create(['category_id' => $category1->id]);
         $product2 = Product::factory()->create(['category_id' => $category2->id]);
 
-        // Filter explicitly by category 2
         $response = $this->getJson("/api/v1/shop/products?category_id={$category2->id}");
 
         $response->assertStatus(200)

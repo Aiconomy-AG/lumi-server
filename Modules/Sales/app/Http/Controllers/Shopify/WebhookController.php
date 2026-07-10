@@ -62,8 +62,7 @@ class WebhookController extends Controller
             $order->items()->delete();
 
             foreach (($payload['line_items'] ?? []) as $lineItem) {
-                // Local variants have no Shopify id column; they are keyed by SKU
-                // (the product import keys on variant SKU too).
+
                 $sku = trim((string) ($lineItem['sku'] ?? ''));
                 $variant = $sku !== ''
                     ? ProductVariant::query()->where('sku', $sku)->first()

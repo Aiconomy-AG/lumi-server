@@ -7,9 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     */
+
     public function toArray(Request $request): array
     {
         return [
@@ -31,10 +29,6 @@ class OrderResource extends JsonResource
         ];
     }
 
-    /**
-     * Map database enum values to OpenAPI status enum:
-     * [pending, processing, shipped, delivered, cancelled]
-     */
     protected function mapStatus(string $dbStatus, string $dbPaymentStatus): string
     {
         if ($dbPaymentStatus === 'shipped') {
@@ -52,10 +46,6 @@ class OrderResource extends JsonResource
         return 'pending';
     }
 
-    /**
-     * Map database status enum values to OpenAPI payment_status enum:
-     * [pending, successful, failed]
-     */
     protected function mapPaymentStatus(string $dbStatus): string
     {
         if ($dbStatus === 'paid') {

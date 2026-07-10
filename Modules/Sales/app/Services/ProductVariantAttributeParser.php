@@ -4,9 +4,7 @@ namespace Modules\Sales\Services;
 
 class ProductVariantAttributeParser
 {
-    /**
-     * @return array{weight: ?float, unit: ?string, colour: ?string}
-     */
+
     public static function fromRow(
         string $name,
         string $color = '',
@@ -60,9 +58,6 @@ class ProductVariantAttributeParser
         ];
     }
 
-    /**
-     * @return array{weight: float, unit: ?string}|null
-     */
     public static function parseWeight(string $name): ?array
     {
         $dash = strrpos($name, '-');
@@ -94,9 +89,6 @@ class ProductVariantAttributeParser
         ];
     }
 
-    /**
-     * @return array{0: ?float, 1: ?string}
-     */
     public static function parseSize(string $size): array
     {
         if ($size === '') {
@@ -113,12 +105,6 @@ class ProductVariantAttributeParser
         return [null, strtolower($size)];
     }
 
-    /**
-     * Parse a CSV "Variant Option Values" string like
-     * "Farbe: rot, Grösse: 100g" into ['Farbe' => 'rot', 'Grösse' => '100g'].
-     *
-     * @return array<string, string>|null
-     */
     public static function options(string $raw): ?array
     {
         if (trim($raw) === '') {

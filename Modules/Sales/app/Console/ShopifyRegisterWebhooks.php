@@ -17,12 +17,7 @@ use Modules\Sales\Integrations\Shopify\ShopifyResponse;
 #[Description('Register (or update) Shopify webhook subscriptions so storefront events reach this server.')]
 class ShopifyRegisterWebhooks extends Command
 {
-    /**
-     * Webhook topic => local receiver path (under /api/{version}/shopify/webhooks).
-     * Each path maps 1:1 to a route in Modules/Sales/routes/api.php.
-     *
-     * @var array<string, string>
-     */
+
     private const array TOPIC_PATHS = [
         'ORDERS_CREATE' => 'orders/create',
         'ORDERS_UPDATED' => 'orders/updated',
@@ -31,9 +26,6 @@ class ShopifyRegisterWebhooks extends Command
         'PRODUCTS_UPDATE' => 'products/update',
     ];
 
-    /**
-     * @var array<int, string>
-     */
     private const array DEFAULT_TOPICS = [
         'ORDERS_CREATE',
         'ORDERS_UPDATED',
@@ -150,9 +142,6 @@ class ShopifyRegisterWebhooks extends Command
         return rtrim($appUrl, '/').'/api/'.$version.'/shopify/webhooks';
     }
 
-    /**
-     * @return array<int, string>
-     */
     private function selectedTopics(): array
     {
         $requested = (array) $this->option('topic');
@@ -184,11 +173,6 @@ class ShopifyRegisterWebhooks extends Command
         return $topics;
     }
 
-    /**
-     * Fetch existing HTTP subscriptions, keyed by topic (first endpoint per topic).
-     *
-     * @return array<string, array{id: string, callbackUrl: string}>
-     */
     private function existingSubscriptions(ShopifyConnector $connector): array
     {
         $subscriptions = [];
@@ -276,9 +260,6 @@ class ShopifyRegisterWebhooks extends Command
         }
     }
 
-    /**
-     * @param  array<int, mixed>  $errors
-     */
     private function assertNoUserErrors(array $errors): void
     {
         if ($errors === []) {

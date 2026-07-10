@@ -18,21 +18,11 @@ use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class SalesServiceProvider extends ModuleServiceProvider
 {
-    /**
-     * The name of the module.
-     */
+
     protected string $name = 'Sales';
 
-    /**
-     * The lowercase version of the module name.
-     */
     protected string $nameLower = 'sales';
 
-    /**
-     * Command classes to register.
-     *
-     * @var string[]
-     */
     protected array $commands = [
         AssignShopifyCollections::class,
         ImportProductsCsv::class,
@@ -42,11 +32,6 @@ class SalesServiceProvider extends ModuleServiceProvider
         SyncShopifyProducts::class,
     ];
 
-    /**
-     * Provider classes to register.
-     *
-     * @var string[]
-     */
     protected array $providers = [
         EventServiceProvider::class,
         RouteServiceProvider::class,

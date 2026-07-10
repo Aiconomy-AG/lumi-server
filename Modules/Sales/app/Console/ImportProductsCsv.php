@@ -20,21 +20,15 @@ use SplFileObject;
 #[Description('Import products, variants, categories and ingredients from a products export CSV')]
 class ImportProductsCsv extends Command
 {
-    /**
-     * Source-spreadsheet record numbers (header = 1) to skip as test data.
-     */
+
     private const SKIP_RECORDS = [1260];
 
-    /**
-     * Last real record; everything after this is test data to ignore.
-     */
     private const LAST_RECORD = 1275;
 
     private array $columns = [];
 
     private array $categories = [];
 
-    /** @var array<string, int> */
     private array $ingredients = [];
 
     public function handle(ProductSyncService $shopify): int
@@ -96,9 +90,6 @@ class ImportProductsCsv extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * @return array<int, array<int, string|null>>|null
-     */
     private function readRows(string $path): ?array
     {
         $file = new SplFileObject($path);
@@ -142,10 +133,6 @@ class ImportProductsCsv extends Command
             || in_array($recordNumber, self::SKIP_RECORDS, true);
     }
 
-    /**
-     * @param  array<int, array<int, string|null>>  $rows
-     * @return array{0: array<string, array<int, array>>, 1: array<string, array<int, array>>}
-     */
     private function classifyRows(array $rows): array
     {
         $weightGroups = [];
@@ -166,10 +153,6 @@ class ImportProductsCsv extends Command
         return [$weightGroups, $colourGroups];
     }
 
-    /**
-     * @param  array<int, array<int, string|null>>  $rows
-     * @return array<int, array<int, string|null>>
-     */
     private function sortProductGroup(array $rows): array
     {
         usort($rows, function (array $a, array $b): int {
@@ -186,10 +169,6 @@ class ImportProductsCsv extends Command
         return $rows;
     }
 
-    /**
-     * Rows sharing a Product ID form one product: the first row is the product,
-     * every following row is a variant.
-     */
     private function importWeightProduct(array $rows, array &$stats): void
     {
         $parent = $rows[0];
@@ -223,10 +202,6 @@ class ImportProductsCsv extends Command
         }
     }
 
-    /**
-     * Rows that share a base name but carry a colour code (e.g. "Slap Stick
-     * 29N") are one product with a colour variant per row.
-     */
     private function importColourProduct(array $rows, array &$stats): void
     {
         $parent = $rows[0];
@@ -304,9 +279,6 @@ class ImportProductsCsv extends Command
         return $name !== '' ? $name : null;
     }
 
-    /**
-     * @return array{weight: ?float, unit: ?string, colour: ?string}
-     */
     private function variantAttributes(array $row): array
     {
         return ProductVariantAttributeParser::fromRow(
@@ -318,9 +290,6 @@ class ImportProductsCsv extends Command
         );
     }
 
-    /**
-     * @param  array{weight: ?float, unit: ?string, colour: ?string}  $attributes
-     */
     private function variantSku(Product $product, array $row, array $attributes): string
     {
         $sku = $this->value($row, 'Variant SKU');
@@ -344,9 +313,6 @@ class ImportProductsCsv extends Command
         return $sku;
     }
 
-    /**
-     * @param  array{weight: ?float, unit: ?string, colour: ?string}  $attributes
-     */
     private function variantSkuSuffix(array $attributes): ?string
     {
         $parts = [];
@@ -411,9 +377,6 @@ class ImportProductsCsv extends Command
             ?: null;
     }
 
-    /**
-     * @param  array{products: int, variants: int, ingredients: int}  $stats
-     */
     private function importIngredients(Product $product, array $row, array &$stats): void
     {
         $parsed = IngredientListParser::parse($this->value($row, 'Ingredients (de_CH)'));
@@ -433,10 +396,6 @@ class ImportProductsCsv extends Command
         $product->ingredients()->sync($ingredientIds);
     }
 
-    /**
-     * @param  array{name: string, is_natural: bool, is_allergen: bool}  $ingredient
-     * @param  array{products: int, variants: int, ingredients: int}  $stats
-     */
     private function ingredientId(array $ingredient, array &$stats): int
     {
         $name = $ingredient['name'];
@@ -465,9 +424,6 @@ class ImportProductsCsv extends Command
         return $this->ingredients[$name] = $model->getKey();
     }
 
-    /**
-     * @param  array{name: string, is_natural: bool, is_allergen: bool}  $ingredient
-     */
     private function mergeIngredientFlags(int $ingredientId, array $ingredient): void
     {
         $model = Ingredients::query()->find($ingredientId);
