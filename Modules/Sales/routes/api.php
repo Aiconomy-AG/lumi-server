@@ -9,6 +9,7 @@ use Modules\Sales\Http\Controllers\CartController;
 use Modules\Sales\Http\Controllers\CatalogController;
 use Modules\Sales\Http\Controllers\CheckoutController;
 use Modules\Sales\Http\Controllers\CustomerController;
+use Modules\Sales\Http\Controllers\Shopify\ProxyCartController;
 use Modules\Sales\Http\Controllers\Shopify\ProxyReturnController;
 use Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController;
 use Modules\Sales\Http\Controllers\Shopify\WebhookController;
@@ -16,20 +17,61 @@ use Modules\Sales\Http\Controllers\WishlistController;
 use Modules\Sales\Http\Middleware\VerifyCustomerOwnership;
 use Modules\Sales\Http\Controllers\ProductSearchController;
 
-Route::prefix('shopify/proxy')->group(function (): void {
-    Route::controller(ProxyWishlistController::class)->prefix('wishlist')->group(function () {
-        Route::get('/', 'index');
-        Route::post('items', 'store');
-        Route::delete('items/{shopifyProductId}', 'destroy')->where('shopifyProductId', '.*');
-    });
+Route::prefix('shopify/proxy')
+    ->middleware('verify.shopify.proxy')
+    ->group(function (): void {
+        Route::controller(ProxyCartController::class)
+            ->prefix('cart')
+            ->group(function (): void {
+                Route::get('/', 'show');
 
-    Route::controller(ProxyReturnController::class)
-        ->prefix('returns')
-        ->group(function (): void {
-            Route::get('/ping', 'ping');
-            Route::post('/', 'store');
-        });
-});
+                Route::post(
+                    'items',
+                    'storeItem'
+                );
+
+                Route::put(
+                    'items/{productVariantId}',
+                    'updateItem'
+                );
+
+                Route::delete(
+                    'items/{productVariantId}',
+                    'destroyItem'
+                );
+            });
+
+        Route::controller(ProxyWishlistController::class)
+            ->prefix('wishlist')
+            ->group(function (): void {
+                Route::get('/', 'index');
+
+                Route::post(
+                    'items',
+                    'store'
+                );
+
+                Route::delete(
+                    'items/{shopifyProductId}',
+                    'destroy'
+                )->where(
+                    'shopifyProductId',
+                    '.*'
+                );
+            });
+
+        Route::controller(ProxyReturnController::class)
+            ->prefix('returns')
+            ->group(function (): void {
+                Route::get(
+                    '/ping','ping'
+                );
+
+                Route::post(
+                    '/','store'
+                );
+            });
+    });
 
 Route::prefix('shopify/customer-account/returns')->group(function (): void {
     Route::post('/lookup', [ProxyReturnController::class, 'lookupFromCustomerAccount']);
