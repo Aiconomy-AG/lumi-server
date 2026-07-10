@@ -15,6 +15,8 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'customer_id' => $this->customer_id,
+            'shopify_order_id' => $this->shopify_order_id,
+            'shopify_order_name' => $this->shopify_order_name,
             'status' => $this->mapStatus($this->status, $this->payment_status),
             'subtotal' => (float) $this->subtotal,
             'shipping_cost' => (float) $this->shipping_cost,
@@ -24,6 +26,7 @@ class OrderResource extends JsonResource
             'payment_status' => $this->mapPaymentStatus($this->status),
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'return_requests' => ReturnRequestResource::collection($this->whenLoaded('returnRequests')),
             'created_at' => $this->created_at,
         ];
     }

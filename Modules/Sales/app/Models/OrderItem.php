@@ -19,10 +19,12 @@ class OrderItem extends Model
         'order_id',
         'product_variant_id',
         'quantity',
+        'unit_price',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'unit_price' => 'decimal:2',
     ];
 
     public function order()

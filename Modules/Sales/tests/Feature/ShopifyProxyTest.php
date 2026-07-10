@@ -69,6 +69,13 @@ class ShopifyProxyTest extends TestCase
             'email' => 'customer@example.com',
             'reason' => 'damaged',
             'notes' => 'Arrived broken',
+            'items' => [
+                [
+                    'title' => 'Bath Bomb',
+                    'quantity' => 1,
+                    'unit_price' => 10,
+                ],
+            ],
         ])->assertCreated()->assertJsonPath('data.status', 'requested');
 
         $this->assertDatabaseHas('return_requests', [
@@ -98,10 +105,13 @@ class ShopifyProxyTest extends TestCase
 
         $this->getJson('/api/v1/admin/returns')->assertOk();
 
+        $this->postJson("/api/v1/admin/returns/{$returnRequest->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved');
+
         $this->patchJson("/api/v1/admin/returns/{$returnRequest->id}", [
-            'status' => 'approved',
             'notes' => 'Approved by support',
-        ])->assertOk()->assertJsonPath('data.status', 'approved');
+        ])->assertOk()->assertJsonPath('data.notes', 'Approved by support');
     }
 
     private function signedProxyQuery(array $parameters): string

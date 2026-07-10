@@ -2,6 +2,7 @@
 
 namespace Modules\Sales\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -54,5 +55,20 @@ class Order extends Model
     public function returnRequests()
     {
         return $this->hasMany(ReturnRequest::class);
+    }
+
+    public function scopeWhereApiStatus(Builder $query, string $status): Builder
+    {
+        return match ($status) {
+            'shipped' => $query->where('payment_status', 'shipped'),
+            'delivered' => $query->where('payment_status', 'fulfilled'),
+            'cancelled' => $query->whereIn('status', ['expired', 'voided']),
+            'processing' => $query
+                ->whereIn('status', ['paid', 'partially_paid', 'authorized'])
+                ->whereNotIn('payment_status', ['shipped', 'fulfilled']),
+            default => $query
+                ->whereNotIn('status', ['expired', 'voided', 'paid', 'partially_paid', 'authorized'])
+                ->whereNotIn('payment_status', ['shipped', 'fulfilled']),
+        };
     }
 }

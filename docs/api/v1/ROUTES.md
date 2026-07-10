@@ -100,9 +100,14 @@ Routes require Staff; `ProductPolicy` decides per action.
 | Method | Route | Access |
 |---|---|---|
 | GET | `/api/v1/admin/orders` | Staff |
+| GET | `/api/v1/admin/orders/{orderId}` | Staff |
 | GET | `/api/v1/admin/returns` | Staff |
 | GET | `/api/v1/admin/returns/{returnRequestId}` | Staff |
-| PATCH | `/api/v1/admin/returns/{returnRequestId}` | Staff |
+| PATCH | `/api/v1/admin/returns/{returnRequestId}` | Staff (notes only) |
+| POST | `/api/v1/admin/returns/{returnRequestId}/approve` | Staff |
+| POST | `/api/v1/admin/returns/{returnRequestId}/reject` | Staff |
+| POST | `/api/v1/admin/returns/{returnRequestId}/received` | Staff |
+| POST | `/api/v1/admin/returns/{returnRequestId}/refunded` | Staff |
 
 ## Shopify Integrations — `Modules/Sales`
 

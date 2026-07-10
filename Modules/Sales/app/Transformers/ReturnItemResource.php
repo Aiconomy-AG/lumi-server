@@ -19,7 +19,7 @@ class ReturnItemResource extends JsonResource
             'order_item_id' => $this->order_item_id,
             'quantity' => $this->quantity,
 
-            'order_item' => $this->whenLoaded('orderItem'),
+            'order_item' => new OrderItemResource($this->whenLoaded('orderItem')),
         ];
     }
 }

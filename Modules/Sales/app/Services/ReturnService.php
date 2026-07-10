@@ -248,7 +248,7 @@ class ReturnService
             ->with([
                 'order',
                 'customer',
-                'returnItems.orderItem.product',
+                'returnItems.orderItem.variant.product',
             ])
             ->latest()
             ->get();
@@ -264,7 +264,7 @@ class ReturnService
             ->with([
                 'order',
                 'customer',
-                'returnItems.orderItem.product',
+                'returnItems.orderItem.variant.product',
             ])
             ->latest()
             ->get();
@@ -276,7 +276,7 @@ class ReturnService
             ->where('customer_id', $customerId)
             ->with([
                 'order',
-                'returnItems.orderItem.product',
+                'returnItems.orderItem.variant.product',
             ])
             ->latest()
             ->get();

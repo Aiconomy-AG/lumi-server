@@ -110,12 +110,17 @@ Route::middleware(['auth:sanctum', 'staff'])->prefix('admin')->group(function ()
     });
 
     Route::get('orders', [OrderController::class, 'index']);
+    Route::get('orders/{orderId}', [OrderController::class, 'show']);
 
     Route::controller(ReturnRequestController::class)
         ->prefix('returns')
         ->group(function (): void {
             Route::get('/', 'index');
             Route::get('{returnRequestId}', 'show');
-            Route::patch('{returnRequestId}', 'update');
+            Route::patch('{returnRequestId}', 'updateNotes');
+            Route::post('{returnRequestId}/approve', 'approve');
+            Route::post('{returnRequestId}/reject', 'reject');
+            Route::post('{returnRequestId}/received', 'markReceived');
+            Route::post('{returnRequestId}/refunded', 'markRefunded');
         });
 });
