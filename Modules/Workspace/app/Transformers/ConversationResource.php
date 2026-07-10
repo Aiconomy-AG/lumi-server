@@ -19,7 +19,17 @@ class ConversationResource extends JsonResource
             'participants' => UserResource::collection($this->whenLoaded('participants')),
             'last_message_at' => $this->messages_max_created_at
                 ? Carbon::parse($this->messages_max_created_at)->toISOString()
-                : null,
+                : ($this->relationLoaded('latestMessage') && $this->latestMessage
+                    ? $this->latestMessage->created_at?->toISOString()
+                    : null),
+            'last_message' => $this->when(
+                $this->relationLoaded('latestMessage') && $this->latestMessage,
+                fn () => [
+                    'message' => $this->latestMessage->message,
+                    'sender_id' => $this->latestMessage->sender_id,
+                    'sent_at' => $this->latestMessage->created_at?->toISOString(),
+                ]
+            ),
         ];
     }
 }

@@ -15,7 +15,7 @@ class ConversationService
     {
         return Conversation::query()
             ->whereHas('participants', fn ($q) => $q->where('users.id', $userId))
-            ->with('participants')
+            ->with(['participants', 'latestMessage'])
             ->withMax('messages', 'created_at')
             ->orderByDesc('messages_max_created_at')
             ->get();
@@ -24,7 +24,7 @@ class ConversationService
     public function getById(int $conversationId): ?Conversation
     {
         return Conversation::query()
-            ->with('participants')
+            ->with(['participants', 'latestMessage'])
             ->find($conversationId);
     }
 
@@ -48,7 +48,7 @@ class ConversationService
         $allParticipantIds = array_unique([...$participantIds, $creatorId]);
         $conversation->participants()->attach($allParticipantIds);
 
-        $conversation = $conversation->load('participants');
+        $conversation = $conversation->load(['participants', 'latestMessage']);
 
         $this->notificationService->createForRecipients(
             type: 'chat_added_to_conversation',
@@ -71,7 +71,7 @@ class ConversationService
             ->where('type', 'direct')
             ->whereHas('participants', fn ($q) => $q->where('users.id', $userId))
             ->whereHas('participants', fn ($q) => $q->where('users.id', $otherId))
-            ->with('participants')
+            ->with(['participants', 'latestMessage'])
             ->get()
             ->first(fn ($c) => $c->participants->count() === 2);
     }
