@@ -65,6 +65,59 @@ class ConversationService
         return $conversation;
     }
 
+    public function update(Conversation $conversation, array $data, int $actorUserId): Conversation
+    {
+        if ($conversation->type !== 'group') {
+            throw new \InvalidArgumentException('Only group conversations can be updated.');
+        }
+
+        if (array_key_exists('name', $data)) {
+            $trimmedName = trim((string) ($data['name'] ?? ''));
+            if ($trimmedName !== '') {
+                $conversation->update(['name' => $trimmedName]);
+            }
+        }
+
+        $newParticipantIds = $data['add_participants_employee_ids'] ?? [];
+        if ($newParticipantIds !== []) {
+            $existingIds = $conversation->participants()->pluck('users.id')->all();
+            $toAttach = array_values(array_diff($newParticipantIds, $existingIds));
+
+            if ($toAttach !== []) {
+                $conversation->participants()->attach($toAttach);
+
+                $this->notificationService->createForRecipients(
+                    type: 'chat_added_to_conversation',
+                    source: 'chat',
+                    recipientUserIds: $toAttach,
+                    actorUserId: $actorUserId,
+                    conversationId: $conversation->id,
+                    payload: [
+                        'conversation_name' => $conversation->name,
+                        'conversation_type' => $conversation->type,
+                    ],
+                );
+            }
+        }
+
+        $removeParticipantIds = $data['remove_participants_employee_ids'] ?? [];
+        if ($removeParticipantIds !== []) {
+            $existingIds = $conversation->participants()->pluck('users.id')->all();
+            $toDetach = array_values(array_intersect($removeParticipantIds, $existingIds));
+
+            if ($toDetach !== []) {
+                $remainingCount = count($existingIds) - count($toDetach);
+                if ($remainingCount < 2) {
+                    throw new \InvalidArgumentException('A group must keep at least two participants.');
+                }
+
+                $conversation->participants()->detach($toDetach);
+            }
+        }
+
+        return $conversation->fresh(['participants', 'latestMessage']);
+    }
+
     private function findExistingDirectConversation(int $userId, int $otherId): ?Conversation
     {
         return Conversation::query()

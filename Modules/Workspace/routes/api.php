@@ -36,6 +36,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('conversations', [ConversationController::class, 'index']);
         Route::post('conversations', [ConversationController::class, 'store']);
         Route::get('conversations/{conversationId}', [ConversationController::class, 'show']);
+        Route::put('conversations/{conversationId}', [ConversationController::class, 'update'])
+            ->middleware(VerifyConversationParticipant::class);
 
         Route::middleware([VerifyConversationParticipant::class])
             ->prefix('conversations/{conversationId}')
