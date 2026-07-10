@@ -108,6 +108,81 @@ class ProxyReturnController extends Controller
             ->response()
             ->setStatusCode(201);
     }
+
+    public function lookupFromCustomerAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'shopify_order_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        return response()->json([
+            'order' => [
+                'name' => '#TEST',
+                'shopify_order_id' => $validated['shopify_order_id'],
+                'email' => 'test@example.com',
+            ],
+            'items' => [
+                [
+                    'shopify_line_item_id' => 'gid://shopify/LineItem/1',
+                    'shopify_product_id' => 'gid://shopify/Product/1',
+                    'title' => 'Test product',
+                    'unit_price' => 10.00,
+                    'quantity' => 2,
+                ],
+            ],
+        ]);
+    }
+
+    public function storeFromCustomerAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'order_id' => ['required', 'string', 'max:255'],
+            'shopify_order_id' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.shopify_line_item_id' => ['nullable', 'string', 'max:255'],
+            'items.*.shopify_product_id' => ['nullable', 'string', 'max:255'],
+            'items.*.title' => ['nullable', 'string', 'max:255'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+
+            'reason' => ['required', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $returnRequest = $this->returnService->createShopifyReturn(
+            shopDomain: 'lush-clone-internship-project.myshopify.com',
+            email: $validated['email'] ?? '',
+            reason: $validated['reason'],
+            items: $validated['items'],
+            shopifyCustomerId: null,
+            shopifyOrderId: $validated['shopify_order_id'],
+            shopifyOrderName: $validated['order_id'],
+            notes: $validated['notes'] ?? null,
+        );
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'return_requested',
+            entity: $returnRequest,
+            label: 'Return #'.$returnRequest->id.' ('.$validated['order_id'].')',
+            changes: [
+                'new' => [
+                    'status' => $returnRequest->status,
+                    'reason' => $validated['reason'],
+                ],
+            ],
+            description: 'Return requested via Shopify customer account.',
+            actorName: $validated['email'] ?? 'Shopify customer',
+        );
+
+        return (new ReturnRequestResource($returnRequest))
+            ->response()
+            ->setStatusCode(201);
+    }
+
+
     private function proxySecretConfigKeys(): array
     {
         return [

@@ -73,6 +73,11 @@ Route::prefix('shopify/proxy')
             });
     });
 
+Route::prefix('shopify/customer-account/returns')->group(function (): void {
+    Route::post('/lookup', [ProxyReturnController::class, 'lookupFromCustomerAccount']);
+    Route::post('/', [ProxyReturnController::class, 'storeFromCustomerAccount']);
+});
+
 Route::prefix('shopify/webhooks')->controller(WebhookController::class)->group(function (): void {
     Route::post('customers/create', 'customer');
     Route::post('customers/update', 'customer');
