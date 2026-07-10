@@ -30,6 +30,10 @@ Route::prefix('shopify/proxy')->group(function (): void {
         ->prefix('returns')
         ->group(function (): void {
             Route::post('/', 'store');
+            Route::get('/ping', function () {
+                return response()->json([
+                    'message' => 'Laravel backend reached',
+                ]);});
         });
 });
 
