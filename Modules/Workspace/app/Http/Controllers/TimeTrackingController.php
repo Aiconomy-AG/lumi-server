@@ -6,6 +6,8 @@ use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Modules\Workspace\Events\TimeEntryStarted;
+use Modules\Workspace\Events\TimeEntryStopped;
 use Modules\Workspace\Models\Task;
 use Modules\Workspace\Models\TaskTimeEntry;
 use Modules\Workspace\Http\Resources\TaskTimeEntryResource;
@@ -26,6 +28,18 @@ class TimeTrackingController extends Controller
         ]);
     }
 
+    public function active(): JsonResponse
+    {
+        $entry = TaskTimeEntry::where('user_id', Auth::id())
+            ->whereNull('stopped_at')
+            ->latest('started_at')
+            ->first();
+
+        return response()->json([
+            'data' => $entry ? new TaskTimeEntryResource($entry) : null,
+        ]);
+    }
+
     public function start(Request $request, $taskId)
     {
         $task = Task::find($taskId);
@@ -33,13 +47,16 @@ class TimeTrackingController extends Controller
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
 
-        $activeTimer = TaskTimeEntry::where('task_id', $taskId)
-            ->where('user_id', Auth::id())
+        $activeTimer = TaskTimeEntry::where('user_id', Auth::id())
             ->whereNull('stopped_at')
             ->first();
 
         if ($activeTimer) {
-            return response()->json(['code' => 'BAD_REQUEST', 'message' => 'A timer is already running for this task.'], 400);
+            return response()->json([
+                'code' => 'BAD_REQUEST',
+                'message' => 'A timer is already running.',
+                'active_entry' => new TaskTimeEntryResource($activeTimer),
+            ], 409);
         }
 
         $entry = TaskTimeEntry::create([
@@ -48,6 +65,8 @@ class TimeTrackingController extends Controller
             'started_at' => now(),
             'duration_seconds' => 0,
         ]);
+
+        event(new TimeEntryStarted($entry));
 
         AuditLog::record(
             module: 'workspace',
@@ -79,6 +98,8 @@ class TimeTrackingController extends Controller
             'stopped_at' => $stoppedAt,
             'duration_seconds' => $durationSeconds,
         ]);
+
+        event(new TimeEntryStopped($entry));
 
         $task = Task::find($taskId);
         AuditLog::record(
