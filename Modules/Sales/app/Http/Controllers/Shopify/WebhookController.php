@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Sales\Models\Customer;
 use Modules\Sales\Models\Order;
 use Modules\Sales\Models\Product;
+use Modules\Sales\Models\ProductVariant;
 use Modules\Sales\Services\Shopify\WebhookVerifier;
 use Modules\Sales\Support\ShopifyId;
 
@@ -61,15 +62,18 @@ class WebhookController extends Controller
             $order->items()->delete();
 
             foreach (($payload['line_items'] ?? []) as $lineItem) {
-                $shopifyProductId = ShopifyId::productGid((string) ($lineItem['product_id'] ?? ''));
-                $product = $shopifyProductId
-                    ? Product::query()->where('shopify_product_id', $shopifyProductId)->first()
+                // Local variants have no Shopify id column; they are keyed by SKU
+                // (the product import keys on variant SKU too).
+                $sku = trim((string) ($lineItem['sku'] ?? ''));
+                $variant = $sku !== ''
+                    ? ProductVariant::query()->where('sku', $sku)->first()
                     : null;
 
-                if ($product) {
+                if ($variant) {
                     $order->items()->create([
-                        'product_id' => $product->id,
+                        'product_variant_id' => $variant->id,
                         'quantity' => max(1, (int) ($lineItem['quantity'] ?? 1)),
+                        'unit_price' => (float) ($lineItem['price'] ?? 0),
                     ]);
                 }
             }

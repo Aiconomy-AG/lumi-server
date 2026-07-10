@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Modules\Sales\Console\AssignShopifyCollections;
 use Modules\Sales\Console\ImportProductsCsv;
+use Modules\Sales\Console\ShopifyRegisterWebhooks;
 use Modules\Sales\Console\ShopifyTestConnection;
 use Modules\Sales\Console\SyncShopifyInventory;
 use Modules\Sales\Console\SyncShopifyProducts;
@@ -35,6 +36,7 @@ class SalesServiceProvider extends ModuleServiceProvider
     protected array $commands = [
         AssignShopifyCollections::class,
         ImportProductsCsv::class,
+        ShopifyRegisterWebhooks::class,
         ShopifyTestConnection::class,
         SyncShopifyInventory::class,
         SyncShopifyProducts::class,
