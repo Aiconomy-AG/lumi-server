@@ -115,31 +115,46 @@ class ProxyReturnController extends Controller
             'shopify_order_id' => ['required', 'string', 'max:255'],
         ]);
 
-        $order = Order::query()
-            ->where('shopify_order_id', $validated['shopify_order_id'])
-            ->with('items')
-            ->first();
-
-        if (! $order) {
-            return response()->json([
-                'message' => 'Order not found.',
-            ], 404);
-        }
-
         return response()->json([
             'order' => [
-                'name' => $order->shopify_order_name,
-                'shopify_order_id' => $order->shopify_order_id,
-                'email' => $order->email,
+                'name' => '#TEST',
+                'shopify_order_id' => $validated['shopify_order_id'],
+                'email' => 'test@example.com',
             ],
-            'items' => $order->items->map(fn ($item) => [
-                'shopify_line_item_id' => $item->shopify_line_item_id,
-                'shopify_product_id' => $item->shopify_product_id,
-                'title' => $item->title,
-                'unit_price' => $item->unit_price,
-                'quantity' => $item->quantity,
-            ])->values(),
+            'items' => [
+                [
+                    'shopify_line_item_id' => 'gid://shopify/LineItem/1',
+                    'shopify_product_id' => 'gid://shopify/Product/1',
+                    'title' => 'Test product',
+                    'unit_price' => 10.00,
+                    'quantity' => 2,
+                ],
+            ],
         ]);
+    }
+
+    public function storeFromCustomerAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'order_id' => ['required', 'string', 'max:255'],
+            'shopify_order_id' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.shopify_line_item_id' => ['nullable', 'string', 'max:255'],
+            'items.*.shopify_product_id' => ['nullable', 'string', 'max:255'],
+            'items.*.title' => ['nullable', 'string', 'max:255'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+
+            'reason' => ['required', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        return response()->json([
+            'message' => 'Customer account return received.',
+            'data' => $validated,
+        ], 201);
     }
 
 
