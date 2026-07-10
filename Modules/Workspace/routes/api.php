@@ -43,6 +43,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('notifications/{notificationId}', [NotificationController::class, 'dismiss']);
 
         Route::get('users/{userId}/time-entries/daily-total', [TimeTrackingController::class, 'dailyTotal']);
+        Route::get('me/active-time-entry', [TimeTrackingController::class, 'active']);
 
         Route::prefix('tasks/{taskId}')->group(function (): void {
 
