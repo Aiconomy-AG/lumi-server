@@ -1,164 +1,65 @@
 <?php
 
-namespace Modules\Sales\Services;
+namespace Modules\Sales\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
-use Modules\Sales\Models\Cart;
-use Modules\Sales\Models\CartItem;
-use Modules\Sales\Models\ProductVariant;
+use Illuminate\Http\JsonResponse;
+use Modules\Sales\Http\Requests\AddCartItemRequest;
+use Modules\Sales\Http\Requests\UpdateCartItemRequest;
+use Modules\Sales\Services\CartService;
+use Modules\Sales\Transformers\CartResource;
 
-class CartService
+class CartController
 {
-    public function getCart(int $customerId): Cart
-    {
-        $cart = Cart::query()->firstOrCreate([
-            'customer_id' => $customerId,
-        ]);
-
-        return $this->loadCart($cart);
+    public function __construct(
+        private readonly CartService $cartService
+    ) {
     }
 
-    public function addItem(
-        int $customerId,
-        int $productVariantId,
-        int $quantity
-    ): array {
-        return DB::transaction(function () use (
-            $customerId,
-            $productVariantId,
-            $quantity
-        ): array {
-            $variant = ProductVariant::query()
-                ->lockForUpdate()
-                ->findOrFail($productVariantId);
+    public function show(int $customerId): CartResource
+    {
+        $cart = $this->cartService->getCart($customerId);
 
-            $cart = Cart::query()->firstOrCreate([
-                'customer_id' => $customerId,
-            ]);
+        return new CartResource($cart);
+    }
 
-            $cartItem = CartItem::query()
-                ->where('cart_id', $cart->id)
-                ->where('product_variant_id', $productVariantId)
-                ->lockForUpdate()
-                ->first();
+    public function storeItem(
+        AddCartItemRequest $request,
+        int $customerId
+    ): JsonResponse {
+        $result = $this->cartService->addItem(
+            customerId: $customerId,
+            productVariantId: $request->integer('product_variant_id'),
+            quantity: $request->integer('quantity'),
+        );
 
-            $created = $cartItem === null;
-
-            $newQuantity = $cartItem
-                ? $cartItem->quantity + $quantity
-                : $quantity;
-
-            $this->validateQuantity(
-                variant: $variant,
-                quantity: $newQuantity,
-            );
-
-            if ($cartItem) {
-                $cartItem->update([
-                    'quantity' => $newQuantity,
-                ]);
-            } else {
-                CartItem::query()->create([
-                    'cart_id' => $cart->id,
-                    'product_variant_id' => $productVariantId,
-                    'quantity' => $newQuantity,
-                ]);
-            }
-
-            return [
-                'cart' => $this->loadCart($cart),
-                'created' => $created,
-            ];
-        });
+        return (new CartResource($result['cart']))
+            ->response()
+            ->setStatusCode($result['created'] ? 201 : 200);
     }
 
     public function updateItem(
-        int $customerId,
-        int $productVariantId,
-        int $quantity
-    ): Cart {
-        return DB::transaction(function () use (
-            $customerId,
-            $productVariantId,
-            $quantity
-        ): Cart {
-            $variant = ProductVariant::query()
-                ->lockForUpdate()
-                ->findOrFail($productVariantId);
-
-            $cart = Cart::query()
-                ->where('customer_id', $customerId)
-                ->firstOrFail();
-
-            $cartItem = CartItem::query()
-                ->where('cart_id', $cart->id)
-                ->where('product_variant_id', $productVariantId)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $this->validateQuantity(
-                variant: $variant,
-                quantity: $quantity,
-            );
-
-            $cartItem->update([
-                'quantity' => $quantity,
-            ]);
-
-            return $this->loadCart($cart);
-        });
-    }
-
-    public function removeItem(
+        UpdateCartItemRequest $request,
         int $customerId,
         int $productVariantId
-    ): Cart {
-        return DB::transaction(function () use (
-            $customerId,
-            $productVariantId
-        ): Cart {
-            $cart = Cart::query()
-                ->where('customer_id', $customerId)
-                ->firstOrFail();
+    ): CartResource {
+        $cart = $this->cartService->updateItem(
+            customerId: $customerId,
+            productVariantId: $productVariantId,
+            quantity: $request->integer('quantity'),
+        );
 
-            $cartItem = CartItem::query()
-                ->where('cart_id', $cart->id)
-                ->where('product_variant_id', $productVariantId)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $cartItem->delete();
-
-            return $this->loadCart($cart);
-        });
+        return new CartResource($cart);
     }
 
-    private function validateQuantity(
-        ProductVariant $variant,
-        int $quantity
-    ): void {
-        if ($quantity < 1) {
-            throw ValidationException::withMessages([
-                'quantity' => 'Quantity must be at least 1.',
-            ]);
-        }
+    public function destroyItem(
+        int $customerId,
+        int $productVariantId
+    ): CartResource {
+        $cart = $this->cartService->removeItem(
+            customerId: $customerId,
+            productVariantId: $productVariantId,
+        );
 
-        if ($quantity > $variant->stock_quantity) {
-            throw ValidationException::withMessages([
-                'quantity' => sprintf(
-                    'Only %d item(s) are available in stock.',
-                    $variant->stock_quantity
-                ),
-            ]);
-        }
-    }
-
-    private function loadCart(Cart $cart): Cart
-    {
-        return $cart->fresh()->load([
-            'items.variant.product',
-            'items.variant.product.ingredients',
-        ]);
+        return new CartResource($cart);
     }
 }
