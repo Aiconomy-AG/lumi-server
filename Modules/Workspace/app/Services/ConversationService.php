@@ -16,6 +16,8 @@ class ConversationService
         return Conversation::query()
             ->whereHas('participants', fn ($q) => $q->where('users.id', $userId))
             ->with('participants')
+            ->withMax('messages', 'created_at')
+            ->orderByDesc('messages_max_created_at')
             ->get();
     }
 
