@@ -18,6 +18,7 @@ class OrderItemResource extends JsonResource
             'product_variant_id' => $this->product_variant_id,
             'quantity' => (int) $this->quantity,
             'unit_price' => (float) $this->unit_price,
+            'product_name' => $this->whenLoaded('variant', fn () => $this->variant?->product?->name),
             'variant' => new ProductVariantResource($this->whenLoaded('variant')),
         ];
     }
