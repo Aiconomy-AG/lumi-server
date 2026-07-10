@@ -5,6 +5,7 @@ use Modules\Workspace\Http\Controllers\ConversationController;
 use Modules\Workspace\Http\Controllers\MessageController;
 use Modules\Workspace\Http\Controllers\NotificationController;
 use Modules\Workspace\Http\Controllers\ProjectController;
+use Modules\Workspace\Http\Controllers\ReturnRequestController;
 use Modules\Workspace\Http\Controllers\TaskController;
 use Modules\Workspace\Http\Controllers\TimeTrackingController;
 use Modules\Workspace\Http\Controllers\WorkspaceController;
@@ -19,6 +20,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('projects/{projectId}', [ProjectController::class, 'show']);
         Route::put('projects/{projectId}', [ProjectController::class, 'update']);
         Route::delete('projects/{projectId}', [ProjectController::class, 'destroy']);
+
+        Route::middleware('staff')->group(function (): void {
+            Route::get('returns', [ReturnRequestController::class, 'index']);
+            Route::get('returns/{returnRequestId}', [ReturnRequestController::class, 'show']);
+            Route::patch('returns/{returnRequestId}', [ReturnRequestController::class, 'update']);
+        });
 
         Route::get('tasks', [TaskController::class, 'index']);
         Route::post('tasks', [TaskController::class, 'store']);
