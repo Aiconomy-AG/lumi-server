@@ -3,6 +3,7 @@
 namespace Tests\Feature\Workspace;
 
 use App\Enums\UserRole;
+use App\Events\NotificationDismissed;
 use App\Events\NotificationDelivered;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,6 +55,68 @@ class NotificationTest extends TestCase
             'id' => $notificationId,
             'read_at' => null,
         ]);
+    }
+
+    public function test_user_can_dismiss_own_notification(): void
+    {
+        Event::fake([NotificationDelivered::class, NotificationDismissed::class]);
+
+        $actor = User::factory()->create(['role' => UserRole::Employee]);
+        $recipient = User::factory()->create(['role' => UserRole::Employee]);
+
+        app(NotificationService::class)->createForRecipients(
+            type: 'chat_message_received',
+            source: 'chat',
+            recipientUserIds: [$recipient->id],
+            actorUserId: $actor->id,
+            payload: ['message_preview' => 'Hello from chat'],
+        );
+
+        Sanctum::actingAs($recipient);
+
+        $notificationId = $this->getJson('/api/v1/workspace/notifications')
+            ->assertOk()
+            ->json('data.0.id');
+
+        $this->deleteJson("/api/v1/workspace/notifications/{$notificationId}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Notification dismissed successfully.');
+
+        $this->assertDatabaseMissing('notification_deliveries', [
+            'id' => $notificationId,
+            'dismissed_at' => null,
+        ]);
+
+        $this->getJson('/api/v1/workspace/notifications')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        Event::assertDispatched(NotificationDismissed::class);
+    }
+
+    public function test_notification_broadcast_payload_includes_chat_actor(): void
+    {
+        $actor = User::factory()->create([
+            'name' => 'Mara Chat',
+            'email' => 'mara@example.com',
+            'role' => UserRole::Employee,
+        ]);
+        $recipient = User::factory()->create(['role' => UserRole::Employee]);
+
+        $event = app(NotificationService::class)->createForRecipients(
+            type: 'chat_message_received',
+            source: 'chat',
+            recipientUserIds: [$recipient->id],
+            actorUserId: $actor->id,
+            payload: ['message_preview' => 'Can you check this?'],
+        );
+
+        $delivery = $event->deliveries()->firstOrFail();
+        $payload = (new NotificationDelivered($delivery))->broadcastWith();
+
+        $this->assertSame($actor->id, $payload['event']['actor_user_id']);
+        $this->assertSame('Mara Chat', $payload['event']['actor']['name']);
+        $this->assertSame('mara@example.com', $payload['event']['actor']['email']);
     }
 
     public function test_assigning_user_to_task_creates_live_notification_delivery(): void

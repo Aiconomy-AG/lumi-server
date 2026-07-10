@@ -40,6 +40,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('notifications', [NotificationController::class, 'index']);
         Route::put('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
+        Route::delete('notifications/{notificationId}', [NotificationController::class, 'dismiss']);
 
         Route::get('users/{userId}/time-entries/daily-total', [TimeTrackingController::class, 'dailyTotal']);
 
