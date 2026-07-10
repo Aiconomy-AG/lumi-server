@@ -120,7 +120,10 @@ class ProxyReturnController extends Controller
         $orderIdCandidates = $this->shopifyOrderIdCandidates($shopifyOrderId);
 
         $order = Order::query()
-            ->with('items')
+            ->with([
+                'customer',
+                'items.productVariant.product',
+            ])
             ->whereIn('shopify_order_id', $orderIdCandidates)
             ->first();
 
@@ -131,39 +134,56 @@ class ProxyReturnController extends Controller
             ], 404);
         }
 
+        $customer = $order->customer;
+
+        if ($customer === null && $order->shopify_customer_id !== null) {
+            $customer = Customer::query()
+                ->where('shopify_customer_id', $order->shopify_customer_id)
+                ->first();
+        }
+
         return response()->json([
             'order' => [
                 'name' => $order->shopify_order_name,
                 'shopify_order_id' => $order->shopify_order_id,
-                'email' => null,
+                'email' => $customer?->email,
             ],
             'items' => $order->items->map(function ($item): array {
+                $variant = $item->productVariant;
+                $product = $variant?->product;
+
+                $productName = $product?->name
+                    ?? $product?->title
+                    ?? null;
+
+                $variantName = $variant?->name
+                    ?? $variant?->title
+                    ?? null;
+
+                if ($productName !== null && $variantName !== null) {
+                    $title = $productName.' - '.$variantName;
+                } elseif ($productName !== null) {
+                    $title = $productName;
+                } elseif ($variantName !== null) {
+                    $title = $variantName;
+                } else {
+                    $title = 'Product variant #'.$item->product_variant_id;
+                }
+
                 return [
                     'shopify_line_item_id' => null,
-                    'shopify_product_id' => null,
+                    'shopify_product_id' => $product?->shopify_product_id
+                        ?? $variant?->shopify_product_id
+                            ?? null,
+
                     'product_variant_id' => $item->product_variant_id,
-                    'title' => 'Product variant #'.$item->product_variant_id,
+                    'title' => $title,
                     'unit_price' => (float) $item->unit_price,
                     'quantity' => (int) $item->quantity,
                 ];
             })->values(),
         ]);
     }
-
-    private function shopifyOrderIdCandidates(string $value): array
-    {
-        $candidates = [$value];
-
-        $numericId = ShopifyId::numeric($value);
-
-        if ($numericId !== null && $numericId !== '') {
-            $candidates[] = $numericId;
-            $candidates[] = ShopifyId::orderGid($numericId);
-        }
-
-        return array_values(array_unique(array_filter($candidates)));
-    }
-
     public function storeFromCustomerAccount(Request $request): JsonResponse
     {
         $validated = $request->validate([
