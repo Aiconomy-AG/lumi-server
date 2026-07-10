@@ -3,6 +3,7 @@
 namespace Modules\Sales\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -158,6 +159,15 @@ class ProductController extends Controller
         $product->load(['variants', 'category']);
         $this->shopify->create($product);
 
+        AuditLog::record(
+            module: 'sales',
+            action: 'create',
+            entity: $product,
+            label: $product->name,
+            changes: ['new' => ['name' => $product->name, 'price' => $product->price]],
+            description: 'Product created.',
+        );
+
         return (new ProductResource($product))
             ->response()
             ->setStatusCode(201);
@@ -186,7 +196,27 @@ class ProductController extends Controller
 
         $previousCategoryId = $product->category_id !== null ? (int) $product->category_id : null;
 
+        $oldValues = [];
+        $newValues = [];
+        foreach ($validated as $key => $value) {
+            $original = $product->getAttribute($key);
+            if ($original != $value) {
+                $oldValues[$key] = $original;
+                $newValues[$key] = $value;
+            }
+        }
+
         $product->update($validated);
+
+        if ($newValues !== []) {
+            AuditLog::record(
+                module: 'sales',
+                action: 'update',
+                entity: $product,
+                label: $product->name,
+                changes: ['old' => $oldValues, 'new' => $newValues],
+            );
+        }
 
         $product->load(['variants', 'category']);
         $this->shopify->update($product, $previousCategoryId);
@@ -198,6 +228,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($productId);
         $this->authorize('delete', $product);
+        $productLabel = $product->name;
         $this->shopify->queueDelete($product);
 
         try {
@@ -211,6 +242,14 @@ class ProductController extends Controller
 
             throw $exception;
         }
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'delete',
+            entity: $product,
+            label: $productLabel,
+            description: 'Product deleted.',
+        );
 
         return response()->noContent();
     }

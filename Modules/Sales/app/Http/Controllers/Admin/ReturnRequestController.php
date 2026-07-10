@@ -3,6 +3,7 @@
 namespace Modules\Sales\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Modules\Sales\Models\ReturnRequest;
 use Modules\Sales\Transformers\ReturnRequestResource;
@@ -29,7 +30,22 @@ class ReturnRequestController extends Controller
         ]);
 
         $returnRequest = ReturnRequest::query()->findOrFail($returnRequestId);
+        $oldStatus = $returnRequest->status;
+
         $returnRequest->fill($validated)->save();
+
+        if ($returnRequest->status !== $oldStatus) {
+            AuditLog::record(
+                module: 'sales',
+                action: 'return_status_change',
+                entity: $returnRequest,
+                label: 'Return #'.$returnRequest->id,
+                changes: [
+                    'old' => ['status' => $oldStatus],
+                    'new' => ['status' => $returnRequest->status],
+                ],
+            );
+        }
 
         return new ReturnRequestResource($returnRequest->fresh());
     }

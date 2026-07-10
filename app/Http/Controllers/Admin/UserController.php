@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -56,6 +57,15 @@ class UserController extends Controller
 
         $this->sendInvite($user, $temporaryPassword);
 
+        AuditLog::record(
+            module: 'users',
+            action: 'create',
+            entity: $user,
+            label: $user->email,
+            changes: ['new' => ['email' => $user->email, 'role' => $user->role->value ?? (string) $user->role]],
+            description: 'User invited.',
+        );
+
         return (new UserResource($user))
             ->response()
             ->setStatusCode(201);
@@ -86,7 +96,69 @@ class UserController extends Controller
             unset($validated['password']);
         }
 
+        $passwordChanged = array_key_exists('password', $validated);
+        $originalRole = $user->role->value ?? (string) $user->role;
+        $wasActive = $user->is_active;
+
+        $oldOtherValues = [];
+        $newOtherValues = [];
+        foreach ($validated as $key => $value) {
+            if (in_array($key, ['password', 'role', 'is_active'], true)) {
+                continue;
+            }
+            $original = $user->getAttribute($key);
+            if ($original != $value) {
+                $oldOtherValues[$key] = $original;
+                $newOtherValues[$key] = $value;
+            }
+        }
+
         $user->update($validated);
+
+        $label = $user->email;
+
+        if ($passwordChanged) {
+            AuditLog::record(
+                module: 'users',
+                action: 'password_reset',
+                entity: $user,
+                label: $label,
+                description: 'Password changed by admin.',
+            );
+        }
+
+        if (array_key_exists('role', $validated) && ($user->role->value ?? (string) $user->role) !== $originalRole) {
+            AuditLog::record(
+                module: 'users',
+                action: 'role_change',
+                entity: $user,
+                label: $label,
+                changes: [
+                    'old' => ['role' => $originalRole],
+                    'new' => ['role' => $user->role->value ?? (string) $user->role],
+                ],
+            );
+        }
+
+        if (array_key_exists('is_active', $validated) && $wasActive === false && $user->is_active) {
+            AuditLog::record(
+                module: 'users',
+                action: 'reactivate',
+                entity: $user,
+                label: $label,
+                description: 'User reactivated.',
+            );
+        }
+
+        if ($newOtherValues !== []) {
+            AuditLog::record(
+                module: 'users',
+                action: 'update',
+                entity: $user,
+                label: $label,
+                changes: ['old' => $oldOtherValues, 'new' => $newOtherValues],
+            );
+        }
 
         return new UserResource($user->fresh());
     }
@@ -104,6 +176,14 @@ class UserController extends Controller
         $user->update(['is_active' => false]);
         $user->tokens()->delete();
 
+        AuditLog::record(
+            module: 'users',
+            action: 'deactivate',
+            entity: $user,
+            label: $user->email,
+            description: 'User deactivated and tokens revoked.',
+        );
+
         return response()->noContent();
     }
 
@@ -118,6 +198,15 @@ class UserController extends Controller
         $temporaryPassword = Str::password(16);
         $user->update(['password' => $temporaryPassword]);
         $this->sendInvite($user, $temporaryPassword);
+
+        AuditLog::record(
+            module: 'users',
+            action: 'invite_resent',
+            entity: $user,
+            label: $user->email,
+            description: 'Invite email resent with new temporary password.',
+        );
+
         return response()->json(['message' => 'Invite resent successfully.']);
     }
 

@@ -2,6 +2,7 @@
 
 namespace Modules\Workspace\Http\Controllers;
 
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -29,6 +30,14 @@ class ConversationController
         $conversation = $this->conversationService->create(
             $request->validated(),
             $request->user()->id
+        );
+
+        AuditLog::record(
+            module: 'workspace',
+            action: 'conversation_create',
+            entity: $conversation,
+            label: $conversation->name ?: 'Conversation #'.$conversation->id,
+            changes: ['new' => ['type' => $conversation->type, 'name' => $conversation->name]],
         );
 
         return new ConversationResource($conversation);

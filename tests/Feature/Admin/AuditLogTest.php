@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Modules\Sales\Models\Product;
@@ -120,5 +121,41 @@ class AuditLogTest extends TestCase
         ])->assertOk();
 
         $this->assertSame(0, AuditLog::count());
+    }
+
+    public function test_user_invite_writes_audit_log(): void
+    {
+        Mail::fake();
+
+        $admin = User::factory()->admin()->create();
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/v1/admin/users', [
+            'email' => 'invited@example.com',
+            'role' => 'employee',
+        ])->assertCreated();
+
+        $log = AuditLog::where('action', 'create')->sole();
+        $this->assertSame('users', $log->module);
+        $this->assertSame($admin->id, (int) $log->actor_user_id);
+        $this->assertSame('invited@example.com', $log->entity_label);
+    }
+
+    public function test_login_writes_audit_log(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertCreated();
+
+        $log = AuditLog::where('action', 'login')->sole();
+        $this->assertSame('auth', $log->module);
+        $this->assertSame($user->id, (int) $log->actor_user_id);
     }
 }

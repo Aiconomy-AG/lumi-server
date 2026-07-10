@@ -5,6 +5,7 @@ namespace Modules\Sales\Console;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
 use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Category;
@@ -73,6 +74,17 @@ class ImportProductsCsv extends Command
             count($this->categories),
             $stats['ingredients'],
         ));
+
+        AuditLog::recordSystem(
+            module: 'sales',
+            action: 'import',
+            entityType: 'products',
+            entityId: 0,
+            label: 'CSV import batch',
+            changes: ['new' => $stats],
+            description: 'Products imported from CSV: '.$path,
+            actorName: 'CSV Import',
+        );
 
         $this->components->info('Queueing products for Shopify sync...');
         $queued = $shopify->queueAll();

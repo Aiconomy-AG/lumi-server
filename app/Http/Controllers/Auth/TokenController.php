@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\TokenRequest;
 use App\Http\Resources\UserResource;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\PresenceService;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +46,14 @@ class TokenController extends Controller
 
         $this->presenceService->markAlive($user);
 
+        AuditLog::record(
+            module: 'auth',
+            action: 'login',
+            entity: $user,
+            label: $user->email,
+            actor: $user,
+        );
+
         return response()->json([
             'token' => $user->createToken('api')->plainTextToken,
             'user' => new UserResource($user),
@@ -61,6 +70,14 @@ class TokenController extends Controller
         }
 
         $this->presenceService->markOffline($user);
+
+        AuditLog::record(
+            module: 'auth',
+            action: 'logout',
+            entity: $user,
+            label: $user->email,
+            actor: $user,
+        );
 
         return response()->noContent();
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,6 +60,13 @@ class PasswordResetController extends Controller
                 'password_confirmation' => $request->input('password_confirmation'),
             ],
             function (User $user, string $password) use ($validated, $phone, $language): void {
+                $oldValues = [
+                    'name' => $user->name,
+                    'phone_number' => $user->phone_number,
+                    'language_flag' => $user->language_flag,
+                    'must_change_password' => $user->must_change_password,
+                ];
+
                 $user->forceFill([
                     'password' => $password,
                     'must_change_password' => false,
@@ -68,6 +76,31 @@ class PasswordResetController extends Controller
                 ])->save();
 
                 $user->tokens()->delete();
+
+                $newValues = [
+                    'name' => $user->name,
+                    'phone_number' => $user->phone_number,
+                    'language_flag' => $user->language_flag,
+                    'must_change_password' => $user->must_change_password,
+                ];
+
+                $changes = ['old' => [], 'new' => []];
+                foreach ($newValues as $key => $value) {
+                    if ($oldValues[$key] != $value) {
+                        $changes['old'][$key] = $oldValues[$key];
+                        $changes['new'][$key] = $value;
+                    }
+                }
+
+                AuditLog::record(
+                    module: 'auth',
+                    action: 'password_reset_complete',
+                    entity: $user,
+                    label: $user->email,
+                    changes: $changes['new'] === [] ? null : $changes,
+                    description: 'Password reset completed via invite link.',
+                    actor: $user,
+                );
             }
         );
 

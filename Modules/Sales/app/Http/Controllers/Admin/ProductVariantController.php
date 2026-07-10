@@ -35,11 +35,19 @@ class ProductVariantController extends Controller
             'options.*' => ['string', 'max:255'],
         ]);
 
-        $product->variants()->create([
+        $variant = $product->variants()->create([
             ...$validated,
             'price' => $validated['price'] ?? $product->price,
             'stock_quantity' => $validated['stock_quantity'] ?? 0,
         ]);
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'variant_create',
+            entity: $variant,
+            label: $product->name.' ('.$variant->sku.')',
+            changes: ['new' => ['sku' => $variant->sku, 'stock_quantity' => $variant->stock_quantity]],
+        );
 
         $product->load(['variants', 'category']);
         $this->shopify->createVariant($product);
@@ -70,7 +78,47 @@ class ProductVariantController extends Controller
             'options.*' => ['string', 'max:255'],
         ]);
 
+        $oldStock = $variant->stock_quantity;
+        $oldValues = [];
+        $newValues = [];
+        foreach ($validated as $key => $value) {
+            $original = $variant->getAttribute($key);
+            if ($original != $value) {
+                $oldValues[$key] = $original;
+                $newValues[$key] = $value;
+            }
+        }
+
         $variant->update($validated);
+
+        $label = $product->name.' ('.$variant->sku.')';
+
+        if ($newValues !== []) {
+            $changedFields = array_keys($newValues);
+            $stockOnly = $changedFields === ['stock_quantity'];
+
+            if ($stockOnly && (int) $newValues['stock_quantity'] !== (int) $oldStock) {
+                AuditLog::record(
+                    module: 'sales',
+                    action: 'stock_update',
+                    entity: $variant,
+                    label: $label,
+                    changes: [
+                        'old' => ['stock_quantity' => $oldStock],
+                        'new' => ['stock_quantity' => $newValues['stock_quantity']],
+                    ],
+                    description: 'Stock updated via variant edit.',
+                );
+            } else {
+                AuditLog::record(
+                    module: 'sales',
+                    action: 'variant_update',
+                    entity: $variant,
+                    label: $label,
+                    changes: ['old' => $oldValues, 'new' => $newValues],
+                );
+            }
+        }
 
         $product->load(['variants', 'category']);
         $this->shopify->updateVariant($product);
@@ -83,6 +131,7 @@ class ProductVariantController extends Controller
         $product = Product::findOrFail($productId);
         $this->authorize('delete', $product);
         $variant = $this->findVariant($product, $variantId);
+        $variantLabel = $product->name.' ('.$variant->sku.')';
 
         try {
             $variant->delete();
@@ -95,6 +144,14 @@ class ProductVariantController extends Controller
 
             throw $exception;
         }
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'variant_delete',
+            entity: $variant,
+            label: $variantLabel,
+            description: 'Product variant deleted.',
+        );
 
         $this->shopify->deleteVariant($product->load(['variants', 'category']));
 

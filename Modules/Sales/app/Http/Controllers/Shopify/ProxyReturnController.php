@@ -3,6 +3,7 @@
 namespace Modules\Sales\Http\Controllers\Shopify;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Sales\Models\Customer;
@@ -87,6 +88,16 @@ class ProxyReturnController extends Controller
 
             $returnRequest->refresh();
         }
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'return_requested',
+            entity: $returnRequest,
+            label: 'Return #'.$returnRequest->id.' ('.$validated['order_identifier'].')',
+            changes: ['new' => ['status' => $returnRequest->status, 'reason' => $validated['reason']]],
+            description: 'Return requested via Shopify proxy.',
+            actorName: $customer?->email ?? $validated['email'],
+        );
 
         return (new ReturnRequestResource($returnRequest))
             ->response()

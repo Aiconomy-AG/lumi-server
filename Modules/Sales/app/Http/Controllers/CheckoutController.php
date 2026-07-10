@@ -3,6 +3,7 @@
 namespace Modules\Sales\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Modules\Sales\Models\Customer;
@@ -91,6 +92,16 @@ class CheckoutController extends Controller
 
             return $order;
         });
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'order_created',
+            entity: $order,
+            label: 'Order #'.$order->id,
+            changes: ['new' => ['total_amount' => $order->total_amount, 'status' => $order->status]],
+            description: 'Order placed via checkout.',
+            actor: $user,
+        );
 
         $order->load('items');
 

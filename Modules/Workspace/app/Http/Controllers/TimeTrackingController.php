@@ -2,6 +2,7 @@
 namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,14 @@ class TimeTrackingController extends Controller
             'duration_seconds' => 0,
         ]);
 
+        AuditLog::record(
+            module: 'workspace',
+            action: 'time_start',
+            entity: $entry,
+            label: 'Task: '.$task->title,
+            changes: ['new' => ['task_id' => (int) $taskId, 'started_at' => $entry->started_at->toIso8601String()]],
+        );
+
         return (new TaskTimeEntryResource($entry))->response()->setStatusCode(201);
     }
 
@@ -70,6 +79,20 @@ class TimeTrackingController extends Controller
             'stopped_at' => $stoppedAt,
             'duration_seconds' => $durationSeconds,
         ]);
+
+        $task = Task::find($taskId);
+        AuditLog::record(
+            module: 'workspace',
+            action: 'time_stop',
+            entity: $entry,
+            label: $task ? 'Task: '.$task->title : 'Task #'.$taskId,
+            changes: [
+                'new' => [
+                    'duration_seconds' => $durationSeconds,
+                    'stopped_at' => $stoppedAt->toIso8601String(),
+                ],
+            ],
+        );
 
         return new TaskTimeEntryResource($entry);
     }

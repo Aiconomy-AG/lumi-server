@@ -3,6 +3,7 @@
 namespace Modules\Sales\Http\Controllers\Shopify;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,6 +73,16 @@ class WebhookController extends Controller
                     ]);
                 }
             }
+
+            AuditLog::record(
+                module: 'sales',
+                action: 'order_synced',
+                entity: $order,
+                label: (string) ($order->shopify_order_name ?: 'Order #'.$order->id),
+                changes: ['new' => ['status' => $order->status, 'total_amount' => $order->total_amount]],
+                description: 'Order synced from Shopify webhook.',
+                actorName: 'Shopify Webhook',
+            );
         });
 
         return response()->json(['ok' => true]);
@@ -87,13 +98,44 @@ class WebhookController extends Controller
         $shopifyProductId = ShopifyId::productGid((string) ($payload['admin_graphql_api_id'] ?? $payload['id'] ?? ''));
 
         if ($shopifyProductId !== null) {
-            Product::query()
+            $product = Product::query()
                 ->where('shopify_product_id', $shopifyProductId)
-                ->update([
-                    'name' => (string) ($payload['title'] ?? ''),
-                    'description' => $payload['body_html'] ?? null,
-                    'price' => (float) ($payload['variants'][0]['price'] ?? 0),
-                ]);
+                ->first();
+
+            if ($product) {
+                $oldValues = $product->only(['name', 'price', 'description']);
+
+                Product::query()
+                    ->where('shopify_product_id', $shopifyProductId)
+                    ->update([
+                        'name' => (string) ($payload['title'] ?? ''),
+                        'description' => $payload['body_html'] ?? null,
+                        'price' => (float) ($payload['variants'][0]['price'] ?? 0),
+                    ]);
+
+                $product->refresh();
+
+                $newValues = $product->only(['name', 'price', 'description']);
+                $changes = ['old' => [], 'new' => []];
+                foreach ($newValues as $key => $value) {
+                    if ($oldValues[$key] != $value) {
+                        $changes['old'][$key] = $oldValues[$key];
+                        $changes['new'][$key] = $value;
+                    }
+                }
+
+                if ($changes['new'] !== []) {
+                    AuditLog::record(
+                        module: 'sales',
+                        action: 'shopify_sync',
+                        entity: $product,
+                        label: $product->name,
+                        changes: $changes,
+                        description: 'Product updated from Shopify webhook.',
+                        actorName: 'Shopify Webhook',
+                    );
+                }
+            }
         }
 
         return response()->json(['ok' => true]);

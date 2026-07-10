@@ -2,6 +2,7 @@
 
 namespace Modules\Workspace\Http\Controllers;
 
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -32,6 +33,14 @@ class TaskController
             (int) $request->user()->id
         );
 
+        AuditLog::record(
+            module: 'workspace',
+            action: 'task_create',
+            entity: $task,
+            label: 'Task: '.$task->title,
+            changes: ['new' => ['title' => $task->title, 'status' => $task->status]],
+        );
+
         return new TaskResource($task);
     }
 
@@ -56,11 +65,37 @@ class TaskController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
 
+        $validated = $request->validated();
+        $oldValues = [];
+        $newValues = [];
+        foreach ($validated as $key => $value) {
+            if ($key === 'employee_ids') {
+                continue;
+            }
+            $original = $task->getAttribute($key);
+            if ($original != $value) {
+                $oldValues[$key] = $original instanceof \Illuminate\Support\Carbon
+                    ? $original->toDateString()
+                    : $original;
+                $newValues[$key] = $value;
+            }
+        }
+
         $task = $this->taskService->update(
             $task,
-            $request->validated(),
+            $validated,
             (int) $request->user()->id
         );
+
+        if ($newValues !== []) {
+            AuditLog::record(
+                module: 'workspace',
+                action: 'task_update',
+                entity: $task,
+                label: 'Task: '.$task->title,
+                changes: ['old' => $oldValues, 'new' => $newValues],
+            );
+        }
 
         return new TaskResource($task);
     }
@@ -73,7 +108,17 @@ class TaskController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
 
+        $taskLabel = 'Task: '.$task->title;
+
         $this->taskService->delete($task);
+
+        AuditLog::record(
+            module: 'workspace',
+            action: 'task_delete',
+            entity: $task,
+            label: $taskLabel,
+            description: 'Task deleted.',
+        );
 
         return response()->json([
             'message' => 'Task deleted successfully.',
@@ -90,11 +135,25 @@ class TaskController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
 
+        $existingEmployeeIds = $task->assignees()->pluck('users.id')->all();
+        $employeeIds = $request->validated('employee_ids');
+
         $task = $this->taskService->assignEmployees(
             $task,
-            $request->validated('employee_ids'),
+            $employeeIds,
             (int) $request->user()->id
         );
+
+        $newEmployeeIds = array_values(array_diff($employeeIds, $existingEmployeeIds));
+        if ($newEmployeeIds !== []) {
+            AuditLog::record(
+                module: 'workspace',
+                action: 'task_assign',
+                entity: $task,
+                label: 'Task: '.$task->title,
+                changes: ['new' => ['employee_ids' => $newEmployeeIds]],
+            );
+        }
 
         return new TaskResource($task);
     }
@@ -114,6 +173,14 @@ class TaskController
             $task,
             $employeeId,
             (int) $request->user()->id
+        );
+
+        AuditLog::record(
+            module: 'workspace',
+            action: 'task_unassign',
+            entity: $task,
+            label: 'Task: '.$task->title,
+            changes: ['old' => ['employee_id' => $employeeId]],
         );
 
         return new TaskResource($task);
