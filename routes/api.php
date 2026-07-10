@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TokenController;
 use App\Http\Controllers\DeviceTokenController;
