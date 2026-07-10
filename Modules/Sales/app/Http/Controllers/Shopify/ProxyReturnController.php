@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Sales\Models\Customer;
+use Modules\Sales\Models\Order;
 use Modules\Sales\Services\ReturnService;
 use Modules\Sales\Services\Shopify\AppProxyVerifier;
 use Modules\Sales\Support\ShopifyId;
@@ -116,7 +117,6 @@ class ProxyReturnController extends Controller
         ]);
 
         $shopifyOrderId = $validated['shopify_order_id'];
-
         $orderIdCandidates = $this->shopifyOrderIdCandidates($shopifyOrderId);
 
         $order = Order::query()
@@ -130,39 +130,48 @@ class ProxyReturnController extends Controller
         if (! $order) {
             return response()->json([
                 'message' => 'Order not found.',
-                'debug' => [
-                    'searched_ids' => $orderIdCandidates,
-                ],
+                'searched_ids' => $orderIdCandidates,
             ], 404);
+        }
+
+        $customer = $order->customer;
+
+        if ($customer === null && $order->shopify_customer_id !== null) {
+            $customer = Customer::query()
+                ->where('shopify_customer_id', $order->shopify_customer_id)
+                ->first();
         }
 
         return response()->json([
             'order' => [
                 'name' => $order->shopify_order_name,
                 'shopify_order_id' => $order->shopify_order_id,
-                'email' => $order->customer?->email,
+                'email' => $customer?->email,
             ],
             'items' => $order->items->map(function ($item): array {
                 $variant = $item->productVariant;
                 $product = $variant?->product;
 
-                $title = $product?->name
+                $productName = $product?->name
                     ?? $product?->title
-                    ?? $variant?->name
-                    ?? $variant?->title
-                    ?? 'Product #'.$item->product_variant_id;
+                    ?? null;
 
                 $variantName = $variant?->name
                     ?? $variant?->title
                     ?? null;
 
-                if ($variantName !== null && $product !== null) {
-                    $title .= ' - '.$variantName;
+                if ($productName !== null && $variantName !== null) {
+                    $title = $productName.' - '.$variantName;
+                } elseif ($productName !== null) {
+                    $title = $productName;
+                } elseif ($variantName !== null) {
+                    $title = $variantName;
+                } else {
+                    $title = 'Product variant #'.$item->product_variant_id;
                 }
 
                 return [
                     'shopify_line_item_id' => null,
-
                     'shopify_product_id' => $product?->shopify_product_id
                         ?? $variant?->shopify_product_id
                             ?? null,
