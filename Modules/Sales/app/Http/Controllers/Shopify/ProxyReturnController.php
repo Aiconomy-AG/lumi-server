@@ -115,22 +115,79 @@ class ProxyReturnController extends Controller
             'shopify_order_id' => ['required', 'string', 'max:255'],
         ]);
 
+        $shopifyOrderId = $validated['shopify_order_id'];
+
+        $orderIdCandidates = $this->shopifyOrderIdCandidates($shopifyOrderId);
+
+        $order = Order::query()
+            ->with([
+                'customer',
+                'items.productVariant.product',
+            ])
+            ->whereIn('shopify_order_id', $orderIdCandidates)
+            ->first();
+
+        if (! $order) {
+            return response()->json([
+                'message' => 'Order not found.',
+                'debug' => [
+                    'searched_ids' => $orderIdCandidates,
+                ],
+            ], 404);
+        }
+
         return response()->json([
             'order' => [
-                'name' => '#TEST',
-                'shopify_order_id' => $validated['shopify_order_id'],
-                'email' => 'test@example.com',
+                'name' => $order->shopify_order_name,
+                'shopify_order_id' => $order->shopify_order_id,
+                'email' => $order->customer?->email,
             ],
-            'items' => [
-                [
-                    'shopify_line_item_id' => 'gid://shopify/LineItem/1',
-                    'shopify_product_id' => 'gid://shopify/Product/1',
-                    'title' => 'Test product',
-                    'unit_price' => 10.00,
-                    'quantity' => 2,
-                ],
-            ],
+            'items' => $order->items->map(function ($item): array {
+                $variant = $item->productVariant;
+                $product = $variant?->product;
+
+                $title = $product?->name
+                    ?? $product?->title
+                    ?? $variant?->name
+                    ?? $variant?->title
+                    ?? 'Product #'.$item->product_variant_id;
+
+                $variantName = $variant?->name
+                    ?? $variant?->title
+                    ?? null;
+
+                if ($variantName !== null && $product !== null) {
+                    $title .= ' - '.$variantName;
+                }
+
+                return [
+                    'shopify_line_item_id' => null,
+
+                    'shopify_product_id' => $product?->shopify_product_id
+                        ?? $variant?->shopify_product_id
+                            ?? null,
+
+                    'product_variant_id' => $item->product_variant_id,
+                    'title' => $title,
+                    'unit_price' => (float) $item->unit_price,
+                    'quantity' => (int) $item->quantity,
+                ];
+            })->values(),
         ]);
+    }
+
+    private function shopifyOrderIdCandidates(string $value): array
+    {
+        $candidates = [$value];
+
+        $numericId = ShopifyId::numeric($value);
+
+        if ($numericId !== null && $numericId !== '') {
+            $candidates[] = $numericId;
+            $candidates[] = ShopifyId::orderGid($numericId);
+        }
+
+        return array_values(array_unique(array_filter($candidates)));
     }
 
     public function storeFromCustomerAccount(Request $request): JsonResponse
