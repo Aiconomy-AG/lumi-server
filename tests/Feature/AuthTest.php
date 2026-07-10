@@ -75,6 +75,35 @@ class AuthTest extends TestCase
         $this->getJson('/api/v1/auth/me')->assertUnauthorized();
     }
 
+    public function test_authenticated_user_can_update_own_phone_number(): void
+    {
+        $user = User::factory()->create([
+            'role' => UserRole::Employee,
+            'is_active' => true,
+            'phone_number' => '',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $this->putJson('/api/v1/auth/phone', [
+            'phone_number' => '+40722123456',
+        ])
+            ->assertOk()
+            ->assertJson([
+                'message' => 'Phone number updated successfully',
+                'phone_number' => '+40722123456',
+            ]);
+
+        $this->assertSame('+40722123456', $user->fresh()->phone_number);
+    }
+
+    public function test_phone_update_requires_token(): void
+    {
+        $this->putJson('/api/v1/auth/phone', [
+            'phone_number' => '+40722123456',
+        ])->assertUnauthorized();
+    }
+
     public function test_time_entries_routes_require_token(): void
     {
         $this->getJson('/api/v1/workspace/tasks/1/time-entries')->assertUnauthorized();
