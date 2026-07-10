@@ -151,10 +151,35 @@ class ProxyReturnController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        return response()->json([
-            'message' => 'Customer account return received.',
-            'data' => $validated,
-        ], 201);
+        $returnRequest = $this->returnService->createShopifyReturn(
+            shopDomain: 'lush-clone-internship-project.myshopify.com',
+            email: $validated['email'] ?? '',
+            reason: $validated['reason'],
+            items: $validated['items'],
+            shopifyCustomerId: null,
+            shopifyOrderId: $validated['shopify_order_id'],
+            shopifyOrderName: $validated['order_id'],
+            notes: $validated['notes'] ?? null,
+        );
+
+        AuditLog::record(
+            module: 'sales',
+            action: 'return_requested',
+            entity: $returnRequest,
+            label: 'Return #'.$returnRequest->id.' ('.$validated['order_id'].')',
+            changes: [
+                'new' => [
+                    'status' => $returnRequest->status,
+                    'reason' => $validated['reason'],
+                ],
+            ],
+            description: 'Return requested via Shopify customer account.',
+            actorName: $validated['email'] ?? 'Shopify customer',
+        );
+
+        return (new ReturnRequestResource($returnRequest))
+            ->response()
+            ->setStatusCode(201);
     }
 
 
