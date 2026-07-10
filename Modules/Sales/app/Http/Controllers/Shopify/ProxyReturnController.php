@@ -108,6 +108,41 @@ class ProxyReturnController extends Controller
             ->response()
             ->setStatusCode(201);
     }
+
+    public function lookupFromCustomerAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'shopify_order_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        $order = Order::query()
+            ->where('shopify_order_id', $validated['shopify_order_id'])
+            ->with('items')
+            ->first();
+
+        if (! $order) {
+            return response()->json([
+                'message' => 'Order not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'order' => [
+                'name' => $order->shopify_order_name,
+                'shopify_order_id' => $order->shopify_order_id,
+                'email' => $order->email,
+            ],
+            'items' => $order->items->map(fn ($item) => [
+                'shopify_line_item_id' => $item->shopify_line_item_id,
+                'shopify_product_id' => $item->shopify_product_id,
+                'title' => $item->title,
+                'unit_price' => $item->unit_price,
+                'quantity' => $item->quantity,
+            ])->values(),
+        ]);
+    }
+
+
     private function proxySecretConfigKeys(): array
     {
         return [
