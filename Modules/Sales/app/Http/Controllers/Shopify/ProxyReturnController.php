@@ -76,8 +76,8 @@ class ProxyReturnController extends Controller
             reason: $validated['reason'],
             items: $validated['items'],
             shopifyCustomerId: $shopifyCustomerId,
-            shopifyOrderId: ShopifyId::orderGid($validated['order_identifier']),
-            shopifyOrderName: $validated['order_identifier'],
+            shopifyOrderId: ShopifyId::orderGid($validated['order_id']),
+            shopifyOrderName: $validated['order_id'],
             notes: $validated['notes'] ?? null,
         );
 
@@ -93,7 +93,7 @@ class ProxyReturnController extends Controller
             module: 'sales',
             action: 'return_requested',
             entity: $returnRequest,
-            label: 'Return #'.$returnRequest->id.' ('.$validated['order_identifier'].')',
+            label: 'Return #'.$returnRequest->id.' ('.$validated['order_id'].')',
             changes: [
                 'new' => [
                     'status' => $returnRequest->status,
@@ -108,7 +108,6 @@ class ProxyReturnController extends Controller
             ->response()
             ->setStatusCode(201);
     }
-
     private function proxySecretConfigKeys(): array
     {
         return [
