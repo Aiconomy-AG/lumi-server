@@ -18,6 +18,7 @@ class NotificationDeliveryResource extends JsonResource
             'recipient_user_id' => $this->recipient_user_id,
             'read_at' => $this->read_at,
             'seen_at' => $this->seen_at,
+            'dismissed_at' => $this->dismissed_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'event' => [

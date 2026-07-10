@@ -16,11 +16,13 @@ class NotificationDelivery extends Model
         'recipient_user_id',
         'read_at',
         'seen_at',
+        'dismissed_at',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
         'seen_at' => 'datetime',
+        'dismissed_at' => 'datetime',
     ];
 
     public function event(): BelongsTo

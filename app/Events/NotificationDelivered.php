@@ -38,10 +38,16 @@ class NotificationDelivered implements ShouldBroadcastNow
             'recipient_user_id' => $this->delivery->recipient_user_id,
             'read_at' => $this->delivery->read_at?->toIso8601String(),
             'seen_at' => $this->delivery->seen_at?->toIso8601String(),
+            'dismissed_at' => $this->delivery->dismissed_at?->toIso8601String(),
             'created_at' => $this->delivery->created_at?->toIso8601String(),
             'event' => [
                 'id' => $event->id,
                 'actor_user_id' => $event->actor_user_id,
+                'actor' => $event->actor ? [
+                    'id' => $event->actor->id,
+                    'name' => $event->actor->name,
+                    'email' => $event->actor->email,
+                ] : null,
                 'type' => $event->type,
                 'source' => $event->source,
                 'task_id' => $event->task_id,
