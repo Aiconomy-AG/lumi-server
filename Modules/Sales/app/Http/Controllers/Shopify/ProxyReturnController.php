@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Sales\Models\Customer;
+use Modules\Sales\Models\Order;
 use Modules\Sales\Services\ReturnService;
 use Modules\Sales\Services\Shopify\AppProxyVerifier;
 use Modules\Sales\Support\ShopifyId;
