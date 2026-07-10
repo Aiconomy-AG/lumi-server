@@ -388,7 +388,7 @@ class ReturnService
         return $returnRequest->load([
             'order',
             'customer',
-            'returnItems.orderItem.product',
+            'returnItems.orderItem.variant.product',
         ]);
     }
 }
