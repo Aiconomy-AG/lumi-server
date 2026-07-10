@@ -77,9 +77,15 @@ class GeminiChatService
             return null;
         }
 
-        $text = data_get($response->json(), 'candidates.0.content.parts.0.text');
+        $parts = data_get($response->json(), 'candidates.0.content.parts', []);
 
-        if (! is_string($text) || trim($text) === '') {
+        $text = collect(is_array($parts) ? $parts : [])
+            ->reject(fn ($part) => ($part['thought'] ?? false) === true)
+            ->pluck('text')
+            ->filter(fn ($value) => is_string($value))
+            ->implode("\n");
+
+        if (trim($text) === '') {
             return null;
         }
 

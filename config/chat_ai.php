@@ -5,7 +5,7 @@ return [
 
     'gemini_api_key' => env('GEMINI_API_KEY'),
 
-    'gemini_model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+    'gemini_model' => env('GEMINI_MODEL', 'gemini-3.1-flash-lite'),
 
     'user_email' => env('CHAT_AI_USER_EMAIL', 'ai@lumi.internal'),
 
