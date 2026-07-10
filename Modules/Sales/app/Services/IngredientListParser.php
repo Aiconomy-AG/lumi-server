@@ -4,11 +4,7 @@ namespace Modules\Sales\Services;
 
 class IngredientListParser
 {
-    /**
-     * Parse an HTML ingredient list from the CSV "Ingredients (de_CH)" column.
-     *
-     * @return array<int, array{name: string, is_natural: bool, is_allergen: bool}>
-     */
+
     public static function parse(string $html): array
     {
         $html = trim(html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -89,11 +85,6 @@ class IngredientListParser
         return is_string($name) ? $name : '';
     }
 
-    /**
-     * Handles malformed HTML such as "<strong>Sodium Laureth Sulfat</strong>e".
-     *
-     * @param  array<int, array{name: string, is_natural: bool, is_allergen: bool}>  $ingredients
-     */
     private static function shouldMergeWithPrevious(string $name, array $ingredients): bool
     {
         if ($ingredients === []) {

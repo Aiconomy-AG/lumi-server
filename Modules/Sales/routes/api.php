@@ -16,9 +16,6 @@ use Modules\Sales\Http\Controllers\WishlistController;
 use Modules\Sales\Http\Middleware\VerifyCustomerOwnership;
 use Modules\Sales\Http\Controllers\ProductSearchController;
 
-// -------------------------------------------------------------------------
-// Shopify Integrations
-// -------------------------------------------------------------------------
 Route::prefix('shopify/proxy')->group(function (): void {
     Route::controller(ProxyWishlistController::class)->prefix('wishlist')->group(function () {
         Route::get('/', 'index');
@@ -42,9 +39,6 @@ Route::prefix('shopify/webhooks')->controller(WebhookController::class)->group(f
     Route::post('products/update', 'product');
 });
 
-// -------------------------------------------------------------------------
-// Shop Catalog (public reads)
-// -------------------------------------------------------------------------
 Route::prefix('shop')->group(function (): void {
     Route::get('products/search', ProductSearchController::class);
 
@@ -61,9 +55,6 @@ Route::prefix('shop')->group(function (): void {
     });
 });
 
-// -------------------------------------------------------------------------
-// Shop Customer Area (authenticated)
-// -------------------------------------------------------------------------
 Route::middleware(['auth:sanctum'])->prefix('shop')->group(function (): void {
     Route::get('me', [CustomerController::class, 'me']);
 
@@ -92,9 +83,6 @@ Route::middleware(['auth:sanctum'])->prefix('shop')->group(function (): void {
     Route::get('orders/{orderId}', [CheckoutController::class, 'show']);
 });
 
-// -------------------------------------------------------------------------
-// Admin (staff-only; ProductPolicy decides write access)
-// -------------------------------------------------------------------------
 Route::middleware(['auth:sanctum', 'staff'])->prefix('admin')->group(function (): void {
     Route::controller(ProductController::class)->prefix('products')->group(function () {
         Route::get('/', 'index');

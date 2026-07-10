@@ -100,10 +100,6 @@ class AdminOrderTest extends TestCase
             ->assertForbidden();
     }
 
-    /**
-     * @param  array<string, mixed>  $orderAttributes
-     * @return array{0: Order, 1: Customer}
-     */
     private function createOrderWithItem(array $orderAttributes = []): array
     {
         $suffix = uniqid();

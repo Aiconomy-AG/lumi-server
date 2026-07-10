@@ -22,33 +22,14 @@ class ProxyReturnController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if (! $this->verifier->verify($request)) {
-            return response()->json([
-                'message' => 'Invalid Shopify proxy signature.',
-                'debug' => [
-                    'method' => $request->method(),
-                    'full_url' => $request->fullUrl(),
-                    'raw_query_string' => $request->server('QUERY_STRING'),
-                    'query' => $request->query(),
-                    'has_signature' => $request->query('signature') !== null,
-                    'has_shop' => $request->query('shop') !== null,
-                    'has_timestamp' => $request->query('timestamp') !== null,
-                    'has_path_prefix' => $request->query('path_prefix') !== null,
-                    'has_secret' => config('sales.shopify.client_secret') !== null
-                        && config('sales.shopify.client_secret') !== '',
-                    'secret_length' => strlen((string) config('sales.shopify.client_secret')),
-                ],
-            ], 401);
-        }
-
-        if (! $this->verifier->verify($request)) {
+        if (! $this->verifier->verify($request, $this->proxySecretConfigKeys())) {
             return response()->json([
                 'message' => 'Invalid Shopify proxy signature.',
             ], 401);
         }
 
         $validated = $request->validate([
-            'order_identifier' => ['required', 'string', 'max:255'],
+            'order_id' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
 
             'items' => ['required', 'array', 'min:1'],
@@ -95,8 +76,8 @@ class ProxyReturnController extends Controller
             reason: $validated['reason'],
             items: $validated['items'],
             shopifyCustomerId: $shopifyCustomerId,
-            shopifyOrderId: ShopifyId::orderGid($validated['order_identifier']),
-            shopifyOrderName: $validated['order_identifier'],
+            shopifyOrderId: ShopifyId::orderGid($validated['order_id']),
+            shopifyOrderName: $validated['order_id'],
             notes: $validated['notes'] ?? null,
         );
 
@@ -112,8 +93,13 @@ class ProxyReturnController extends Controller
             module: 'sales',
             action: 'return_requested',
             entity: $returnRequest,
-            label: 'Return #'.$returnRequest->id.' ('.$validated['order_identifier'].')',
-            changes: ['new' => ['status' => $returnRequest->status, 'reason' => $validated['reason']]],
+            label: 'Return #'.$returnRequest->id.' ('.$validated['order_id'].')',
+            changes: [
+                'new' => [
+                    'status' => $returnRequest->status,
+                    'reason' => $validated['reason'],
+                ],
+            ],
             description: 'Return requested via Shopify proxy.',
             actorName: $customer?->email ?? $validated['email'],
         );
@@ -122,19 +108,12 @@ class ProxyReturnController extends Controller
             ->response()
             ->setStatusCode(201);
     }
-
-    public function ping(Request $request): JsonResponse
+    private function proxySecretConfigKeys(): array
     {
-        if (! $this->verifier->verify($request)) {
-            return response()->json([
-                'message' => 'Invalid Shopify proxy signature.',
-            ], 401);
-        }
-
-        return response()->json([
-            'message' => 'Laravel backend reached with valid Shopify proxy signature.',
-        ]);
+        return [
+            'sales.shopify.client_secret',
+            'sales.shopify.returns_client_secret',
+        ];
     }
-
 
 }

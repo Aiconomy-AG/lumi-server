@@ -272,6 +272,27 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /shop/products/search:
+    get:
+      tags:
+        - Catalog
+      summary: Search for products
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            description: Search query string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
   /shop/products/{productId}:
     get:
       tags:
@@ -744,10 +765,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  # ---------------------------------------------------------------------
-  # Admin routes (Modules\Sales\Http\Controllers\Admin\*)
-  # ---------------------------------------------------------------------
-
   /admin/products:
     get:
       tags:
@@ -1130,10 +1147,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  # ---------------------------------------------------------------------
-  # Shopify storefront proxy routes (Modules\Sales\Http\Controllers\Shopify\Proxy*)
-  # ---------------------------------------------------------------------
-
   /shopify/proxy/returns:
     post:
       tags:
@@ -1221,12 +1234,6 @@ paths:
           description: Product removed from wishlist successfully
         "404":
           $ref: "#/components/responses/NotFound"
-
-  # ---------------------------------------------------------------------
-  # Shopify webhook routes (Modules\Sales\Http\Controllers\Shopify\WebhookController)
-  # These are called directly by Shopify and are authenticated via HMAC
-  # signature verification rather than bearer tokens.
-  # ---------------------------------------------------------------------
 
   /shopify/webhooks/customers/create:
     post:

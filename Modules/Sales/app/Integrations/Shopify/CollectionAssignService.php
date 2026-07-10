@@ -77,7 +77,6 @@ class CollectionAssignService
     }
     GRAPHQL;
 
-    /** @var array<string, string> */
     private array $resolvedCollectionIds = [];
 
     private ?string $onlineStorePublicationId = null;
@@ -87,12 +86,6 @@ class CollectionAssignService
         private readonly CategoryCollectionMap $categoryCollectionMap,
     ) {}
 
-    /**
-     * Dispatch one background job per mapped category to reconcile Shopify
-     * collection membership (read-only against the local database).
-     *
-     * @return int Number of categories queued.
-     */
     public function queueAssign(): int
     {
         $queued = 0;
@@ -105,13 +98,6 @@ class CollectionAssignService
         return $queued;
     }
 
-    /**
-     * Reconcile every mapped Shopify collection from local product categories.
-     * Products are added to their database category collection and removed from
-     * every other mapped collection. Does not write to the local database.
-     *
-     * @return array{assigned: int, removed: int, failed: int}
-     */
     public function reconcileAll(): array
     {
         [$allSynced, $byCategory] = $this->syncedProductsByCategory();
@@ -137,13 +123,6 @@ class CollectionAssignService
         return $stats;
     }
 
-    /**
-     * Reconcile one mapped category collection. Read-only against the database.
-     *
-     * @param  array<int, string>  $allSynced
-     * @param  array<int, array<int, string>>  $byCategory
-     * @return array{assigned: int, removed: int}
-     */
     public function reconcileCategoryById(int $categoryId): array
     {
         [$allSynced, $byCategory] = $this->syncedProductsByCategory();
@@ -151,11 +130,6 @@ class CollectionAssignService
         return $this->reconcileCategory($categoryId, $allSynced, $byCategory);
     }
 
-    /**
-     * @deprecated Use reconcileAll() for collection backfills.
-     *
-     * @return array{assigned: int, skipped: int, failed: int, removed: int}
-     */
     public function assignAll(): array
     {
         $stats = $this->reconcileAll();
@@ -168,10 +142,6 @@ class CollectionAssignService
         ];
     }
 
-    /**
-     * @param  array<int, string>  $shopifyProductIds
-     * @return int Number of products assigned.
-     */
     public function assignProducts(int $categoryId, array $shopifyProductIds): int
     {
         $handle = $this->categoryCollectionMap->handleForCategory($categoryId);
@@ -191,10 +161,6 @@ class CollectionAssignService
         return $assigned;
     }
 
-    /**
-     * @param  array<int, string>  $shopifyProductIds
-     * @return int Number of products removed.
-     */
     public function removeProducts(int $categoryId, array $shopifyProductIds): int
     {
         if ($shopifyProductIds === []) {
@@ -223,9 +189,6 @@ class CollectionAssignService
         return $removed;
     }
 
-    /**
-     * @return array{0: array<int, string>, 1: array<int, array<int, string>>}
-     */
     private function syncedProductsByCategory(): array
     {
         $byCategory = [];
@@ -256,11 +219,6 @@ class CollectionAssignService
         ];
     }
 
-    /**
-     * @param  array<int, string>  $allSynced
-     * @param  array<int, array<int, string>>  $byCategory
-     * @return array{assigned: int, removed: int}
-     */
     private function reconcileCategory(int $categoryId, array $allSynced, array $byCategory): array
     {
         $handle = $this->categoryCollectionMap->handleForCategory($categoryId);
@@ -292,9 +250,6 @@ class CollectionAssignService
         return $stats;
     }
 
-    /**
-     * @return array<int, string>
-     */
     private function syncedProductIdsForCategory(int $categoryId): array
     {
         return Product::query()
@@ -318,7 +273,7 @@ class CollectionAssignService
         try {
             $category = Category::query()->find($categoryId);
         } catch (Throwable) {
-            // Isolated unit tests may exercise this service before migrations.
+
         }
 
         $created = $this->createCollection($category, $handle);
@@ -336,10 +291,6 @@ class CollectionAssignService
         return $this->resolvedCollectionIds[$handle] = $collectionId;
     }
 
-    /**
-     * Resolve a Shopify collection id from local mapping / Shopify lookup only.
-     * Does not create collections and does not persist anything locally.
-     */
     private function lookupCollectionId(int $categoryId, string $handle): ?string
     {
         if (isset($this->resolvedCollectionIds[$handle])) {
@@ -351,7 +302,7 @@ class CollectionAssignService
         try {
             $category = Category::query()->find($categoryId);
         } catch (Throwable) {
-            // Isolated unit tests may exercise this service before migrations.
+
         }
 
         if ($category?->shopify_collection_id) {
@@ -377,9 +328,6 @@ class CollectionAssignService
         return $this->lookupCollectionId($categoryId, $handle);
     }
 
-    /**
-     * @return array{id: string, handle: string}
-     */
     private function createCollection(?Category $category, string $handle): array
     {
         $title = $category?->name ?: str($handle)->replace('-', ' ')->title()->toString();
@@ -410,9 +358,6 @@ class CollectionAssignService
         ];
     }
 
-    /**
-     * @param  array<int, string>  $shopifyProductIds
-     */
     private function addProductsToCollection(string $collectionId, array $shopifyProductIds): void
     {
         $response = $this->query([
@@ -428,9 +373,6 @@ class CollectionAssignService
         $this->assertNoUserErrors($this->withoutAlreadyAssignedErrors($result['userErrors'] ?? []));
     }
 
-    /**
-     * @param  array<int, string>  $shopifyProductIds
-     */
     private function removeProductsFromCollection(string $collectionId, array $shopifyProductIds): void
     {
         $response = $this->query([
@@ -514,9 +456,6 @@ class CollectionAssignService
         return null;
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
     private function publicationNodes(string $query): array
     {
         $response = $this->query(['query' => $query]);
@@ -534,10 +473,6 @@ class CollectionAssignService
         return $nodes;
     }
 
-    /**
-     * @param  array<int, mixed>  $errors
-     * @return array<int, mixed>
-     */
     private function withoutAlreadyAssignedErrors(array $errors): array
     {
         return array_values(array_filter($errors, function ($error) {
@@ -547,10 +482,6 @@ class CollectionAssignService
         }));
     }
 
-    /**
-     * @param  array<int, mixed>  $errors
-     * @return array<int, mixed>
-     */
     private function withoutAlreadyRemovedErrors(array $errors): array
     {
         return array_values(array_filter($errors, function ($error) {

@@ -21,7 +21,6 @@ class ProductControllerTest extends TestCase
     {
         parent::setUp();
 
-        // Prevent actual Shopify API calls during tests
         $this->mock(ProductSyncService::class, function (MockInterface $mock) {
             $mock->shouldReceive('create')->andReturnNull();
             $mock->shouldReceive('update')->andReturnNull();
@@ -63,10 +62,6 @@ class ProductControllerTest extends TestCase
         ], $overrides));
     }
 
-    // -------------------------------------------------------------------------
-    // View Tests (Admins & Employees)
-    // -------------------------------------------------------------------------
-
     public function test_index_returns_products_for_admin(): void
     {
         $user = $this->makeUser(UserRole::Admin);
@@ -95,10 +90,6 @@ class ProductControllerTest extends TestCase
     {
         $this->getJson('/api/v1/admin/products')->assertStatus(401);
     }
-
-    // -------------------------------------------------------------------------
-    // Create / Update / Delete Product (Admins & Employees)
-    // -------------------------------------------------------------------------
 
     public function test_store_creates_a_product_when_user_is_admin(): void
     {
@@ -160,10 +151,6 @@ class ProductControllerTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $product->id]);
     }
 
-    // -------------------------------------------------------------------------
-    // Variant Stock & Details (Granular Permissions)
-    // -------------------------------------------------------------------------
-
     public function test_update_variant_details_succeeds_when_user_is_employee(): void
     {
         $user = $this->makeUser(UserRole::Employee);
@@ -198,7 +185,7 @@ class ProductControllerTest extends TestCase
         $response->assertOk();
         $this->assertDatabaseHas('product_variants', [
             'id' => $variant->id,
-            'stock_quantity' => 25, // Updated successfully
+            'stock_quantity' => 25,
         ]);
     }
 

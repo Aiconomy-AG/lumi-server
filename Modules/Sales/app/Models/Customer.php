@@ -10,18 +10,12 @@ class Customer extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'username',
         'email',
         'shopify_customer_id',
     ];
 
-    /**
-     * Resolve Customer from the authenticated User.
-     */
     public static function resolveFromUser($user): self
     {
         return self::firstOrCreate(

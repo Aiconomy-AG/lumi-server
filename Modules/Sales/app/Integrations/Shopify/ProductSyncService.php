@@ -16,10 +16,7 @@ use Modules\Sales\Services\IngredientShopifyFormatter;
 
 class ProductSyncService
 {
-    /**
-     * How many times a single request will wait out a Shopify rate limit
-     * before giving up.
-     */
+
     private const MAX_THROTTLE_RETRIES = 10;
 
     private const PRODUCT_SET_MUTATION = <<<'GRAPHQL'
@@ -144,49 +141,31 @@ class ProductSyncService
         private readonly CollectionAssignService $collectionAssignService,
     ) {}
 
-    /**
-     * Queue a newly created local product for its first Shopify push.
-     */
     public function create(Product $product): void
     {
         $this->queueSync($product);
     }
 
-    /**
-     * Queue product field changes for re-sync to Shopify.
-     */
     public function update(Product $product, ?int $previousCategoryId = null): void
     {
         $this->queueSync($product, $previousCategoryId);
     }
 
-    /**
-     * Queue a parent product re-sync after a variant is created locally.
-     */
     public function createVariant(Product $product): void
     {
         $this->queueSync($product);
     }
 
-    /**
-     * Queue a parent product re-sync after a variant is updated locally.
-     */
     public function updateVariant(Product $product): void
     {
         $this->queueSync($product);
     }
 
-    /**
-     * Queue a parent product re-sync after a variant is deleted locally.
-     */
     public function deleteVariant(Product $product): void
     {
         $this->queueSync($product);
     }
 
-    /**
-     * Queue removal of a product from Shopify when the local record is deleted.
-     */
     public function queueDelete(Product $product): void
     {
         $shopifyProductId = $product->shopify_product_id;
@@ -198,10 +177,6 @@ class ProductSyncService
         DeleteShopifyProductJob::dispatch($shopifyProductId);
     }
 
-    /**
-     * Delete a product from Shopify by its remote id. Idempotent when the
-     * product has already been removed.
-     */
     public function deleteRemote(string $shopifyProductId): void
     {
         $this->deleteById($shopifyProductId);
@@ -250,17 +225,6 @@ class ProductSyncService
         ])->save();
     }
 
-    /**
-     * Delete every product currently in the Shopify store and reset local sync
-     * state so they can be re-created.
-     *
-     * The store is drained by repeatedly fetching the first page: because each
-     * pass deletes the products it sees, the catalog shrinks until it is empty.
-     * This avoids cursor pagination shifting under concurrent deletes (which
-     * would revisit already-deleted ids).
-     *
-     * @return int Number of products deleted from Shopify.
-     */
     public function deleteAll(): int
     {
         $deleted = 0;
@@ -289,8 +253,6 @@ class ProductSyncService
                 }
             }
 
-            // Nothing on this page could actually be deleted; stop rather than
-            // loop forever on ids Shopify keeps returning.
             if (! $progressed) {
                 break;
             }
@@ -304,12 +266,6 @@ class ProductSyncService
         return $deleted;
     }
 
-    /**
-     * Delete a single Shopify product. Idempotent: a product that no longer
-     * exists is treated as already deleted rather than an error.
-     *
-     * @return bool Whether Shopify actually deleted a product.
-     */
     private function deleteById(string $shopifyProductId): bool
     {
         $response = $this->query([
@@ -325,13 +281,6 @@ class ProductSyncService
         return ($result['deletedProductId'] ?? null) !== null;
     }
 
-    /**
-     * Drop "product does not exist" user errors so deleting an already-removed
-     * product is a no-op instead of a failure.
-     *
-     * @param  array<int, mixed>  $errors
-     * @return array<int, mixed>
-     */
     private function withoutMissingProductErrors(array $errors): array
     {
         return array_values(array_filter($errors, function ($error) {
@@ -341,10 +290,6 @@ class ProductSyncService
         }));
     }
 
-    /**
-     * Synchronously push every product that still needs syncing. Simple but
-     * slow for large catalogs; prefer queueSeed() for those.
-     */
     public function seed(): void
     {
         $this->pendingProducts()
@@ -356,13 +301,6 @@ class ProductSyncService
             });
     }
 
-    /**
-     * Dispatch one background job per product that still needs syncing, so a
-     * large catalog is pushed to Shopify by queue workers instead of blocking
-     * the caller. Requires a worker on the "shopify-sync" queue.
-     *
-     * @return int Number of products queued.
-     */
     public function queueSeed(): int
     {
         $queued = 0;
@@ -379,11 +317,6 @@ class ProductSyncService
         return $queued;
     }
 
-    /**
-     * Mark every product as needing a Shopify sync and queue jobs for all of them.
-     *
-     * @return int Number of products queued.
-     */
     public function queueAll(): int
     {
         Product::query()->update([
@@ -404,11 +337,6 @@ class ProductSyncService
         return $queued;
     }
 
-    /**
-     * Queue inventory-only sync jobs for every product already linked to Shopify.
-     *
-     * @return int Number of products queued.
-     */
     public function queueInventorySync(?int $productId = null): int
     {
         $queued = 0;
@@ -431,11 +359,6 @@ class ProductSyncService
         return $queued;
     }
 
-    /**
-     * Push local variant stock to Shopify for every linked product.
-     *
-     * @return array{synced: int, failed: int, skipped: int, variants: int, errors: array<int, string>}
-     */
     public function syncAllInventory(?int $productId = null): array
     {
         $stats = [
@@ -478,11 +401,6 @@ class ProductSyncService
         return $stats;
     }
 
-    /**
-     * Re-sync variant inventory for a product already linked to Shopify.
-     *
-     * @return int Number of variant inventory levels updated.
-     */
     public function syncInventory(Product $product): int
     {
         $this->loadSyncRelations($product);
@@ -521,7 +439,7 @@ class ProductSyncService
         $updated = 0;
 
         foreach ($matches as $match) {
-            /** @var ProductVariant $variant */
+
             $variant = $match['variant'];
             $inventoryItemId = $match['inventory_item_id'];
             $quantity = max(0, (int) $variant->stock_quantity);
@@ -542,9 +460,6 @@ class ProductSyncService
         return $updated;
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
     private function shopifyVariantsWithInventory(string $shopifyProductId): array
     {
         $response = $this->query([
@@ -557,10 +472,6 @@ class ProductSyncService
         return is_array($nodes) ? array_values(array_filter($nodes, 'is_array')) : [];
     }
 
-    /**
-     * @param  array<int, array<string, mixed>>  $shopifyVariants
-     * @return array<int, array{variant: ProductVariant, inventory_item_id: string, tracked: bool}>
-     */
     private function matchVariantsToShopifyNodes(Product $product, array $shopifyVariants): array
     {
         $matches = [];
@@ -673,10 +584,6 @@ class ProductSyncService
         $this->assertNoUserErrors($response->data['inventorySetQuantities']['userErrors'] ?? []);
     }
 
-    /**
-     * @param  array<int, mixed>  $errors
-     * @return array<int, mixed>
-     */
     private function withoutAlreadyActivatedErrors(array $errors): array
     {
         return array_values(array_filter($errors, function ($error) {
@@ -714,9 +621,6 @@ class ProductSyncService
         SyncShopifyProductJob::dispatch($product->id, $previousCategoryId);
     }
 
-    /**
-     * Products that are not yet synced (never pushed, or last attempt failed).
-     */
     private function pendingProducts(): \Illuminate\Database\Eloquent\Builder
     {
         return Product::query()->where(function ($query) {
@@ -728,10 +632,6 @@ class ProductSyncService
         });
     }
 
-    /**
-     * Run a Shopify GraphQL request, transparently waiting out rate limits
-     * (throttling) instead of letting them abort a long-running sync/delete.
-     */
     private function query(array $payload): ShopifyResponse
     {
         $attempts = 0;
@@ -940,9 +840,6 @@ class ProductSyncService
         return null;
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
     private function publicationNodes(string $query): array
     {
         $response = $this->query(['query' => $query]);
@@ -990,10 +887,6 @@ class ProductSyncService
         }
     }
 
-    /**
-     * @param  array<int, mixed>  $errors
-     * @return array<int, mixed>
-     */
     private function withoutAlreadyPublishedErrors(array $errors): array
     {
         return array_values(array_filter($errors, function ($error) {
@@ -1003,12 +896,6 @@ class ProductSyncService
         }));
     }
 
-    /**
-     * A stable Shopify handle derived from the product SKU. Using it as the
-     * productSet identifier makes the push idempotent: a retried or timed-out
-     * job re-matches the same Shopify product and updates it instead of
-     * creating a duplicate.
-     */
     private function productHandle(Product $product): string
     {
         $handle = Str::slug((string) $product->sku);
@@ -1016,18 +903,6 @@ class ProductSyncService
         return $handle !== '' ? $handle : 'product-'.$product->getKey();
     }
 
-    /**
-     * Build the Shopify product option definition together with one Shopify
-     * variant per stored variant. A product is classified by colour, by
-     * size/weight, or by both:
-     *  - colour + size => two options ("Color" and "Size"), each variant a
-     *    unique combination;
-     *  - colour only    => single "Color" option;
-     *  - size only      => single "Size" option;
-     *  - otherwise      => the default "Title" option.
-     *
-     * @return array{0: array<int, array>, 1: array<int, array>}
-     */
     private function buildVariants(Product $product): array
     {
         if ($product->variants->isEmpty()) {
@@ -1073,14 +948,6 @@ class ProductSyncService
         ];
     }
 
-    /**
-     * Drop placeholder default variants when real option variants exist.
-     * A simple product often keeps one standard row (no colour/size) alongside
-     * newly added colour or size rows; Shopify should only receive the option
-     * variants in that case.
-     *
-     * @return \Illuminate\Support\Collection<int, ProductVariant>
-     */
     private function shopifyVariants(Product $product): \Illuminate\Support\Collection
     {
         $variants = $product->variants;
@@ -1108,13 +975,6 @@ class ProductSyncService
         return $variants->values();
     }
 
-    /**
-     * Build a two-dimensional Color + Size product when every variant carries
-     * both a colour and a size and the combinations are unique. Returns null
-     * when the product is not a clean colour/size grid.
-     *
-     * @return array{0: array<int, array>, 1: array<int, array>}|null
-     */
     private function buildColourSizeVariants(Product $product): ?array
     {
         $variants = $product->variants;
@@ -1162,10 +1022,6 @@ class ProductSyncService
         return [$productOptions, $variantInputs];
     }
 
-    /**
-     * Every variant must resolve to a non-empty, unique label for it to work
-     * as a Shopify option value.
-     */
     private function hasDistinctLabels(mixed $variants, callable $label): bool
     {
         if ($variants->isEmpty()) {
@@ -1180,9 +1036,6 @@ class ProductSyncService
             && $labels->unique()->count() === $variants->count();
     }
 
-    /**
-     * @return array{0: array<int, array>, 1: array<int, array>}
-     */
     private function buildOptionVariants(Product $product, string $optionName, callable $label): array
     {
         $variants = $product->variants;
@@ -1207,9 +1060,6 @@ class ProductSyncService
         return [$productOptions, $variantInputs];
     }
 
-    /**
-     * @param  array<int, array{optionName: string, name: string}>  $optionValues
-     */
     private function buildVariant(?ProductVariant $variant, Product $product, array $optionValues): array
     {
         $data = [
@@ -1249,9 +1099,6 @@ class ProductSyncService
         return $inventoryItem;
     }
 
-    /**
-     * @return array<int, array{locationId: string, name: string, quantity: int}>
-     */
     private function buildInventoryQuantities(ProductVariant $variant): array
     {
         $locationId = $this->inventoryLocationId();
@@ -1305,9 +1152,6 @@ class ProductSyncService
         return null;
     }
 
-    /**
-     * The colour code stored on the variant, used as the "Color" option value.
-     */
     private function colourLabel(ProductVariant $variant): ?string
     {
         $colour = $variant->colour !== null ? trim($variant->colour) : '';
@@ -1315,11 +1159,6 @@ class ProductSyncService
         return $colour !== '' ? $colour : null;
     }
 
-    /**
-     * Human-readable size label built from the variant weight + unit:
-     * 30 + "ml" => "30ml", null + "m" => "m", 3 + "xl" => "3xl". Returns null
-     * when the variant carries neither a weight nor a unit.
-     */
     private function sizeLabel(ProductVariant $variant): ?string
     {
         $weight = $variant->weight !== null ? (float) $variant->weight : null;

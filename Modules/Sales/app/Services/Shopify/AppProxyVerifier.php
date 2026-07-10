@@ -6,44 +6,73 @@ use Illuminate\Http\Request;
 
 class AppProxyVerifier
 {
-    public function verify(Request $request): bool
-    {
-        $secret = (string) config('sales.shopify.client_secret');
-
-        if ($secret === '') {
-            return false;
-        }
-
+    public function verify(Request $request, array $secretConfigKeys = [
+        'sales.shopify.client_secret',
+    ]): bool {
         $queryString = (string) $request->server('QUERY_STRING', '');
 
         if ($queryString === '') {
             return false;
         }
 
-        parse_str($queryString, $parameters);
+        $signature = null;
+        $params = [];
 
-        $signature = (string) ($parameters['signature'] ?? '');
+        foreach (explode('&', $queryString) as $part) {
+            if ($part === '') {
+                continue;
+            }
 
-        if ($signature === '') {
+            [$rawKey, $rawValue] = array_pad(explode('=', $part, 2), 2, '');
+
+            $key = urldecode($rawKey);
+            $value = urldecode($rawValue);
+
+            if ($key === 'signature') {
+                $signature = $value;
+                continue;
+            }
+
+            $params[$key][] = $value;
+        }
+
+        if (! is_string($signature) || $signature === '') {
             return false;
         }
 
-        unset($parameters['signature']);
+        ksort($params, SORT_STRING);
 
         $pairs = [];
 
-        foreach ($parameters as $key => $value) {
-            $values = is_array($value) ? $value : [$value];
-
+        foreach ($params as $key => $values) {
             $pairs[] = $key . '=' . implode(',', array_map('strval', $values));
         }
 
-        sort($pairs, SORT_STRING);
-
         $message = implode('', $pairs);
 
-        $calculated = hash_hmac('sha256', $message, $secret);
+        foreach ($this->secrets($secretConfigKeys) as $secret) {
+            $calculated = hash_hmac('sha256', $message, $secret);
 
-        return hash_equals($calculated, $signature);
+            if (hash_equals($calculated, $signature)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function secrets(array $secretConfigKeys): array
+    {
+        $secrets = [];
+
+        foreach ($secretConfigKeys as $configKey) {
+            $secret = (string) config($configKey);
+
+            if ($secret !== '') {
+                $secrets[] = $secret;
+            }
+        }
+
+        return array_values(array_unique($secrets));
     }
 }

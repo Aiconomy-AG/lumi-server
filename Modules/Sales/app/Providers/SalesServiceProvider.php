@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Modules\Sales\Console\AssignShopifyCollections;
 use Modules\Sales\Console\ImportProductsCsv;
+use Modules\Sales\Console\ShopifyRegisterWebhooks;
 use Modules\Sales\Console\ShopifyTestConnection;
 use Modules\Sales\Console\SyncShopifyInventory;
 use Modules\Sales\Console\SyncShopifyProducts;
@@ -17,34 +18,20 @@ use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class SalesServiceProvider extends ModuleServiceProvider
 {
-    /**
-     * The name of the module.
-     */
+
     protected string $name = 'Sales';
 
-    /**
-     * The lowercase version of the module name.
-     */
     protected string $nameLower = 'sales';
 
-    /**
-     * Command classes to register.
-     *
-     * @var string[]
-     */
     protected array $commands = [
         AssignShopifyCollections::class,
         ImportProductsCsv::class,
+        ShopifyRegisterWebhooks::class,
         ShopifyTestConnection::class,
         SyncShopifyInventory::class,
         SyncShopifyProducts::class,
     ];
 
-    /**
-     * Provider classes to register.
-     *
-     * @var string[]
-     */
     protected array $providers = [
         EventServiceProvider::class,
         RouteServiceProvider::class,

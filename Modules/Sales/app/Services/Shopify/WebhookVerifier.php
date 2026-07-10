@@ -30,9 +30,6 @@ class WebhookVerifier
         return false;
     }
 
-    /**
-     * @return array<int, string>
-     */
     private function secrets(): array
     {
         return collect([

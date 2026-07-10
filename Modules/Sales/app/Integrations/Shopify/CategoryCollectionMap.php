@@ -8,9 +8,7 @@ use Throwable;
 
 class CategoryCollectionMap
 {
-    /**
-     * @return array<int, string>
-     */
+
     public function handlesByCategoryId(): array
     {
         $mapping = config('sales.shopify.category_collections', []);
@@ -39,7 +37,7 @@ class CategoryCollectionMap
                         ?: $this->handleFromName($category->name);
                 });
         } catch (Throwable) {
-            // Database may not be migrated in isolated unit tests.
+
         }
 
         return $normalized;

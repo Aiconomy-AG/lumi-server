@@ -6,15 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Sales\Database\Factories\CategoryFactory;
 
-// use Modules\Sales\Database\Factories\CategoryFactory;
-
 class Category extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'parent_id',
         'name',

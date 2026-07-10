@@ -77,6 +77,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Keep Shopify proxy return data intact if this migration is rolled back.
+
     }
 };
