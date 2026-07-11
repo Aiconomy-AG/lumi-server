@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Sales\Models\Customer;
 use Modules\Sales\Models\Order;
+use Modules\Sales\Models\ReturnRequest;
 use Modules\Sales\Services\ReturnService;
 use Modules\Sales\Services\Shopify\AppProxyVerifier;
 use Modules\Sales\Support\ShopifyId;
@@ -217,14 +218,23 @@ class ProxyReturnController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $order = Order::query()
+            ->whereIn(
+                'shopify_order_id',
+                $this->shopifyOrderIdCandidates(
+                    $validated['shopify_order_id']
+                )
+            )
+            ->firstOrFail();
+
         $returnRequest = $this->returnService->createShopifyReturn(
             shopDomain: 'lush-clone-internship-project.myshopify.com',
             email: $validated['email'] ?? '',
             reason: $validated['reason'],
             items: $validated['items'],
-            shopifyCustomerId: null,
-            shopifyOrderId: $validated['shopify_order_id'],
-            shopifyOrderName: $validated['order_id'],
+            shopifyCustomerId: $order->shopify_customer_id,
+            shopifyOrderId: $order->shopify_order_id,
+            shopifyOrderName: $order->shopify_order_name,
             notes: $validated['notes'] ?? null,
         );
 
@@ -257,4 +267,51 @@ class ProxyReturnController extends Controller
         ];
     }
 
+    public function indexByOrderFromCustomerAccount(
+        Request $request
+    ): JsonResponse {
+        $validated = $request->validate([
+            'shopify_order_id' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        $orderIdCandidates = $this->shopifyOrderIdCandidates(
+            $validated['shopify_order_id']
+        );
+
+        $returns = ReturnRequest::query()
+            ->whereIn('shopify_order_id', $orderIdCandidates)
+            ->latest('created_at')
+            ->get();
+
+        return response()->json([
+            'data' => $returns->map(
+                function (ReturnRequest $returnRequest): array {
+                    $items = collect($returnRequest->items ?? []);
+
+                    return [
+                        'id' => $returnRequest->id,
+                        'order_name' => $returnRequest->shopify_order_name,
+                        'status' => $returnRequest->status,
+                        'reason' => $returnRequest->reason,
+                        'notes' => $returnRequest->notes,
+
+                        'items_count' => $items->sum(
+                            fn ($item): int =>
+                            (int) ($item['quantity'] ?? 0)
+                        ),
+
+                        'items' => $items->values(),
+
+                        'created_at' => $returnRequest
+                            ->created_at
+                            ?->format('d.m.Y H:i'),
+                    ];
+                }
+            )->values(),
+        ]);
+    }
 }
