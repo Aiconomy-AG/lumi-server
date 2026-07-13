@@ -89,8 +89,6 @@ class AppProxyVerifier
         }
 
         return false;
-
-        return false;
     }
 
     private function secrets(array $secretConfigKeys): array
