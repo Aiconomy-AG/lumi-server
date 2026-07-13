@@ -1,0 +1,110 @@
+site_name: Lumi Server Maintenance Documentation
+site_description: Architecture, API, operations, and maintenance reference for the Lumi Laravel backend
+site_url: https://aiconomy-ag.github.io/lumi-server/
+repo_url: https://github.com/Aiconomy-AG/lumi-server
+repo_name: Aiconomy-AG/lumi-server
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  language: en
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Use dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Use light mode
+
+plugins:
+  - search
+  - mermaid2:
+      version: 11.16.0
+  - swagger-ui-tag
+  - git-revision-date-localized:
+      enable_creation_date: true
+      enable_git_follow: false
+      fallback_to_build_date: true
+      type: date
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Local setup: getting-started/local-setup.md
+      - Configuration: getting-started/configuration.md
+      - Repository map: getting-started/repository-map.md
+  - Architecture:
+      - System overview: architecture/overview.md
+      - Request lifecycle: architecture/request-lifecycle.md
+      - Authentication and authorization: architecture/authentication.md
+      - Data model: architecture/data-model.md
+      - Asynchronous processing: architecture/async-processing.md
+  - Functional Areas:
+      - Core platform: modules/core.md
+      - Sales: modules/sales.md
+      - Workspace: modules/workspace.md
+      - Significant functions: reference/functions.md
+  - API:
+      - Usage and conventions: api/index.md
+      - Interactive reference: api/reference.md
+      - Route inventory: api/routes.md
+  - Integrations:
+      - Overview: integrations/index.md
+      - Shopify: integrations/shopify.md
+      - Messaging and AI: integrations/messaging-ai.md
+  - Operations:
+      - Runtime operations: operations/runtime.md
+      - Deployment: operations/deployment.md
+      - Testing: operations/testing.md
+      - Troubleshooting: operations/troubleshooting.md
+  - Maintenance:
+      - Documentation maintenance: maintenance/documentation.md
+      - Handover checklist: maintenance/handover.md

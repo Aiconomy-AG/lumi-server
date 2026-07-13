@@ -1,0 +1,16 @@
+:root {
+  --md-text-font: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.md-grid {
+  max-width: 92rem;
+}
+
+.swagger-ui .info {
+  margin: 1rem 0;
+}
+
+.swagger-ui .scheme-container {
+  box-shadow: none;
+}
+

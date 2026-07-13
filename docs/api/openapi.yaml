@@ -1,0 +1,3691 @@
+openapi: 3.0.3
+info:
+  title: Lumi Backend API
+  version: 1.0.0
+  description: Canonical contract for the routes registered under `/api/v1`. See the maintenance documentation for architecture
+    and workflows.
+servers:
+- url: /api/v1
+  description: API path relative to the deployed backend origin
+tags:
+- name: Admin
+  description: Operations for admin.
+- name: Admin - Catalog
+  description: Operations for admin - catalog.
+- name: Admin - Orders
+  description: Operations for admin - orders.
+- name: Admin - Returns
+  description: Operations for admin - returns.
+- name: Authentication
+  description: Operations for authentication.
+- name: Broadcasting
+  description: Operations for broadcasting.
+- name: Cart
+  description: Operations for cart.
+- name: Catalog
+  description: Operations for catalog.
+- name: Chat
+  description: Operations for chat.
+- name: Checkout
+  description: Operations for checkout.
+- name: Conversations
+  description: Operations for conversations.
+- name: Customer
+  description: Operations for customer.
+- name: Notifications
+  description: Operations for notifications.
+- name: Order administration
+  description: Operations for order administration.
+- name: Projects
+  description: Operations for projects.
+- name: Return administration
+  description: Operations for return administration.
+- name: Shopify Proxy
+  description: Operations for shopify proxy.
+- name: Shopify Webhooks
+  description: Operations for shopify webhooks.
+- name: Shopify proxy cart
+  description: Operations for shopify proxy cart.
+- name: Shopify returns
+  description: Operations for shopify returns.
+- name: Tasks
+  description: Operations for tasks.
+- name: Tasks and time tracking
+  description: Operations for tasks and time tracking.
+- name: Time Tracking
+  description: Operations for time tracking.
+- name: Users
+  description: Operations for users.
+- name: Wishlist
+  description: Operations for wishlist.
+- name: Workspaces
+  description: Operations for workspaces.
+paths:
+  /admin/audit-logs:
+    get:
+      tags:
+      - Admin
+      summary: Retrieve audit logs
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: A list of audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_app_http_controllers_admin_auditlogcontroller_index_admin_audit_logs
+      description: 'Access: **Administrator**.'
+  /admin/orders:
+    get:
+      tags:
+      - Admin - Orders
+      summary: List all orders (admin)
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - pending
+          - processing
+          - shipped
+          - delivered
+          - cancelled
+      - name: customer_id
+        in: query
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_sales_http_controllers_admin_ordercontroller_index_admin_orders
+      description: 'Access: **Active administrator or employee**.'
+  /admin/orders/{orderId}:
+    get:
+      tags:
+      - Order administration
+      summary: Get order administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Sales\Http\Controllers\Admin\OrderController@show`.'
+      operationId: get_modules_sales_http_controllers_admin_ordercontroller_show_admin_orders_orderid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /admin/products:
+    get:
+      tags:
+      - Admin - Catalog
+      summary: List all products (admin)
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+      - name: category_id
+        in: query
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_sales_http_controllers_admin_productcontroller_index_admin_products
+      description: 'Access: **Active administrator or employee**.'
+    post:
+      tags:
+      - Admin - Catalog
+      summary: Create a new product
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Product successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_modules_sales_http_controllers_admin_productcontroller_store_admin_products
+      description: 'Access: **Active administrator or employee**.'
+  /admin/products/{productId}:
+    put:
+      tags:
+      - Admin - Catalog
+      summary: Update an existing product
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Product successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_sales_http_controllers_admin_productcontroller_update_admin_products_productid
+      description: 'Access: **Active administrator or employee**.'
+    delete:
+      tags:
+      - Admin - Catalog
+      summary: Delete an existing product
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Product successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_sales_http_controllers_admin_productcontroller_destroy_admin_products_productid
+      description: 'Access: **Active administrator or employee**.'
+  /admin/products/{productId}/variants:
+    post:
+      tags:
+      - Admin - Catalog
+      summary: Add a variant to a product
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - sku
+              - price
+              properties:
+                sku:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                weight:
+                  type: number
+                  format: double
+                weight_unit:
+                  type: string
+                colour:
+                  type: string
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        '201':
+          description: Product variant successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product_Variant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_sales_http_controllers_admin_productvariantcontroller_store_admin_products_productid_variants
+      description: 'Access: **Active administrator or employee**.'
+  /admin/products/{productId}/variants/{variantId}:
+    put:
+      tags:
+      - Admin - Catalog
+      summary: Update a product variant
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sku:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                weight:
+                  type: number
+                  format: double
+                weight_unit:
+                  type: string
+                colour:
+                  type: string
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Product variant successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product_Variant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_sales_http_controllers_admin_productvariantcontroller_update_admin_products_productid_variants_variantid
+      description: 'Access: **Active administrator or employee**.'
+    patch:
+      tags:
+      - Admin - Catalog
+      summary: Update a product variant's stock quantity
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - stock_quantity
+              properties:
+                stock_quantity:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Stock quantity successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product_Variant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: patch_modules_sales_http_controllers_admin_productvariantcontroller_updatestock_admin_products_productid_variants_variantid
+      description: 'Access: **Active administrator or employee**.'
+    delete:
+      tags:
+      - Admin - Catalog
+      summary: Delete a product variant
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Product variant successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_sales_http_controllers_admin_productvariantcontroller_destroy_admin_products_productid_variants_variantid
+      description: 'Access: **Active administrator or employee**.'
+  /admin/returns:
+    get:
+      tags:
+      - Admin - Returns
+      summary: List all return requests
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - requested
+          - approved
+          - rejected
+          - completed
+      - name: order_id
+        in: query
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of return requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Return_Request'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_sales_http_controllers_admin_returnrequestcontroller_index_admin_returns
+      description: 'Access: **Active administrator or employee**.'
+  /admin/returns/{returnRequestId}:
+    get:
+      tags:
+      - Admin - Returns
+      summary: Get return request details by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Return request details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Return_Request'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_admin_returnrequestcontroller_show_admin_returns_returnrequestid
+      description: 'Access: **Active administrator or employee**.'
+    patch:
+      tags:
+      - Admin - Returns
+      summary: Update a return request (e.g. approve/reject/complete)
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - requested
+                  - approved
+                  - rejected
+                  - completed
+      responses:
+        '200':
+          description: Return request successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Return_Request'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: patch_modules_sales_http_controllers_admin_returnrequestcontroller_updatenotes_admin_returns_returnrequestid
+      description: 'Access: **Active administrator or employee**.'
+  /admin/returns/{returnRequestId}/approve:
+    post:
+      tags:
+      - Return administration
+      summary: Approve return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Sales\Http\Controllers\Admin\ReturnRequestController@approve`.'
+      operationId: post_modules_sales_http_controllers_admin_returnrequestcontroller_approve_admin_returns_returnrequestid_approve
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /admin/returns/{returnRequestId}/received:
+    post:
+      tags:
+      - Return administration
+      summary: Mark received return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Sales\Http\Controllers\Admin\ReturnRequestController@markReceived`.'
+      operationId: post_modules_sales_http_controllers_admin_returnrequestcontroller_markreceived_admin_returns_returnrequestid_received
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /admin/returns/{returnRequestId}/refunded:
+    post:
+      tags:
+      - Return administration
+      summary: Mark refunded return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Sales\Http\Controllers\Admin\ReturnRequestController@markRefunded`.'
+      operationId: post_modules_sales_http_controllers_admin_returnrequestcontroller_markrefunded_admin_returns_returnrequestid_refunded
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /admin/returns/{returnRequestId}/reject:
+    post:
+      tags:
+      - Return administration
+      summary: Reject return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Sales\Http\Controllers\Admin\ReturnRequestController@reject`.'
+      operationId: post_modules_sales_http_controllers_admin_returnrequestcontroller_reject_admin_returns_returnrequestid_reject
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  nullable: true
+                  maxLength: 2000
+  /admin/users:
+    get:
+      tags:
+      - Users
+      summary: List all users
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - available
+          - busy
+          - offline
+          - away
+      - name: role
+        in: query
+        schema:
+          type: string
+          enum:
+          - admin
+          - employee
+      responses:
+        '200':
+          description: A list of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_app_http_controllers_admin_usercontroller_index_admin_users
+      description: 'Access: **Administrator**.'
+    post:
+      tags:
+      - Users
+      summary: Create a new user
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - role
+              - email
+              - password
+              - name
+              properties:
+                role:
+                  type: string
+                  enum:
+                  - admin
+                  - employee
+                email:
+                  type: string
+                password:
+                  type: string
+                name:
+                  type: string
+                phone_number:
+                  type: string
+      responses:
+        '201':
+          description: User successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_app_http_controllers_admin_usercontroller_store_admin_users
+      description: 'Access: **Administrator**.'
+  /admin/users/{userId}/resend-invite:
+    post:
+      tags:
+      - Users
+      summary: Resend an invitation email to a pending user
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Invitation successfully resent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_app_http_controllers_admin_usercontroller_resendinvite_admin_users_userid_resend_invite
+      description: 'Access: **Administrator**.'
+  /admin/users/{user}:
+    get:
+      tags:
+      - Users
+      summary: Get user by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Employee profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_app_http_controllers_admin_usercontroller_show_admin_users_user
+      description: 'Access: **Administrator**.'
+    put:
+      tags:
+      - Users
+      summary: Update user details
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum:
+                  - admin
+                  - employee
+                email:
+                  type: string
+                name:
+                  type: string
+                phone_number:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - available
+                  - busy
+                  - offline
+                  - away
+      responses:
+        '200':
+          description: User successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_app_http_controllers_admin_usercontroller_update_admin_users_user
+      description: 'Access: **Administrator**.'
+    patch:
+      tags:
+      - Users
+      summary: Partially update user details
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum:
+                  - admin
+                  - employee
+                email:
+                  type: string
+                name:
+                  type: string
+                phone_number:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - available
+                  - busy
+                  - offline
+                  - away
+      responses:
+        '200':
+          description: User successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: patch_app_http_controllers_admin_usercontroller_update_admin_users_user
+      description: 'Access: **Administrator**.'
+    delete:
+      tags:
+      - Users
+      summary: Deactivate a user
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: User successfully deactivated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_app_http_controllers_admin_usercontroller_destroy_admin_users_user
+      description: 'Access: **Administrator**.'
+  /auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Employee login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  employee:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_app_http_controllers_auth_tokencontroller_store_auth_login
+      description: 'Access: **Public**.'
+      security: []
+  /auth/logout:
+    delete:
+      tags:
+      - Authentication
+      summary: Employee logout
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: delete_app_http_controllers_auth_tokencontroller_destroy_auth_logout
+      description: 'Access: **Authenticated user**.'
+  /auth/me:
+    get:
+      tags:
+      - Authentication
+      summary: Get authenticated employee profile
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_app_http_controllers_auth_tokencontroller_me_auth_me
+      description: 'Access: **Authenticated user**.'
+  /auth/me/presence/disconnect:
+    post:
+      tags:
+      - Authentication
+      summary: Disconnect user presence
+      security: []
+      responses:
+        '200':
+          description: Successfully disconnected presence
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_app_http_controllers_auth_tokencontroller_disconnect_auth_me_presence_disconnect
+      description: 'Access: **Public**.'
+  /auth/me/presence/ping:
+    post:
+      tags:
+      - Authentication
+      summary: Ping user presence
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully pinged presence
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_app_http_controllers_auth_tokencontroller_ping_auth_me_presence_ping
+      description: 'Access: **Authenticated user**.'
+  /auth/me/status:
+    patch:
+      tags:
+      - Authentication
+      summary: Update the authenticated employee's status
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - available
+                  - busy
+                  - offline
+                  - away
+      responses:
+        '200':
+          description: Status successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: patch_app_http_controllers_auth_tokencontroller_updatestatus_auth_me_status
+      description: 'Access: **Authenticated user**.'
+  /auth/phone:
+    put:
+      tags:
+      - Authentication
+      summary: Update user phone number
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone_number:
+                  type: string
+      responses:
+        '200':
+          description: Phone number successfully updated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: put_app_http_controllers_api_profilecontroller_updatephone_auth_phone
+      description: 'Access: **Authenticated user**.'
+  /auth/reset-password:
+    post:
+      tags:
+      - Authentication
+      summary: Reset a password using a reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - token
+              - password
+              properties:
+                email:
+                  type: string
+                token:
+                  type: string
+                password:
+                  type: string
+                password_confirmation:
+                  type: string
+      responses:
+        '200':
+          description: Password successfully reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_app_http_controllers_auth_passwordresetcontroller_reset_auth_reset_password
+      description: 'Access: **Public**.'
+      security: []
+  /auth/reset-password/validate:
+    get:
+      tags:
+      - Authentication
+      summary: Validate a password reset token
+      parameters:
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Reset token validity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_app_http_controllers_auth_passwordresetcontroller_validatetoken_auth_reset_password_validate
+      description: 'Access: **Public**.'
+      security: []
+  /broadcasting/auth:
+    get:
+      tags:
+      - Broadcasting
+      summary: Authenticate a broadcasting channel (GET)
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Authentication successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_illuminate_broadcasting_broadcastcontroller_authenticate_broadcasting_auth
+      description: 'Access: **Authenticated user**.'
+    post:
+      tags:
+      - Broadcasting
+      summary: Authenticate a broadcasting channel
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Authentication successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_illuminate_broadcasting_broadcastcontroller_authenticate_broadcasting_auth
+      description: 'Access: **Authenticated user**.'
+  /device-tokens:
+    post:
+      tags:
+      - Notifications
+      summary: Register a device token for push notifications
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              properties:
+                token:
+                  type: string
+                device_type:
+                  type: string
+      responses:
+        '201':
+          description: Token successfully registered
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_app_http_controllers_devicetokencontroller_store_device_tokens
+      description: 'Access: **Authenticated user**.'
+    delete:
+      tags:
+      - Notifications
+      summary: Remove a device token
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Token successfully removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: delete_app_http_controllers_devicetokencontroller_destroy_device_tokens
+      description: 'Access: **Authenticated user**.'
+  /shop/categories:
+    get:
+      tags:
+      - Catalog
+      summary: List all categories
+      responses:
+        '200':
+          description: A list of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_categories_shop_categories
+      description: 'Access: **Public**.'
+      security: []
+  /shop/customers/{customerId}:
+    get:
+      tags:
+      - Customer
+      summary: Get customer profile
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Customer profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_customercontroller_show_shop_customers_customerid
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/customers/{customerId}/cart:
+    get:
+      tags:
+      - Cart
+      summary: Get customer cart
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Cart details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_cartcontroller_show_shop_customers_customerid_cart
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/customers/{customerId}/cart/items:
+    post:
+      tags:
+      - Cart
+      summary: Add item to cart
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - product_variant_id
+              - quantity
+              properties:
+                product_variant_id:
+                  type: integer
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '201':
+          description: Item successfully added to cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_sales_http_controllers_cartcontroller_storeitem_shop_customers_customerid_cart_items
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/customers/{customerId}/cart/items/{productVariantId}:
+    put:
+      tags:
+      - Cart
+      summary: Update cart item quantity
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: productVariantId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - quantity
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Cart item updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_sales_http_controllers_cartcontroller_updateitem_shop_customers_customerid_cart_items_productvariantid
+      description: 'Access: **Authenticated customer owner**.'
+    delete:
+      tags:
+      - Cart
+      summary: Remove item from cart
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: productVariantId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Item removed from cart successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_sales_http_controllers_cartcontroller_destroyitem_shop_customers_customerid_cart_items_productvariantid
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/customers/{customerId}/orders:
+    get:
+      tags:
+      - Checkout
+      summary: Get customer order history
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Customer order history list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_checkoutcontroller_customerorders_shop_customers_customerid_orders
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/customers/{customerId}/wishlist:
+    get:
+      tags:
+      - Wishlist
+      summary: Get customer wishlist
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Customer wishlist details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_wishlistcontroller_index_shop_customers_customerid_wishlist
+      description: 'Access: **Authenticated customer owner**.'
+    post:
+      tags:
+      - Wishlist
+      summary: Add product to wishlist
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - product_id
+              properties:
+                product_id:
+                  type: integer
+      responses:
+        '201':
+          description: Product added to wishlist successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_sales_http_controllers_wishlistcontroller_store_shop_customers_customerid_wishlist
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/customers/{customerId}/wishlist/{productId}:
+    delete:
+      tags:
+      - Wishlist
+      summary: Remove product from wishlist
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Product removed from wishlist successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_sales_http_controllers_wishlistcontroller_destroy_shop_customers_customerid_wishlist_productid
+      description: 'Access: **Authenticated customer owner**.'
+  /shop/ingredients:
+    get:
+      tags:
+      - Catalog
+      summary: List all ingredients
+      parameters:
+      - name: is_allergen
+        in: query
+        schema:
+          type: boolean
+      - name: is_vegan
+        in: query
+        schema:
+          type: boolean
+      - name: is_natural
+        in: query
+        schema:
+          type: boolean
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: A list of ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ingredient'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_ingredients_shop_ingredients
+      description: 'Access: **Public**.'
+      security: []
+  /shop/ingredients/{ingredientId}:
+    get:
+      tags:
+      - Catalog
+      summary: Get ingredient details
+      parameters:
+      - name: ingredientId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Ingredient details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ingredient'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_ingredientdetails_shop_ingredients_ingredientid
+      description: 'Access: **Public**.'
+      security: []
+  /shop/me:
+    get:
+      tags:
+      - Customer
+      summary: Get the authenticated customer's profile
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Customer profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_sales_http_controllers_customercontroller_me_shop_me
+      description: 'Access: **Authenticated user**.'
+  /shop/orders:
+    post:
+      tags:
+      - Checkout
+      summary: Create a new order
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '201':
+          description: Order successfully created
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_modules_sales_http_controllers_checkoutcontroller_store_shop_orders
+      description: 'Access: **Authenticated user**.'
+  /shop/orders/{orderId}:
+    get:
+      tags:
+      - Checkout
+      summary: Get order details by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_checkoutcontroller_show_shop_orders_orderid
+      description: 'Access: **Authenticated user**.'
+  /shop/products:
+    get:
+      tags:
+      - Catalog
+      summary: List all products
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+      - name: category_id
+        in: query
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_index_shop_products
+      description: 'Access: **Public**.'
+      security: []
+  /shop/products/search:
+    get:
+      tags:
+      - Catalog
+      summary: Search for products
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          description: Search query string
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+      operationId: get_modules_sales_http_controllers_productsearchcontroller_shop_products_search
+      description: 'Access: **Public**.'
+      security: []
+  /shop/products/{productId}:
+    get:
+      tags:
+      - Catalog
+      summary: Get product details
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Product details with variants and ingredients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_show_shop_products_productid
+      description: 'Access: **Public**.'
+      security: []
+  /shop/products/{productId}/ingredients:
+    get:
+      tags:
+      - Catalog
+      summary: List ingredients of a product
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of ingredients for the product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ingredient'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_productingredients_shop_products_productid_ingredients
+      description: 'Access: **Public**.'
+      security: []
+  /shop/products/{productId}/variants:
+    get:
+      tags:
+      - Catalog
+      summary: List all variants of a product
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of product variants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product_Variant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_productvariants_shop_products_productid_variants
+      description: 'Access: **Public**.'
+      security: []
+  /shop/variants/{variantId}:
+    get:
+      tags:
+      - Catalog
+      summary: Get product variant details
+      parameters:
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Product variant details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product_Variant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_sales_http_controllers_catalogcontroller_variantdetails_shop_variants_variantid
+      description: 'Access: **Public**.'
+      security: []
+  /shopify/customer-account/returns:
+    post:
+      tags:
+      - Shopify returns
+      summary: Store from customer account shopify returns
+      description: 'Access: **Public**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyReturnController@storeFromCustomerAccount`.'
+      operationId: post_modules_sales_http_controllers_shopify_proxyreturncontroller_storefromcustomeraccount_shopify_customer_account_returns
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_id:
+                  type: string
+                  maxLength: 255
+                shopify_order_id:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  nullable: true
+                  format: email
+                  maxLength: 255
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    properties:
+                      shopify_line_item_id:
+                        type: string
+                        nullable: true
+                        maxLength: 255
+                      shopify_product_id:
+                        type: string
+                        nullable: true
+                        maxLength: 255
+                      title:
+                        type: string
+                        nullable: true
+                        maxLength: 255
+                      sku:
+                        type: string
+                        nullable: true
+                        maxLength: 255
+                      unit_price:
+                        type: number
+                        nullable: true
+                        minimum: 0
+                      quantity:
+                        type: integer
+                        minimum: 1
+                    required:
+                    - quantity
+                reason:
+                  type: string
+                  maxLength: 255
+                notes:
+                  type: string
+                  nullable: true
+                  maxLength: 2000
+              required:
+              - order_id
+              - shopify_order_id
+              - items
+              - reason
+  /shopify/customer-account/returns/by-order:
+    post:
+      tags:
+      - Shopify returns
+      summary: Index by order from customer account shopify returns
+      description: 'Access: **Public**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyReturnController@indexByOrderFromCustomerAccount`.'
+      operationId: post_modules_sales_http_controllers_shopify_proxyreturncontroller_indexbyorderfromcustomeraccount_shopify_customer_account_returns_by_order
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shopify_order_id:
+                  type: string
+                  maxLength: 255
+              required:
+              - shopify_order_id
+  /shopify/customer-account/returns/lookup:
+    post:
+      tags:
+      - Shopify returns
+      summary: Lookup from customer account shopify returns
+      description: 'Access: **Public**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyReturnController@lookupFromCustomerAccount`.'
+      operationId: post_modules_sales_http_controllers_shopify_proxyreturncontroller_lookupfromcustomeraccount_shopify_customer_account_returns_lookup
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shopify_order_id:
+                  type: string
+                  maxLength: 255
+              required:
+              - shopify_order_id
+  /shopify/proxy/cart:
+    get:
+      tags:
+      - Shopify proxy cart
+      summary: Get shopify proxy cart
+      description: 'Access: **Shopify signed request**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyCartController@show`.'
+      operationId: get_modules_sales_http_controllers_shopify_proxycartcontroller_show_shopify_proxy_cart
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - shopifyProxySignature: []
+  /shopify/proxy/cart/items:
+    post:
+      tags:
+      - Shopify proxy cart
+      summary: Store item shopify proxy cart
+      description: 'Access: **Shopify signed request**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyCartController@storeItem`.'
+      operationId: post_modules_sales_http_controllers_shopify_proxycartcontroller_storeitem_shopify_proxy_cart_items
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - shopifyProxySignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                product_variant_id:
+                  type: integer
+                  minimum: 1
+                quantity:
+                  type: integer
+                  minimum: 1
+              required:
+              - product_variant_id
+              - quantity
+  /shopify/proxy/cart/items/{productVariantId}:
+    put:
+      tags:
+      - Shopify proxy cart
+      summary: Update item shopify proxy cart
+      description: 'Access: **Shopify signed request**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyCartController@updateItem`.'
+      operationId: put_modules_sales_http_controllers_shopify_proxycartcontroller_updateitem_shopify_proxy_cart_items_productvariantid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - shopifyProxySignature: []
+      parameters:
+      - name: productVariantId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+              required:
+              - quantity
+    delete:
+      tags:
+      - Shopify proxy cart
+      summary: Destroy item shopify proxy cart
+      description: 'Access: **Shopify signed request**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyCartController@destroyItem`.'
+      operationId: delete_modules_sales_http_controllers_shopify_proxycartcontroller_destroyitem_shopify_proxy_cart_items_productvariantid
+      responses:
+        '204':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - shopifyProxySignature: []
+      parameters:
+      - name: productVariantId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /shopify/proxy/returns:
+    post:
+      tags:
+      - Shopify Proxy
+      summary: Submit a return request from the Shopify storefront
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - order_id
+              - items
+              properties:
+                order_id:
+                  type: integer
+                reason:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      order_item_id:
+                        type: integer
+                      quantity:
+                        type: integer
+      responses:
+        '201':
+          description: Return request successfully submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Return_Request'
+      operationId: post_modules_sales_http_controllers_shopify_proxyreturncontroller_store_shopify_proxy_returns
+      description: 'Access: **Shopify signed request**.'
+      security:
+      - shopifyProxySignature: []
+  /shopify/proxy/returns/ping:
+    get:
+      tags:
+      - Shopify returns
+      summary: Refresh shopify returns
+      description: 'Access: **Shopify signed request**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyReturnController@ping`.'
+      operationId: get_modules_sales_http_controllers_shopify_proxyreturncontroller_ping_shopify_proxy_returns_ping
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - shopifyProxySignature: []
+  /shopify/proxy/wishlist:
+    get:
+      tags:
+      - Shopify Proxy
+      summary: Get wishlist via Shopify storefront proxy
+      responses:
+        '200':
+          description: Customer wishlist details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+      operationId: get_modules_sales_http_controllers_shopify_proxywishlistcontroller_index_shopify_proxy_wishlist
+      description: 'Access: **Shopify signed request**.'
+      security:
+      - shopifyProxySignature: []
+  /shopify/proxy/wishlist/items:
+    post:
+      tags:
+      - Shopify Proxy
+      summary: Add item to wishlist via Shopify storefront proxy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - shopify_product_id
+              properties:
+                shopify_product_id:
+                  type: string
+      responses:
+        '201':
+          description: Product added to wishlist successfully
+      operationId: post_modules_sales_http_controllers_shopify_proxywishlistcontroller_store_shopify_proxy_wishlist_items
+      description: 'Access: **Shopify signed request**.'
+      security:
+      - shopifyProxySignature: []
+  /shopify/proxy/wishlist/items/{shopifyProductId}:
+    delete:
+      tags:
+      - Shopify Proxy
+      summary: Remove item from wishlist via Shopify storefront proxy
+      parameters:
+      - name: shopifyProductId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Product removed from wishlist successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_sales_http_controllers_shopify_proxywishlistcontroller_destroy_shopify_proxy_wishlist_items_shopifyproductid
+      description: 'Access: **Shopify signed request**.'
+      security:
+      - shopifyProxySignature: []
+  /shopify/webhooks/customers/create:
+    post:
+      tags:
+      - Shopify Webhooks
+      summary: Shopify webhook - customer created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify customer payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+      operationId: post_modules_sales_http_controllers_shopify_webhookcontroller_customer_shopify_webhooks_customers_create
+      description: 'Access: **Shopify HMAC**.'
+      security:
+      - shopifyWebhookHmac: []
+  /shopify/webhooks/customers/update:
+    post:
+      tags:
+      - Shopify Webhooks
+      summary: Shopify webhook - customer updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify customer payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+      operationId: post_modules_sales_http_controllers_shopify_webhookcontroller_customer_shopify_webhooks_customers_update
+      description: 'Access: **Shopify HMAC**.'
+      security:
+      - shopifyWebhookHmac: []
+  /shopify/webhooks/orders/create:
+    post:
+      tags:
+      - Shopify Webhooks
+      summary: Shopify webhook - order created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify order payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+      operationId: post_modules_sales_http_controllers_shopify_webhookcontroller_order_shopify_webhooks_orders_create
+      description: 'Access: **Shopify HMAC**.'
+      security:
+      - shopifyWebhookHmac: []
+  /shopify/webhooks/orders/updated:
+    post:
+      tags:
+      - Shopify Webhooks
+      summary: Shopify webhook - order updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify order payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+      operationId: post_modules_sales_http_controllers_shopify_webhookcontroller_order_shopify_webhooks_orders_updated
+      description: 'Access: **Shopify HMAC**.'
+      security:
+      - shopifyWebhookHmac: []
+  /shopify/webhooks/products/update:
+    post:
+      tags:
+      - Shopify Webhooks
+      summary: Shopify webhook - product updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Shopify product payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+      operationId: post_modules_sales_http_controllers_shopify_webhookcontroller_product_shopify_webhooks_products_update
+      description: 'Access: **Shopify HMAC**.'
+      security:
+      - shopifyWebhookHmac: []
+  /users:
+    get:
+      tags:
+      - Users
+      summary: List all users (directory)
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - available
+          - busy
+          - offline
+          - away
+      - name: role
+        in: query
+        schema:
+          type: string
+          enum:
+          - admin
+          - employee
+      responses:
+        '200':
+          description: A list of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_app_http_controllers_admin_usercontroller_index_users
+      description: 'Access: **Active administrator or employee**.'
+  /workspace/conversations:
+    get:
+      tags:
+      - Chat
+      summary: List all chat conversations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: A list of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_workspace_http_controllers_conversationcontroller_index_workspace_conversations
+      description: 'Access: **Authenticated user**.'
+    post:
+      tags:
+      - Chat
+      summary: Start a new direct or group conversation
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - type
+              - participant_employee_ids
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - direct
+                  - group
+                name:
+                  type: string
+                participant_employee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '201':
+          description: Conversation successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_modules_workspace_http_controllers_conversationcontroller_store_workspace_conversations
+      description: 'Access: **Authenticated user**.'
+  /workspace/conversations/{conversationId}:
+    get:
+      tags:
+      - Chat
+      summary: Get conversation details by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Conversation details with participants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_conversationcontroller_show_workspace_conversations_conversationid
+      description: 'Access: **Authenticated user**.'
+    put:
+      tags:
+      - Conversations
+      summary: Update conversations
+      description: 'Access: **Authenticated conversation participant**. Implemented by `Modules\Workspace\Http\Controllers\ConversationController@update`.'
+      operationId: put_modules_workspace_http_controllers_conversationcontroller_update_workspace_conversations_conversationid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  nullable: true
+                  maxLength: 255
+                add_participants_employee_ids:
+                  type: array
+                  items: &id001
+                    type: integer
+                    minimum: 1
+                remove_participants_employee_ids:
+                  type: array
+                  items: *id001
+  /workspace/conversations/{conversationId}/messages:
+    get:
+      tags:
+      - Chat
+      summary: Retrieve messages in a conversation (paginated)
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      responses:
+        '200':
+          description: A list of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_messagecontroller_index_workspace_conversations_conversationid_messages
+      description: 'Access: **Authenticated conversation participant**.'
+    post:
+      tags:
+      - Chat
+      summary: Send a message in a conversation
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - message
+              properties:
+                message:
+                  type: string
+      responses:
+        '201':
+          description: Message successfully sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_workspace_http_controllers_messagecontroller_store_workspace_conversations_conversationid_messages
+      description: 'Access: **Authenticated conversation participant**.'
+  /workspace/me/active-time-entry:
+    get:
+      tags:
+      - Tasks and time tracking
+      summary: Get active tasks and time tracking
+      description: 'Access: **Authenticated user**. Implemented by `Modules\Workspace\Http\Controllers\TimeTrackingController@active`.'
+      operationId: get_modules_workspace_http_controllers_timetrackingcontroller_active_workspace_me_active_time_entry
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+  /workspace/notifications:
+    get:
+      tags:
+      - Notifications
+      summary: Get authenticated employee notifications
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: unreadOnly
+        in: query
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: A list of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_workspace_http_controllers_notificationcontroller_index_workspace_notifications
+      description: 'Access: **Authenticated user**.'
+  /workspace/notifications/read-all:
+    put:
+      tags:
+      - Notifications
+      summary: Mark all notifications as read
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: All notifications marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  updated_count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: put_modules_workspace_http_controllers_notificationcontroller_markallasread_workspace_notifications_read_all
+      description: 'Access: **Authenticated user**.'
+  /workspace/notifications/{notificationId}:
+    delete:
+      tags:
+      - Notifications
+      summary: Dismiss notifications
+      description: 'Access: **Authenticated user**. Implemented by `Modules\Workspace\Http\Controllers\NotificationController@dismiss`.'
+      operationId: delete_modules_workspace_http_controllers_notificationcontroller_dismiss_workspace_notifications_notificationid
+      responses:
+        '204':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /workspace/notifications/{notificationId}/read:
+    put:
+      tags:
+      - Notifications
+      summary: Mark a notification as read
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Notification marked as read successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_workspace_http_controllers_notificationcontroller_markasread_workspace_notifications_notificationid_read
+      description: 'Access: **Authenticated user**.'
+  /workspace/projects:
+    get:
+      tags:
+      - Projects
+      summary: List all projects
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - complete
+          - to_do
+          - in_progress
+          - blocked
+      responses:
+        '200':
+          description: A list of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_workspace_http_controllers_projectcontroller_index_workspace_projects
+      description: 'Access: **Authenticated user**.'
+    post:
+      tags:
+      - Projects
+      summary: Create a new project
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - status
+              properties:
+                name:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - complete
+                  - to_do
+                  - in_progress
+                  - blocked
+      responses:
+        '201':
+          description: Project successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_modules_workspace_http_controllers_projectcontroller_store_workspace_projects
+      description: 'Access: **Authenticated user**.'
+  /workspace/projects/{projectId}:
+    get:
+      tags:
+      - Projects
+      summary: Get project details by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_projectcontroller_show_workspace_projects_projectid
+      description: 'Access: **Authenticated user**.'
+    put:
+      tags:
+      - Projects
+      summary: Update project properties or status
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - complete
+                  - to_do
+                  - in_progress
+                  - blocked
+      responses:
+        '200':
+          description: Project successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_workspace_http_controllers_projectcontroller_update_workspace_projects_projectid
+      description: 'Access: **Authenticated user**.'
+    delete:
+      tags:
+      - Projects
+      summary: Delete a project
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Project successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_workspace_http_controllers_projectcontroller_destroy_workspace_projects_projectid
+      description: 'Access: **Authenticated user**.'
+  /workspace/returns:
+    get:
+      tags:
+      - Return administration
+      summary: List return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\ReturnRequestController@index`.'
+      operationId: get_modules_workspace_http_controllers_returnrequestcontroller_index_workspace_returns
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+  /workspace/returns/{returnRequestId}:
+    get:
+      tags:
+      - Return administration
+      summary: Get return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\ReturnRequestController@show`.'
+      operationId: get_modules_workspace_http_controllers_returnrequestcontroller_show_workspace_returns_returnrequestid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    patch:
+      tags:
+      - Return administration
+      summary: Update return administration
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\ReturnRequestController@update`.'
+      operationId: patch_modules_workspace_http_controllers_returnrequestcontroller_update_workspace_returns_returnrequestid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: returnRequestId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - requested
+                  - approved
+                  - rejected
+                  - received
+                  - refunded
+                notes:
+                  type: string
+                  nullable: true
+                  maxLength: 2000
+              required:
+              - status
+  /workspace/tasks:
+    get:
+      tags:
+      - Tasks
+      summary: List all tasks
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - complete
+          - to_do
+          - in_progress
+          - blocked
+      - name: assigneeId
+        in: query
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_workspace_http_controllers_taskcontroller_index_workspace_tasks
+      description: 'Access: **Authenticated user**.'
+    post:
+      tags:
+      - Tasks
+      summary: Create a new task
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - title
+              - status
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - complete
+                  - to_do
+                  - in_progress
+                  - blocked
+                due_date:
+                  type: string
+                  format: date-time
+                parent_id:
+                  type: integer
+                project_id:
+                  type: integer
+      responses:
+        '201':
+          description: Task successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_modules_workspace_http_controllers_taskcontroller_store_workspace_tasks
+      description: 'Access: **Authenticated user**.'
+  /workspace/tasks/{taskId}:
+    get:
+      tags:
+      - Tasks
+      summary: Get task details by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Task details with assignees and recent time entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_taskcontroller_show_workspace_tasks_taskid
+      description: 'Access: **Authenticated user**.'
+    put:
+      tags:
+      - Tasks
+      summary: Update task properties or status
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - complete
+                  - to_do
+                  - in_progress
+                  - blocked
+                due_date:
+                  type: string
+                  format: date-time
+                parent_id:
+                  type: integer
+                project_id:
+                  type: integer
+      responses:
+        '200':
+          description: Task successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_workspace_http_controllers_taskcontroller_update_workspace_tasks_taskid
+      description: 'Access: **Authenticated user**.'
+    delete:
+      tags:
+      - Tasks
+      summary: Delete a task
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Task successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_workspace_http_controllers_taskcontroller_destroy_workspace_tasks_taskid
+      description: 'Access: **Authenticated user**.'
+  /workspace/tasks/{taskId}/assignees:
+    post:
+      tags:
+      - Tasks
+      summary: Assign employees to a task
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - employee_ids
+              properties:
+                employee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Employees assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_workspace_http_controllers_taskcontroller_assignemployees_workspace_tasks_taskid_assignees
+      description: 'Access: **Authenticated user**.'
+  /workspace/tasks/{taskId}/assignees/{employeeId}:
+    delete:
+      tags:
+      - Tasks
+      summary: Unassign an employee from a task
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: employeeId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Employee unassigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_workspace_http_controllers_taskcontroller_removeemployee_workspace_tasks_taskid_assignees_employeeid
+      description: 'Access: **Authenticated user**.'
+  /workspace/tasks/{taskId}/time-entries:
+    get:
+      tags:
+      - Time Tracking
+      summary: List time entries for a task
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: A list of time entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task_Time_Entry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_timetrackingcontroller_index_workspace_tasks_taskid_time_entries
+      description: 'Access: **Authenticated user**.'
+  /workspace/tasks/{taskId}/time-entries/start:
+    post:
+      tags:
+      - Time Tracking
+      summary: Start a timer on a task
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Timer started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task_Time_Entry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_workspace_http_controllers_timetrackingcontroller_start_workspace_tasks_taskid_time_entries_start
+      description: 'Access: **Authenticated user**.'
+  /workspace/tasks/{taskId}/time-entries/{entryId}/stop:
+    post:
+      tags:
+      - Time Tracking
+      summary: Stop a timer and record duration
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Timer stopped and duration logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task_Time_Entry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: post_modules_workspace_http_controllers_timetrackingcontroller_stop_workspace_tasks_taskid_time_entries_entryid_stop
+      description: 'Access: **Authenticated user**.'
+  /workspace/users/{userId}/time-entries/daily-total:
+    get:
+      tags:
+      - Time Tracking
+      summary: Get daily time entry total for a user
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: date
+        in: query
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Daily total retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_seconds:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_timetrackingcontroller_dailytotal_workspace_users_userid_time_entries_daily_total
+      description: 'Access: **Authenticated user**.'
+  /workspaces:
+    get:
+      tags:
+      - Workspaces
+      summary: List all workspaces
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: A list of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: get_modules_workspace_http_controllers_workspacecontroller_index_workspaces
+      description: 'Access: **Authenticated user**.'
+    post:
+      tags:
+      - Workspaces
+      summary: Create a new workspace
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Workspace successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      operationId: post_modules_workspace_http_controllers_workspacecontroller_store_workspaces
+      description: 'Access: **Authenticated user**.'
+  /workspaces/{workspace}:
+    get:
+      tags:
+      - Workspaces
+      summary: Get workspace details by ID
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: workspace
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: get_modules_workspace_http_controllers_workspacecontroller_show_workspaces_workspace
+      description: 'Access: **Authenticated user**.'
+    put:
+      tags:
+      - Workspaces
+      summary: Update workspace properties
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: workspace
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Workspace successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: put_modules_workspace_http_controllers_workspacecontroller_update_workspaces_workspace
+      description: 'Access: **Authenticated user**.'
+    patch:
+      tags:
+      - Workspaces
+      summary: Partially update workspace properties
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: workspace
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Workspace successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: patch_modules_workspace_http_controllers_workspacecontroller_update_workspaces_workspace
+      description: 'Access: **Authenticated user**.'
+    delete:
+      tags:
+      - Workspaces
+      summary: Delete a workspace
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: workspace
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Workspace successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      operationId: delete_modules_workspace_http_controllers_workspacecontroller_destroy_workspaces_workspace
+      description: 'Access: **Authenticated user**.'
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        price:
+          type: number
+          format: double
+        name:
+          type: string
+        image_url:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: integer
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product_Variant'
+        ingredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ingredient'
+    Product_Variant:
+      type: object
+      properties:
+        id:
+          type: integer
+        product_id:
+          type: integer
+        sku:
+          type: string
+        price:
+          type: number
+          format: double
+        weight:
+          type: number
+          format: double
+        weight_unit:
+          type: string
+        colour:
+          type: string
+        stock_quantity:
+          type: integer
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        parent_id:
+          type: integer
+        name:
+          type: string
+    Ingredient:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_allergen:
+          type: boolean
+        is_vegan:
+          type: boolean
+        is_natural:
+          type: boolean
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+        customer_id:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cart_Item'
+    Cart_Item:
+      type: object
+      properties:
+        cart_id:
+          type: integer
+        product_variant_id:
+          type: integer
+        quantity:
+          type: integer
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        customer_id:
+          type: integer
+        status:
+          type: string
+          enum:
+          - pending
+          - processing
+          - shipped
+          - delivered
+          - cancelled
+        subtotal:
+          type: number
+          format: double
+        shipping_cost:
+          type: number
+          format: double
+        total_amount:
+          type: number
+          format: double
+        shipping_address:
+          type: string
+        payment_method:
+          type: string
+        payment_status:
+          type: string
+          enum:
+          - pending
+          - successful
+          - failed
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order_Item'
+    Order_Item:
+      type: object
+      properties:
+        order_id:
+          type: integer
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+    Return_Request:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        customer_id:
+          type: integer
+        status:
+          type: string
+          enum:
+          - requested
+          - approved
+          - rejected
+          - completed
+        reason:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              order_item_id:
+                type: integer
+              quantity:
+                type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        role:
+          type: string
+          enum:
+          - admin
+          - employee
+        email:
+          type: string
+        name:
+          type: string
+        phone_number:
+          type: string
+        language_flag:
+          type: string
+        status:
+          type: string
+          enum:
+          - available
+          - busy
+          - offline
+          - away
+        is_active:
+          type: boolean
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        owner_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum:
+          - direct
+          - group
+        name:
+          type: string
+        created_by:
+          type: integer
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversation_id:
+          type: integer
+        sender_id:
+          type: integer
+        message:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - complete
+          - to_do
+          - in_progress
+          - blocked
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - complete
+          - to_do
+          - in_progress
+          - blocked
+        created_by:
+          type: integer
+        due_date:
+          type: string
+          format: date-time
+        parent_id:
+          type: integer
+        project_id:
+          type: integer
+        assignees:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    Task_Time_Entry:
+      type: object
+      properties:
+        id:
+          type: integer
+        task_id:
+          type: integer
+        employee_id:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        stopped_at:
+          type: string
+          format: date-time
+        duration_seconds:
+          type: integer
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        notification_event_id:
+          type: integer
+        recipient_user_id:
+          type: integer
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        event:
+          type: object
+          properties:
+            id:
+              type: integer
+            actor_user_id:
+              type: integer
+              nullable: true
+            type:
+              type: string
+              example: task_due_date_changed
+            source:
+              type: string
+              enum:
+              - task
+              - chat
+            task_id:
+              type: integer
+              nullable: true
+            conversation_id:
+              type: integer
+              nullable: true
+            message_id:
+              type: integer
+              nullable: true
+            payload:
+              type: object
+              nullable: true
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+  responses:
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication is required or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: The request failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum token
+    shopifyProxySignature:
+      type: apiKey
+      in: query
+      name: signature
+    shopifyWebhookHmac:
+      type: apiKey
+      in: header
+      name: X-Shopify-Hmac-Sha256
