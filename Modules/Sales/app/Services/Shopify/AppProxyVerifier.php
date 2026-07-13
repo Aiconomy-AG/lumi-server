@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 class AppProxyVerifier
 {
     public function verify(Request $request, array $secretConfigKeys = [
-        'sales.shopify.client_secret',
+        'sales.shopify.client_secret','sales.shopify.returns_client_secret',
+        'sales.shopify.wishlist_secret',
     ]): bool {
         $queryString = (string) $request->server('QUERY_STRING', '');
 
