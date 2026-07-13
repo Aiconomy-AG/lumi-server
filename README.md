@@ -22,6 +22,22 @@ mkdocs serve
 
 The local site is available at `http://127.0.0.1:8000/`.
 
+After manually updating the documentation, regenerate, validate, commit, push,
+and wait for publication with one command:
+
+```bash
+./scripts/docs/update_and_publish.sh
+```
+
+To provide a custom commit message:
+
+```bash
+./scripts/docs/update_and_publish.sh "docs: describe the latest backend changes"
+```
+
+The command intentionally stops if it finds uncommitted application changes.
+Commit or stash application changes before publishing the documentation.
+
 ## Application setup
 
 ```bash
