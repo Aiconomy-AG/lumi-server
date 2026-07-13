@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- PHP 8.3 or later compatible with `composer.json`
+- PHP 8.4.1 or later for the current lock file; Laravel Sail uses PHP 8.5
 - Composer
 - Node.js and npm for frontend assets
 - MySQL 8.4
@@ -52,4 +52,3 @@ mkdocs build --strict
 ```
 
 Do not use production credentials locally. Integration-dependent tests should use test credentials, fakes, or disabled feature flags.
-
