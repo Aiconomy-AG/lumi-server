@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Build the canonical OpenAPI document from Laravel routes and maintained specs."""
-
 from __future__ import annotations
 
 import copy

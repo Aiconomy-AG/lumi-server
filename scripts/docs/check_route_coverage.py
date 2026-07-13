@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Fail when the canonical OpenAPI document differs from registered API routes."""
-
 from __future__ import annotations
 
 import json
@@ -53,4 +51,3 @@ if missing or extra:
     raise SystemExit(1)
 
 print(f"OpenAPI coverage matches {len(expected)} registered API operations")
-

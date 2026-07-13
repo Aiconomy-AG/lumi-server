@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Check relative Markdown links and images in documentation sources."""
-
 from __future__ import annotations
 
 import re
@@ -31,4 +29,3 @@ if errors:
     raise SystemExit(1)
 
 print("Documentation relative links are valid")
-
