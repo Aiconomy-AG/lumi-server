@@ -52,13 +52,43 @@ class AppProxyVerifier
 
         $message = implode('', $pairs);
 
-        foreach ($this->secrets($secretConfigKeys) as $secret) {
-            $calculated = hash_hmac('sha256', $message, $secret);
+        logger()->info('SHOPIFY PROXY DEBUG', [
+            'query_string' => $queryString,
+            'params' => $params,
+            'pairs' => $pairs,
+            'message' => $message,
+            'received_signature' => $signature,
+        ]);
 
-            if (hash_equals($calculated, $signature)) {
+        foreach ($secretConfigKeys as $configKey) {
+            $secret = trim((string) config($configKey));
+
+            if ($secret === '') {
+                logger()->warning('SHOPIFY PROXY EMPTY SECRET', [
+                    'config_key' => $configKey,
+                ]);
+
+                continue;
+            }
+
+            $calculated = hash_hmac('sha256', $message, $secret);
+            $matches = hash_equals($calculated, $signature);
+
+            logger()->info('SHOPIFY PROXY SIGNATURE ATTEMPT', [
+                'config_key' => $configKey,
+                'secret_length' => strlen($secret),
+                'secret_fingerprint' => substr(hash('sha256', $secret), 0, 12),
+                'received_signature' => $signature,
+                'calculated_signature' => $calculated,
+                'matches' => $matches,
+            ]);
+
+            if ($matches) {
                 return true;
             }
         }
+
+        return false;
 
         return false;
     }
