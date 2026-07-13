@@ -19,6 +19,7 @@ class ProxyWishlistController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+
         $customer = $this->customerFromProxy($request);
 
         if ($customer instanceof JsonResponse) {

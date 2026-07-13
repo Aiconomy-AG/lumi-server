@@ -42,7 +42,7 @@ Route::prefix('shopify/proxy')
             });
 
         Route::controller(ProxyWishlistController::class)
-            ->prefix('returns/wishlist')
+            ->prefix('wishlist')
             ->group(function (): void {
                 Route::get('/', 'index');
 
