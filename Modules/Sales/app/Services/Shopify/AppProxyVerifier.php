@@ -10,16 +10,6 @@ class AppProxyVerifier
         'sales.shopify.client_secret','sales.shopify.returns_client_secret',
         'sales.shopify.wishlist_secret',
     ]): bool {
-        logger()->info('Wishlist proxy debug', [
-            'query_string' => $request->server('QUERY_STRING'),
-            'has_signature' => $request->has('signature'),
-            'shop' => $request->query('shop'),
-            'path_prefix' => $request->query('path_prefix'),
-            'customer_id' => $request->query('logged_in_customer_id'),
-            'wishlist_secret_loaded' => filled(
-                config('sales.shopify.wishlist_secret')
-            ),
-        ]);
 
         $queryString = (string) $request->server('QUERY_STRING', '');
 

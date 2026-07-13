@@ -43,6 +43,16 @@ class ProxyWishlistController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        logger()->info('Wishlist proxy debug', [
+            'query_string' => $request->server('QUERY_STRING'),
+            'has_signature' => $request->has('signature'),
+            'shop' => $request->query('shop'),
+            'path_prefix' => $request->query('path_prefix'),
+            'customer_id' => $request->query('logged_in_customer_id'),
+            'wishlist_secret_loaded' => filled(
+                config('sales.shopify.wishlist_secret')
+            ),
+        ]);
         $customer = $this->customerFromProxy($request);
 
         if ($customer instanceof JsonResponse) {
