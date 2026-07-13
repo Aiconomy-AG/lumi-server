@@ -68,7 +68,6 @@ class CatalogController extends Controller
     {
         $query = Ingredients::query();
 
-        // Handle boolean filters from query parameters
         if ($request->has('is_allergen')) {
             $query->where('is_allergen', $request->boolean('is_allergen'));
         }

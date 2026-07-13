@@ -10,7 +10,6 @@ class ProductPolicy
 {
     use HandlesAuthorization;
 
-    // Both Admins and Employees can view lists and details
     public function viewAny(User $user): bool
     {
         return true;
@@ -21,7 +20,6 @@ class ProductPolicy
         return true;
     }
 
-    // Admins and Employees can manage products
     public function create(User $user): bool
     {
         return $user->isAdmin() || $user->isEmployee();
@@ -32,13 +30,11 @@ class ProductPolicy
         return $user->isAdmin() || $user->isEmployee();
     }
 
-    // Only Admins can delete
     public function delete(User $user, Product $product): bool
     {
         return $user->isAdmin();
     }
 
-    // Both Admins and Employees can update stock
     public function updateStock(User $user, Product $product): bool
     {
         return $user->isAdmin() || $user->isEmployee();

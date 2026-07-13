@@ -56,11 +56,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         Route::prefix('tasks/{taskId}')->group(function (): void {
 
-            // Assignees
             Route::post('assignees', [TaskController::class, 'assignEmployees']);
             Route::delete('assignees/{employeeId}', [TaskController::class, 'removeEmployee']);
 
-            // Time Entries
             Route::controller(TimeTrackingController::class)->prefix('time-entries')->group(function () {
                 Route::get('/', 'index');
                 Route::post('start', 'start');

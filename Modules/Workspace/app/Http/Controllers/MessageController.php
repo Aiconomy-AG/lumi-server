@@ -22,9 +22,6 @@ class MessageController extends Controller
         private readonly ChatAiUserResolver $chatAiUserResolver,
     ) {}
 
-    /**
-     * Display a paginated listing of the conversation's messages.
-     */
     public function index(Request $request, int $conversationId)
     {
         $perPage = min(max((int) $request->query('per_page', 50), 1), 100);
@@ -58,9 +55,6 @@ class MessageController extends Controller
         return MessageResource::collection($messages);
     }
 
-    /**
-     * Store a newly sent message.
-     */
     public function store(StoreMessageRequest $request, int $conversationId)
     {
         $conversation = Conversation::query()
