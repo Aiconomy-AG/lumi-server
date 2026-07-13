@@ -45,11 +45,7 @@ Route::prefix('shopify/proxy')
             ->prefix('wishlist')
             ->group(function (): void {
                 Route::get('/', 'index');
-
-                Route::post(
-                    'items',
-                    'store'
-                );
+                Route::post('/', 'store');
 
                 Route::delete(
                     'items/{shopifyProductId}',
