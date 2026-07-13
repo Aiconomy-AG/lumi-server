@@ -112,7 +112,7 @@ Registered API operations: **113**.
 | Method | Path | Access | Handler |
 |---|---|---|---|
 | `GET` | `/shopify/proxy/wishlist` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@index` |
-| `POST` | `/shopify/proxy/wishlist/items` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@store` |
+| `POST` | `/shopify/proxy/wishlist` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@store` |
 | `DELETE` | `/shopify/proxy/wishlist/items/{shopifyProductId}` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@destroy` |
 
 ## Shopify returns

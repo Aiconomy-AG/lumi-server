@@ -46,6 +46,8 @@ tags:
   description: Operations for shopify webhooks.
 - name: Shopify proxy cart
   description: Operations for shopify proxy cart.
+- name: Shopify proxy wishlist
+  description: Operations for shopify proxy wishlist.
 - name: Shopify returns
   description: Operations for shopify returns.
 - name: Tasks
@@ -2023,29 +2025,27 @@ paths:
       description: 'Access: **Shopify signed request**.'
       security:
       - shopifyProxySignature: []
-  /shopify/proxy/wishlist/items:
     post:
       tags:
-      - Shopify Proxy
-      summary: Add item to wishlist via Shopify storefront proxy
+      - Shopify proxy wishlist
+      summary: Create shopify proxy wishlist
+      description: 'Access: **Shopify signed request**. Implemented by `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@store`.'
+      operationId: post_modules_sales_http_controllers_shopify_proxywishlistcontroller_store_shopify_proxy_wishlist
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - shopifyProxySignature: []
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required:
-              - shopify_product_id
-              properties:
-                shopify_product_id:
-                  type: string
-      responses:
-        '201':
-          description: Product added to wishlist successfully
-      operationId: post_modules_sales_http_controllers_shopify_proxywishlistcontroller_store_shopify_proxy_wishlist_items
-      description: 'Access: **Shopify signed request**.'
-      security:
-      - shopifyProxySignature: []
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
   /shopify/proxy/wishlist/items/{shopifyProductId}:
     delete:
       tags:

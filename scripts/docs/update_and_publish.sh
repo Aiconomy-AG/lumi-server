@@ -48,6 +48,14 @@ if (( ${#unexpected_changes[@]} > 0 )); then
     exit 1
 fi
 
+printf 'Synchronizing with origin/%s...\n' "$BRANCH"
+if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+    git fetch origin "$BRANCH"
+    if ! git merge-base --is-ancestor "origin/$BRANCH" HEAD; then
+        git rebase --autostash "origin/$BRANCH"
+    fi
+fi
+
 printf 'Installing backend dependencies...\n'
 composer install --no-interaction --no-progress --prefer-dist
 
