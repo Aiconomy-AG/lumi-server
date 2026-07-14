@@ -208,7 +208,7 @@ return [
                     'updated_at',
                 ],
             ],
-            'returns' => [
+            'return_requests' => [
                 'searchableAttributes' => [
                     'id',
                     'email',
