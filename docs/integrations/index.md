@@ -2,6 +2,7 @@
 
 | Integration | Direction | Failure impact |
 |---|---|---|
+| [LiveKit Workspace calls](voip.md) | Bidirectional | New calls cannot establish audio; call history and profile data remain available |
 | Shopify Admin GraphQL | Outbound | Product, inventory, and collection synchronization delayed or failed |
 | Shopify proxy and webhooks | Inbound | Storefront mutations or synchronization rejected when signatures fail |
 | Meilisearch | Outbound | Product search unavailable; database catalog reads remain separate |
@@ -11,4 +12,3 @@
 | Gemini | Outbound | Optional AI replies are skipped or fail; normal conversation messages continue |
 
 External calls should have bounded timeouts, safe logs, retry behavior appropriate to idempotency, and monitoring. Never log access tokens, signatures, raw service-account content, or password-reset tokens.
-

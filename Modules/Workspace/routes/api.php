@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Workspace\Http\Controllers\CallController;
 use Modules\Workspace\Http\Controllers\ConversationController;
 use Modules\Workspace\Http\Controllers\MessageController;
 use Modules\Workspace\Http\Controllers\NotificationController;
@@ -44,7 +45,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
             ->group(function (): void {
                 Route::get('messages', [MessageController::class, 'index']);
                 Route::post('messages', [MessageController::class, 'store']);
+                Route::post('calls', [CallController::class, 'store'])->middleware('throttle:10,1');
             });
+
+        Route::get('calls/active', [CallController::class, 'active']);
+        Route::get('calls/{callId}', [CallController::class, 'show']);
+        Route::post('calls/{callId}/accept', [CallController::class, 'accept']);
+        Route::post('calls/{callId}/decline', [CallController::class, 'decline']);
+        Route::post('calls/{callId}/cancel', [CallController::class, 'cancel']);
+        Route::post('calls/{callId}/end', [CallController::class, 'end']);
 
         Route::get('notifications', [NotificationController::class, 'index']);
         Route::put('notifications/read-all', [NotificationController::class, 'markAllAsRead']);

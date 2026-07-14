@@ -41,6 +41,34 @@ class PushNotificationService
             ->withNotification(Notification::create($title, $body))
             ->withData($this->stringifyData($data));
 
+        $this->sendMessage($message, $token);
+    }
+
+    public function sendCallEventToUser(int $userId, string $title, string $body, array $data): void
+    {
+        $payload = ['title' => $title, 'body' => $body, ...$data];
+
+        DeviceToken::query()
+            ->where('user_id', $userId)
+            ->get(['token', 'platform'])
+            ->each(function (DeviceToken $deviceToken) use ($title, $body, $payload): void {
+                $message = CloudMessage::new()
+                    ->withToken($deviceToken->token)
+                    ->withData($this->stringifyData($payload))
+                    ->withHighestPossiblePriority()
+                    ->withDefaultSounds();
+
+                if ($deviceToken->platform === 'ios') {
+                    $message = $message->withNotification(Notification::create($title, $body));
+                }
+
+                $this->sendMessage($message, $deviceToken->token);
+            });
+    }
+
+    private function sendMessage(CloudMessage $message, string $token): void
+    {
+
         try {
             $this->messaging->send($message);
         } catch (NotFound $exception) {

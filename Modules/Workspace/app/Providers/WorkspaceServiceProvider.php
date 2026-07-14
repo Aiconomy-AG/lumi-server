@@ -2,9 +2,9 @@
 
 namespace Modules\Workspace\Providers;
 
+use Modules\Workspace\Contracts\MediaRoomTokenProvider;
+use Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider;
 use Nwidart\Modules\Support\ModuleServiceProvider;
-use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Support\ServiceProvider;
 
 class WorkspaceServiceProvider extends ModuleServiceProvider
 {
@@ -35,10 +35,17 @@ class WorkspaceServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->bind(MediaRoomTokenProvider::class, LiveKitMediaRoomTokenProvider::class);
+    }
+
     /**
      * Define module schedules.
      *
-     * @param $schedule
+     * @param  $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
     // {
