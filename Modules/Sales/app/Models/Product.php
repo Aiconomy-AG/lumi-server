@@ -121,6 +121,7 @@ class Product extends Model
             'variants' => $this->variants->map(function (ProductVariant $variant) {
                 return [
                     'id' => (int) $variant->id,
+                    'shopify_variant_id' => $variant->shopify_variant_id,
                     'sku' => $variant->sku,
                     'name' => $variant->name,
                     'price' => (float) $variant->price,

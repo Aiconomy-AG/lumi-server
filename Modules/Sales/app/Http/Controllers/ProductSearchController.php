@@ -5,6 +5,7 @@ namespace Modules\Sales\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Sales\Models\Product;
+use Modules\Sales\Models\ProductVariant;
 
 class ProductSearchController
 {
@@ -38,7 +39,14 @@ class ProductSearchController
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $search = Product::search($validated['q'] ?? '');
+        $search = Product::search($validated['q'] ?? '')
+            ->query(function ($builder): void {
+                $builder->with([
+                    'variants',
+                    'category',
+                    'ingredients',
+                ]);
+            });
 
         if (isset($validated['category_id'])) {
             $search->where(
@@ -130,8 +138,88 @@ class ProductSearchController
             default => null,
         };
 
-        return response()->json(
-            $search->paginate($validated['per_page'] ?? 20)
+        $products = $search->paginate($validated['per_page'] ?? 20);
+
+        $products->setCollection(
+            $products->getCollection()->map(
+                fn (Product $product): array => $this->mapProduct($product)
+            )
         );
+
+        return response()->json($products);
+    }
+
+    private function mapProduct(Product $product): array
+    {
+        return [
+            'id' => (int) $product->id,
+            'sku' => $product->sku,
+            'name' => $product->name,
+            'description' => $product->description,
+            'price' => (float) $product->price,
+            'image_url' => $product->image_url,
+
+            'category_id' => $product->category_id !== null
+                ? (int) $product->category_id
+                : null,
+
+            'category_name' => $product->category?->name,
+
+            'ingredient_ids' => $product->ingredients
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->values()
+                ->all(),
+
+            'ingredient_names' => $product->ingredients
+                ->pluck('name')
+                ->filter()
+                ->values()
+                ->all(),
+
+            'is_vegan' => $product->ingredients->isNotEmpty()
+                && $product->ingredients->every(
+                    fn ($ingredient): bool => (bool) $ingredient->is_vegan
+                ),
+
+            'has_allergens' => $product->ingredients->contains(
+                fn ($ingredient): bool => (bool) $ingredient->is_allergen
+            ),
+
+            'is_all_natural' => $product->ingredients->isNotEmpty()
+                && $product->ingredients->every(
+                    fn ($ingredient): bool => (bool) $ingredient->is_natural
+                ),
+
+            'is_available' => $product->variants->contains(
+                fn (ProductVariant $variant): bool =>
+                    (int) $variant->stock_quantity > 0
+            ),
+
+            'total_stock' => (int) $product->variants->sum(
+                fn (ProductVariant $variant): int =>
+                (int) $variant->stock_quantity
+            ),
+
+            'variants' => $product->variants
+                ->map(function (ProductVariant $variant): array {
+                    return [
+                        'id' => (int) $variant->id,
+                        'shopify_variant_id' => $variant->shopify_variant_id,
+                        'sku' => $variant->sku,
+                        'name' => $variant->name,
+                        'price' => (float) $variant->price,
+                        'weight' => $variant->weight !== null
+                            ? (float) $variant->weight
+                            : null,
+                        'weight_unit' => $variant->weight_unit,
+                        'colour' => $variant->colour,
+                        'options' => $variant->options,
+                        'stock_quantity' => (int) $variant->stock_quantity,
+                    ];
+                })
+                ->values()
+                ->all(),
+        ];
     }
 }
