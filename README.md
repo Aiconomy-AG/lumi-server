@@ -51,4 +51,20 @@ npm run build
 
 Run the application development processes with `composer run dev`. Run the test suite with `composer test`.
 
+## Global search indexes
+
+Global search uses Laravel Scout with Meilisearch. Configure `SCOUT_DRIVER`, `SCOUT_QUEUE=false`, `MEILISEARCH_HOST`, and `MEILISEARCH_KEY` in `.env`, then sync indexes:
+
+```bash
+php artisan scout:sync-index-settings
+php artisan scout:import "Modules\\Sales\\Models\\Product"
+php artisan scout:import "Modules\\Workspace\\Models\\Task"
+php artisan scout:import "Modules\\Workspace\\Models\\Project"
+php artisan scout:import "Modules\\Sales\\Models\\Order"
+php artisan scout:import "Modules\\Sales\\Models\\ReturnRequest"
+php artisan scout:import "App\\Models\\User"
+```
+
+For local Sail development, use `MEILISEARCH_HOST=http://meilisearch:7700`. For local development without Meilisearch, set `SCOUT_DRIVER=collection`.
+
 Do not commit environment files, credentials, service-account documents, tokens, or generated documentation output.

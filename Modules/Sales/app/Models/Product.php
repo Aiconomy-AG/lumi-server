@@ -134,6 +134,8 @@ class Product extends Model
                 ];
             })->values()->all(),
 
+            'updated_at' => $this->updated_at?->timestamp,
+
         ];
     }
 
