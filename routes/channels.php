@@ -30,3 +30,20 @@ Broadcast::channel('conversations.{conversationId}', function (User $user, int $
         ->whereHas('participants', fn ($query) => $query->whereKey($user->id))
         ->exists();
 }, ['guards' => ['sanctum']]);
+
+Broadcast::channel('presence-call.{callId}', function (User $user, string $callId) {
+    $participant = \Modules\Workspace\Models\CallParticipant::query()
+        ->where('call_id', $callId)
+        ->where('user_id', $user->id)
+        ->first();
+
+    if (! $participant) {
+        return false;
+    }
+
+    return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'role' => $participant->role,
+    ];
+}, ['guards' => ['sanctum']]);

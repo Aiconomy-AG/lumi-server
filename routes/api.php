@@ -32,6 +32,25 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('device-tokens', [DeviceTokenController::class, 'store']);
     Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
+    Route::delete('device-tokens/{deviceTokenId}', [DeviceTokenController::class, 'destroyById']);
+});
+
+Route::post('webhooks/livekit', \Modules\Workspace\Http\Controllers\LiveKitWebhookController::class);
+
+Route::middleware(['auth:sanctum', 'staff'])->group(function (): void {
+    Route::prefix('calls')->group(function (): void {
+        Route::post('/', [\Modules\Workspace\Http\Controllers\CallController::class, 'create'])
+            ->middleware('throttle:10,1');
+        Route::get('active', [\Modules\Workspace\Http\Controllers\CallController::class, 'active']);
+        Route::get('history', [\Modules\Workspace\Http\Controllers\CallController::class, 'history']);
+        Route::get('{callId}', [\Modules\Workspace\Http\Controllers\CallController::class, 'show']);
+        Route::post('{callId}/accept', [\Modules\Workspace\Http\Controllers\CallController::class, 'accept']);
+        Route::post('{callId}/decline', [\Modules\Workspace\Http\Controllers\CallController::class, 'decline']);
+        Route::post('{callId}/cancel', [\Modules\Workspace\Http\Controllers\CallController::class, 'cancel']);
+        Route::post('{callId}/leave', [\Modules\Workspace\Http\Controllers\CallController::class, 'leave']);
+        Route::post('{callId}/invite', [\Modules\Workspace\Http\Controllers\CallController::class, 'invite']);
+        Route::post('{callId}/end', [\Modules\Workspace\Http\Controllers\CallController::class, 'end']);
+    });
 });
 
 Route::middleware(['auth:sanctum', 'staff', 'admin'])

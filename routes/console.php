@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('presence:expire-stale')->everyMinute();
+Schedule::command('voip:cleanup')->hourly();

@@ -50,10 +50,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         Route::middleware('staff')->group(function (): void {
             Route::get('calls/active', [CallController::class, 'active']);
+            Route::get('calls/history', [CallController::class, 'history']);
             Route::get('calls/{callId}', [CallController::class, 'show']);
             Route::post('calls/{callId}/accept', [CallController::class, 'accept']);
             Route::post('calls/{callId}/decline', [CallController::class, 'decline']);
             Route::post('calls/{callId}/cancel', [CallController::class, 'cancel']);
+            Route::post('calls/{callId}/leave', [CallController::class, 'leave']);
+            Route::post('calls/{callId}/invite', [CallController::class, 'invite']);
             Route::post('calls/{callId}/end', [CallController::class, 'end']);
         });
 

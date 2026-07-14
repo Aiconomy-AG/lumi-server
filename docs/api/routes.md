@@ -42,7 +42,34 @@ Registered API operations: **113**.
 | Method | Path | Access | Handler |
 |---|---|---|---|
 | `DELETE` | `/device-tokens` | Authenticated user | `App\Http\Controllers\DeviceTokenController@destroy` |
+| `DELETE` | `/device-tokens/{deviceTokenId}` | Authenticated user (owner) | `App\Http\Controllers\DeviceTokenController@destroyById` |
 | `POST` | `/device-tokens` | Authenticated user | `App\Http\Controllers\DeviceTokenController@store` |
+
+## VoIP calls
+
+| Method | Path | Access | Handler |
+|---|---|---|---|
+| `POST` | `/calls` | Staff | `Modules\Workspace\Http\Controllers\CallController@create` |
+| `GET` | `/calls/active` | Staff | `Modules\Workspace\Http\Controllers\CallController@active` |
+| `GET` | `/calls/history` | Staff | `Modules\Workspace\Http\Controllers\CallController@history` |
+| `GET` | `/calls/{callId}` | Staff | `Modules\Workspace\Http\Controllers\CallController@show` |
+| `POST` | `/calls/{callId}/accept` | Staff | `Modules\Workspace\Http\Controllers\CallController@accept` |
+| `POST` | `/calls/{callId}/decline` | Staff | `Modules\Workspace\Http\Controllers\CallController@decline` |
+| `POST` | `/calls/{callId}/cancel` | Staff | `Modules\Workspace\Http\Controllers\CallController@cancel` |
+| `POST` | `/calls/{callId}/leave` | Staff | `Modules\Workspace\Http\Controllers\CallController@leave` |
+| `POST` | `/calls/{callId}/invite` | Staff | `Modules\Workspace\Http\Controllers\CallController@invite` |
+| `POST` | `/calls/{callId}/end` | Staff | `Modules\Workspace\Http\Controllers\CallController@end` |
+| `POST` | `/webhooks/livekit` | Public (signed) | `Modules\Workspace\Http\Controllers\LiveKitWebhookController` |
+| `POST` | `/workspace/conversations/{conversationId}/calls` | Staff conversation participant | `Modules\Workspace\Http\Controllers\CallController@store` |
+| `GET` | `/workspace/calls/active` | Staff | `Modules\Workspace\Http\Controllers\CallController@active` |
+| `GET` | `/workspace/calls/history` | Staff | `Modules\Workspace\Http\Controllers\CallController@history` |
+| `GET` | `/workspace/calls/{callId}` | Staff | `Modules\Workspace\Http\Controllers\CallController@show` |
+| `POST` | `/workspace/calls/{callId}/accept` | Staff | `Modules\Workspace\Http\Controllers\CallController@accept` |
+| `POST` | `/workspace/calls/{callId}/decline` | Staff | `Modules\Workspace\Http\Controllers\CallController@decline` |
+| `POST` | `/workspace/calls/{callId}/cancel` | Staff | `Modules\Workspace\Http\Controllers\CallController@cancel` |
+| `POST` | `/workspace/calls/{callId}/leave` | Staff | `Modules\Workspace\Http\Controllers\CallController@leave` |
+| `POST` | `/workspace/calls/{callId}/invite` | Staff | `Modules\Workspace\Http\Controllers\CallController@invite` |
+| `POST` | `/workspace/calls/{callId}/end` | Staff | `Modules\Workspace\Http\Controllers\CallController@end` |
 
 ## Notifications
 

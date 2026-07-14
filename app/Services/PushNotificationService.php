@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DeviceToken;
+use App\Support\DeviceTokenPlatform;
 use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Exception\FirebaseException;
@@ -50,6 +51,7 @@ class PushNotificationService
 
         DeviceToken::query()
             ->where('user_id', $userId)
+            ->whereIn('platform', DeviceTokenPlatform::fcmPlatforms())
             ->get(['token', 'platform'])
             ->each(function (DeviceToken $deviceToken) use ($title, $body, $payload): void {
                 $message = CloudMessage::new()
@@ -58,9 +60,25 @@ class PushNotificationService
                     ->withHighestPossiblePriority()
                     ->withDefaultSounds();
 
-                if ($deviceToken->platform === 'ios') {
-                    $message = $message->withNotification(Notification::create($title, $body));
-                }
+                $this->sendMessage($message, $deviceToken->token);
+            });
+    }
+
+    public function sendCallAlertToUser(int $userId, string $title, string $body, array $data): void
+    {
+        $payload = ['title' => $title, 'body' => $body, ...$data];
+
+        DeviceToken::query()
+            ->where('user_id', $userId)
+            ->where('platform', DeviceTokenPlatform::LEGACY_IOS)
+            ->get(['token'])
+            ->each(function (DeviceToken $deviceToken) use ($title, $body, $payload): void {
+                $message = CloudMessage::new()
+                    ->withToken($deviceToken->token)
+                    ->withData($this->stringifyData($payload))
+                    ->withNotification(Notification::create($title, $body))
+                    ->withHighestPossiblePriority()
+                    ->withDefaultSounds();
 
                 $this->sendMessage($message, $deviceToken->token);
             });
@@ -68,7 +86,6 @@ class PushNotificationService
 
     private function sendMessage(CloudMessage $message, string $token): void
     {
-
         try {
             $this->messaging->send($message);
         } catch (NotFound $exception) {

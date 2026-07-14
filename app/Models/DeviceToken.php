@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'user_id',
     'token',
     'platform',
+    'device_id',
 ])]
 class DeviceToken extends Model
 {
