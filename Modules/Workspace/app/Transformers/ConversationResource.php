@@ -25,6 +25,7 @@ class ConversationResource extends JsonResource
             'last_message' => $this->when(
                 $this->relationLoaded('latestMessage') && $this->latestMessage,
                 fn () => [
+                    'message_type' => $this->latestMessage->message_type?->value ?? 'text',
                     'message' => $this->latestMessage->message,
                     'sender_id' => $this->latestMessage->sender_id,
                     'sent_at' => $this->latestMessage->created_at?->toISOString(),

@@ -380,4 +380,32 @@ class CallTest extends TestCase
         $this->assertNotNull($participant->joined_at);
         $this->assertSame(ParticipantStatus::Joined, $participant->status);
     }
+
+    #[Test]
+    public function terminal_call_is_logged_in_conversation_messages(): void
+    {
+        $caller = $this->staffUser();
+        $callee = $this->staffUser();
+        $conversation = $this->directConversation($caller, $callee);
+
+        $callId = $this->actingAs($caller, 'sanctum')
+            ->postJson("/api/v1/workspace/conversations/{$conversation->id}/calls", [
+                'client_instance_id' => 'web-caller',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->actingAs($caller, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->actingAs($caller, 'sanctum')
+            ->getJson("/api/v1/workspace/conversations/{$conversation->id}/messages")
+            ->assertOk()
+            ->assertJsonPath('data.0.message_type', 'call')
+            ->assertJsonPath('data.0.call.id', $callId)
+            ->assertJsonPath('data.0.call.status', 'cancelled')
+            ->assertJsonPath('data.0.message', 'Cancelled Call');
+    }
 }

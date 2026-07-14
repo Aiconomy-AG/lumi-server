@@ -53,6 +53,7 @@ class MessageTest extends TestCase
             ]);
 
         $response->assertStatus(201)
+            ->assertJsonPath('data.message_type', 'text')
             ->assertJsonPath('data.message', 'Salut!')
             ->assertJsonPath('data.sender_id', $user->id)
             ->assertJsonPath('data.conversation_id', $conversation->id);

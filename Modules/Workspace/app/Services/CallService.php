@@ -32,6 +32,7 @@ class CallService
         private readonly LiveKitService $liveKit,
         private readonly CallEventLogger $events,
         private readonly CallConnectionResolver $connections,
+        private readonly CallChatLogService $chatLogs,
     ) {}
 
     public function startWorkspaceCall(Conversation $conversation, User $caller, string $clientInstanceId): Call
@@ -312,6 +313,9 @@ class CallService
             }
             $this->events->logCall($call, 'declined', ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_declined', $user);
+            if ($terminal) {
+                $this->recordChatLog($call);
+            }
         }
 
         return $call;
@@ -369,6 +373,9 @@ class CallService
             }
             $this->events->logCall($call, 'left', ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_leave', $user);
+            if ($ended) {
+                $this->recordChatLog($call);
+            }
         }
 
         return $call;
@@ -492,6 +499,7 @@ class CallService
                 label: 'Call '.$call->id,
                 changes: ['new' => ['call_id' => $call->id, 'status' => 'missed']],
             );
+            $this->recordChatLog($call);
         }
 
         return $call;
@@ -559,9 +567,17 @@ class CallService
             }
             $this->events->logCall($call, $status->value, ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_'.$status->value, $user);
+            $this->recordChatLog($call);
         }
 
         return $call;
+    }
+
+    private function recordChatLog(Call $call): void
+    {
+        if ($this->chatLogs->shouldRecord($call)) {
+            $this->chatLogs->recordTerminalCall($call);
+        }
     }
 
     private function resolveRingingTerminalStatus(Call $call): ?CallStatus

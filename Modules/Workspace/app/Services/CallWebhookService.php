@@ -17,6 +17,7 @@ class CallWebhookService
 {
     public function __construct(
         private readonly CallEventLogger $events,
+        private readonly CallChatLogService $chatLogs,
     ) {}
 
     public function handle(string $body, ?string $authorizationHeader): void
@@ -119,6 +120,7 @@ class CallWebhookService
 
         if ($call->status === CallStatus::Ended) {
             CallEnded::dispatch($call);
+            $this->chatLogs->recordTerminalCall($call);
         }
 
         $this->events->logCall($call, 'left', ['identity' => $identity]);
@@ -140,6 +142,7 @@ class CallWebhookService
         $call->refresh()->load(['participants.user', 'conversation']);
         CallEnded::dispatch($call);
         $this->events->logCall($call, 'ended', ['source' => 'room_finished']);
+        $this->chatLogs->recordTerminalCall($call);
     }
 
     private function findCall(WebhookEvent $event): ?Call

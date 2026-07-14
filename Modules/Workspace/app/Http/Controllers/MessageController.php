@@ -28,6 +28,7 @@ class MessageController extends Controller
         $afterId = (int) $request->query('after_id', 0);
 
         $query = Message::query()
+            ->with('call')
             ->where('conversation_id', $conversationId);
 
         if ($afterId > 0) {
