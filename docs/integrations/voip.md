@@ -35,10 +35,3 @@ The server issues room-scoped participant JWTs that permit microphone publishing
 3. Start a call from a direct conversation.
 4. Confirm both clients ring, answer one client, and confirm the other stops ringing.
 5. Confirm two-way audio, mute, and end-call behavior.
-
-Automated backend coverage can be run with:
-
-```bash
-DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test Modules/Workspace/tests/Feature/CallTest.php
-```
-

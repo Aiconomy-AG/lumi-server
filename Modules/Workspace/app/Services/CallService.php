@@ -179,17 +179,17 @@ class CallService
 
     public function decline(string $callId, User $user): Call
     {
-        return $this->finish($callId, $user, CallStatus::Declined, 'declined', true);
+        return $this->finish($callId, $user, CallStatus::Declined);
     }
 
     public function cancel(string $callId, User $user): Call
     {
-        return $this->finish($callId, $user, CallStatus::Cancelled, 'cancelled', false, true);
+        return $this->finish($callId, $user, CallStatus::Cancelled);
     }
 
     public function end(string $callId, User $user): Call
     {
-        return $this->finish($callId, $user, CallStatus::Ended, 'ended');
+        return $this->finish($callId, $user, CallStatus::Ended);
     }
 
     public function markMissed(string $callId): ?Call
@@ -241,22 +241,25 @@ class CallService
         string $callId,
         User $user,
         CallStatus $status,
-        string $reason,
-        bool $calleeOnly = false,
-        bool $callerOnly = false,
     ): Call {
-        [$call, $changed] = DB::transaction(function () use ($callId, $user, $status, $reason, $calleeOnly, $callerOnly): array {
+        [$call, $changed] = DB::transaction(function () use ($callId, $user, $status): array {
             $call = $this->lockedCall($callId, (int) $user->id);
             $participant = $this->participant($call, (int) $user->id);
 
             if ($call->status->isTerminal()) {
                 return [$call, false];
             }
-            if ($calleeOnly && $participant->role !== 'callee') {
-                throw new CallDomainException('Only the recipient can decline the call.', 'INVALID_CALL_ACTION', 403);
-            }
-            if ($callerOnly && $participant->role !== 'caller') {
-                throw new CallDomainException('Only the caller can cancel the call.', 'INVALID_CALL_ACTION', 403);
+
+            $requiredRole = match ($status) {
+                CallStatus::Declined => 'callee',
+                CallStatus::Cancelled => 'caller',
+                default => null,
+            };
+            if ($requiredRole !== null && $participant->role !== $requiredRole) {
+                $message = $requiredRole === 'callee'
+                    ? 'Only the recipient can decline the call.'
+                    : 'Only the caller can cancel the call.';
+                throw new CallDomainException($message, 'INVALID_CALL_ACTION', 403);
             }
             if ($status !== CallStatus::Ended && $call->status !== CallStatus::Ringing) {
                 throw new CallDomainException('This call is no longer ringing.', 'CALL_NOT_RINGING');
@@ -270,7 +273,7 @@ class CallService
             $call->update([
                 'status' => $status,
                 'ended_by_user_id' => $user->id,
-                'end_reason' => $reason,
+                'end_reason' => $status->value,
                 'ended_at' => $now,
             ]);
 
