@@ -5,6 +5,9 @@ return [
     'shopify' => [
         'client_secret' => env('SHOPIFY_ADMIN_SECRET'),
         'returns_client_secret' => env('SHOPIFY_RETURNS_APP_SECRET'),
-        'wishlist_secret' => env('SHOPIFY_WISHLIST_APP_SECRET')
+        'wishlist_secret' => env(
+            'SHOPIFY_WISHLIST_PROXY_SECRET',
+            env('SHOPIFY_WISHLIST_APP_SECRET', env('SHOPIFY_ADMIN_SECRET'))
+        ),
     ],
 ];
