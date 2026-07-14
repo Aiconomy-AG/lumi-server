@@ -165,4 +165,33 @@ class AiChatReplyTest extends TestCase
             'user_id' => $bot->id,
         ]);
     }
+
+    #[Test]
+    public function gemini_failure_posts_error_message_to_chat(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'error' => [
+                    'message' => 'Invalid JSON payload received.',
+                ],
+            ], 400),
+        ]);
+
+        $bot = $this->createBotUser();
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $conversation = $this->conversationWith($user, $other);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/v1/workspace/conversations/{$conversation->id}/messages", [
+                'message' => '@lumi hello',
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'sender_id' => $bot->id,
+            'message' => '[Lumi AI error] Invalid JSON payload received.',
+        ]);
+    }
 }

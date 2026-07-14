@@ -2,16 +2,18 @@
 
 namespace Modules\Workspace\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Workspace\Http\Requests\StoreConversationRequest;
 use Modules\Workspace\Http\Requests\UpdateConversationRequest;
+use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Services\ConversationService;
 use Modules\Workspace\Transformers\ConversationResource;
 
-class ConversationController
+class ConversationController extends Controller
 {
     public function __construct(
         private readonly ConversationService $conversationService
@@ -21,6 +23,8 @@ class ConversationController
 
     public function index(Request $request): AnonymousResourceCollection
     {
+        $this->authorize('viewAny', Conversation::class);
+
         $conversations = $this->conversationService->getAllForUser($request->user()->id);
 
         return ConversationResource::collection($conversations);
@@ -28,6 +32,8 @@ class ConversationController
 
     public function store(StoreConversationRequest $request): ConversationResource
     {
+        $this->authorize('create', Conversation::class);
+
         $conversation = $this->conversationService->create(
             $request->validated(),
             $request->user()->id
@@ -51,6 +57,9 @@ class ConversationController
             return response()->json(['code' => 'NOT_FOUND','message' => 'Conversation not foound.'], 404);
 
         }
+
+        $this->authorize('view', $conversation);
+
         return new ConversationResource($conversation);
     }
 
@@ -62,10 +71,7 @@ class ConversationController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Conversation not foound.'], 404);
         }
 
-        $isParticipant = $conversation->participants->contains('id', $request->user()->id);
-        if (! $isParticipant) {
-            return response()->json(['code' => 'FORBIDDEN', 'message' => 'You are not a participant in this conversation'], 403);
-        }
+        $this->authorize('update', $conversation);
 
         if ($conversation->type !== 'group') {
             return response()->json(['code' => 'INVALID', 'message' => 'Only group conversations can be updated.'], 422);

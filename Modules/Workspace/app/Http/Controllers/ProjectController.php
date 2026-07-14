@@ -2,15 +2,17 @@
 
 namespace Modules\Workspace\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Workspace\Http\Requests\StoreProjectRequest;
 use Modules\Workspace\Http\Requests\UpdateProjectRequest;
+use Modules\Workspace\Models\Project;
 use Modules\Workspace\Services\ProjectService;
 use Modules\Workspace\Transformers\ProjectResource;
 
-class ProjectController
+class ProjectController extends Controller
 {
     public function __construct(
         private readonly ProjectService $projectService
@@ -19,6 +21,8 @@ class ProjectController
 
     public function index(): AnonymousResourceCollection
     {
+        $this->authorize('viewAny', Project::class);
+
         $projects = $this->projectService->getAll();
 
         return ProjectResource::collection($projects);
@@ -27,6 +31,8 @@ class ProjectController
     public function store(
         StoreProjectRequest $request
     ): ProjectResource|\Illuminate\Http\JsonResponse {
+        $this->authorize('create', Project::class);
+
         $project = $this->projectService->create(
             $request->validated()
         );
@@ -50,6 +56,8 @@ class ProjectController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Project not found.'], 404);
         }
 
+        $this->authorize('view', $project);
+
         return new ProjectResource($project);
     }
 
@@ -62,6 +70,8 @@ class ProjectController
         if (!$project) {
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Project not found.'], 404);
         }
+
+        $this->authorize('update', $project);
 
         $validated = $request->validated();
         $oldValues = [];
@@ -99,6 +109,8 @@ class ProjectController
         if (!$project) {
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Project not found.'], 404);
         }
+
+        $this->authorize('delete', $project);
 
         $projectLabel = 'Project: '.$project->name;
 

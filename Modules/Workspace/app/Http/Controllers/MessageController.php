@@ -101,14 +101,18 @@ class MessageController extends Controller
             );
         }
 
-        MessageSent::dispatch($message);
-
         if (
             $this->chatAiUserResolver->isEnabled()
             && ! $this->chatAiUserResolver->isBotUser((int) $request->user()->id)
             && ChatMentionDetector::isMentioned($message->message)
         ) {
             GenerateAiChatReplyJob::dispatch($message->id);
+        }
+
+        try {
+            MessageSent::dispatch($message);
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return (new MessageResource($message))

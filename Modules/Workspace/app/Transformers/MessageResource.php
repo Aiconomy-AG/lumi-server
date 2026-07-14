@@ -19,6 +19,8 @@ class MessageResource extends JsonResource
             'sender_id' => $this->sender_id,
             'message_type' => $messageType,
             'message' => $this->message,
+            'type' => $this->type ?? 'text',
+            'meta' => $this->meta,
             'sent_at' => $this->created_at?->toISOString(),
             'call' => $this->when(
                 $messageType === MessageType::Call->value && $this->relationLoaded('call') && $this->call,

@@ -35,6 +35,11 @@ abstract class AbstractSearchProvider implements SearchProvider
         return $includeCompleted ? null : 'status != "complete"';
     }
 
+    protected function supportsCompletedStatusFilter(): bool
+    {
+        return false;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
@@ -43,7 +48,7 @@ abstract class AbstractSearchProvider implements SearchProvider
         $modelClass = $this->model()::class;
         $builder = $modelClass::search($query)->take($limit);
 
-        if ($filter = $this->completedStatusFilter($includeCompleted)) {
+        if ($this->supportsCompletedStatusFilter() && $this->completedStatusFilter($includeCompleted) !== null) {
             $builder->where('status', '!=', 'complete');
         }
 

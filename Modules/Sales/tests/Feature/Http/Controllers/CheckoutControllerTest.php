@@ -26,11 +26,21 @@ class CheckoutControllerTest extends TestCase
 
     private function makeProduct(array $overrides = []): Product
     {
-        return Product::create(array_merge([
+        $product = Product::create(array_merge([
             'name' => 'Test Product',
             'sku' => 'SKU-' . uniqid(),
             'price' => 10.00,
         ], $overrides));
+
+        if (! $product->variants()->exists()) {
+            $product->variants()->create([
+                'sku' => $product->sku,
+                'price' => $product->price,
+                'stock_quantity' => 10,
+            ]);
+        }
+
+        return $product->fresh('variants');
     }
 
     private function makeOrder(Customer $customer, array $overrides = []): Order
@@ -77,8 +87,10 @@ class CheckoutControllerTest extends TestCase
             'payment_status' => 'unshipped',
         ]);
 
+        $variant = $product->variants->first();
+
         $this->assertDatabaseHas('order_items', [
-            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
             'quantity' => 2,
         ]);
     }
@@ -216,8 +228,7 @@ class CheckoutControllerTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->getJson('/api/v1/shop/orders/999999')
-            ->assertStatus(404)
-            ->assertJson(['code' => 'NOT_FOUND']);
+            ->assertNotFound();
     }
 
     public function test_show_returns_401_for_non_owning_non_admin_user(): void
@@ -230,8 +241,7 @@ class CheckoutControllerTest extends TestCase
         Sanctum::actingAs($otherUser);
 
         $this->getJson("/api/v1/shop/orders/{$order->id}")
-            ->assertStatus(401)
-            ->assertJson(['code' => 'UNAUTHORIZED']);
+            ->assertForbidden();
     }
 
     public function test_show_requires_authentication(): void

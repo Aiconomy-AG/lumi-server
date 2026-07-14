@@ -61,8 +61,8 @@ class SalesAuditLogTest extends TestCase
 
     public function test_return_status_change_writes_audit_log(): void
     {
-        $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $staff = User::factory()->create(['role' => UserRole::Employee]);
+        Sanctum::actingAs($staff);
 
         $returnRequest = ReturnRequest::query()->create([
             'email' => 'buyer@example.com',
@@ -71,12 +71,12 @@ class SalesAuditLogTest extends TestCase
             'items' => [],
         ]);
 
-        $this->patchJson("/api/v1/admin/returns/{$returnRequest->id}", [
+        $this->patchJson("/api/v1/workspace/returns/{$returnRequest->id}", [
             'status' => ReturnRequest::STATUS_APPROVED,
         ])->assertOk();
 
         $log = AuditLog::where('action', 'return_status_change')->sole();
-        $this->assertSame('sales', $log->module);
+        $this->assertSame('workspace', $log->module);
         $this->assertSame(ReturnRequest::STATUS_REQUESTED, $log->changes['old']['status']);
         $this->assertSame(ReturnRequest::STATUS_APPROVED, $log->changes['new']['status']);
     }

@@ -2,6 +2,7 @@
 
 namespace Modules\Workspace\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,10 +10,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Workspace\Http\Requests\AssignTaskEmployeesRequest;
 use Modules\Workspace\Http\Requests\StoreTaskRequest;
 use Modules\Workspace\Http\Requests\UpdateTaskRequest;
+use Modules\Workspace\Models\Task;
 use Modules\Workspace\Services\TaskService;
 use Modules\Workspace\Transformers\TaskResource;
 
-class TaskController
+class TaskController extends Controller
 {
     public function __construct(
         private readonly TaskService $taskService
@@ -20,6 +22,8 @@ class TaskController
 
     public function index(): AnonymousResourceCollection
     {
+        $this->authorize('viewAny', Task::class);
+
         $tasks = $this->taskService->getAll();
 
         return TaskResource::collection($tasks);
@@ -28,6 +32,8 @@ class TaskController
     public function store(
         StoreTaskRequest $request
     ): TaskResource|JsonResponse {
+        $this->authorize('create', Task::class);
+
         $task = $this->taskService->create(
             $request->validated(),
             (int) $request->user()->id
@@ -52,6 +58,8 @@ class TaskController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
 
+        $this->authorize('view', $task);
+
         return new TaskResource($task);
     }
 
@@ -64,6 +72,8 @@ class TaskController
         if (! $task) {
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
+
+        $this->authorize('update', $task);
 
         $validated = $request->validated();
         $oldValues = [];
@@ -108,6 +118,8 @@ class TaskController
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
 
+        $this->authorize('delete', $task);
+
         $taskLabel = 'Task: '.$task->title;
 
         $this->taskService->delete($task);
@@ -134,6 +146,8 @@ class TaskController
         if (! $task) {
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
+
+        $this->authorize('update', $task);
 
         $existingEmployeeIds = $task->assignees()->pluck('users.id')->all();
         $employeeIds = $request->validated('employee_ids');
@@ -168,6 +182,8 @@ class TaskController
         if (! $task) {
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Task not found.'], 404);
         }
+
+        $this->authorize('update', $task);
 
         $task = $this->taskService->removeEmployee(
             $task,

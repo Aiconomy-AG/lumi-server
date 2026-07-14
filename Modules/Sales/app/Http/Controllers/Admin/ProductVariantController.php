@@ -11,12 +11,14 @@ use Illuminate\Validation\Rule;
 use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
+use Modules\Sales\Services\InventoryService;
 use Modules\Sales\Transformers\ProductResource;
 
 class ProductVariantController extends Controller
 {
     public function __construct(
         private readonly ProductSyncService $shopify,
+        private readonly InventoryService $inventory,
     ) {}
 
     public function store(Request $request, int $productId)
@@ -170,31 +172,15 @@ class ProductVariantController extends Controller
 
         $variant = $this->findVariant($product, $variantId);
 
-        $oldStock = $variant->stock_quantity;
-        $newStock = (int) $validated['stock_quantity'];
+        $this->inventory->updateStock(
+            $product,
+            $variant,
+            (int) $validated['stock_quantity'],
+            $request->user(),
+            $validated['reason'] ?? null,
+        );
 
-        DB::transaction(function () use ($variant, $newStock, $oldStock, $product, $validated): void {
-            $variant->update(['stock_quantity' => $newStock]);
-
-            if ($newStock !== $oldStock) {
-                AuditLog::record(
-                    module: 'sales',
-                    action: 'stock_update',
-                    entity: $variant,
-                    label: $product->name . ' (' . $variant->sku . ')',
-                    changes: [
-                        'old' => ['stock_quantity' => $oldStock],
-                        'new' => ['stock_quantity' => $newStock],
-                    ],
-                    description: $validated['reason'] ?? 'Manual inventory stock adjustment.',
-                );
-            }
-        });
-
-        $product->load(['variants', 'category']);
-        $this->shopify->updateVariant($product);
-
-        return new ProductResource($product);
+        return new ProductResource($product->fresh(['variants', 'category']));
     }
 
     private function findVariant(Product $product, int $variantId): ProductVariant

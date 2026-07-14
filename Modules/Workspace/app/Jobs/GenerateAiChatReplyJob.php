@@ -2,15 +2,19 @@
 
 namespace Modules\Workspace\Jobs;
 
+use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
+use Modules\Workspace\Services\AiActionService;
 use Modules\Workspace\Services\ChatAiUserResolver;
 use Modules\Workspace\Services\GeminiChatService;
 use Modules\Workspace\Support\ChatMentionDetector;
+use Throwable;
 
 class GenerateAiChatReplyJob implements ShouldQueue
 {
@@ -22,7 +26,25 @@ class GenerateAiChatReplyJob implements ShouldQueue
 
     public function handle(
         ChatAiUserResolver $botResolver,
-        GeminiChatService $geminiChatService
+        GeminiChatService $geminiChatService,
+        AiActionService $aiActionService,
+    ): void {
+        try {
+            $this->run($botResolver, $geminiChatService, $aiActionService);
+        } catch (Throwable $e) {
+            Log::error('AI chat reply job failed', [
+                'message_id' => $this->messageId,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->postErrorIfPossible($botResolver, $this->messageId, $e->getMessage());
+        }
+    }
+
+    private function run(
+        ChatAiUserResolver $botResolver,
+        GeminiChatService $geminiChatService,
+        AiActionService $aiActionService,
     ): void {
         if (! $botResolver->isEnabled()) {
             return;
@@ -30,7 +52,7 @@ class GenerateAiChatReplyJob implements ShouldQueue
 
         $bot = $botResolver->botUser();
         if ($bot === null) {
-            Log::warning('Chat AI is enabled but bot user was not found. Run AiAssistantUserSeeder.');
+            $this->postErrorIfPossible($botResolver, $this->messageId, 'Bot user not found. Run AiAssistantUserSeeder.');
 
             return;
         }
@@ -47,6 +69,23 @@ class GenerateAiChatReplyJob implements ShouldQueue
         if (! ChatMentionDetector::isMentioned($triggerMessage->message)) {
             return;
         }
+
+        $actingUser = User::query()->find($triggerMessage->sender_id);
+        if ($actingUser === null) {
+            return;
+        }
+
+        $rateLimitKey = 'ai-chat:'.$actingUser->id;
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 10)) {
+            $this->postBotMessage(
+                $triggerMessage->conversation_id,
+                $bot->id,
+                '[Lumi AI error] Rate limit exceeded. Please wait a minute and try again.',
+            );
+
+            return;
+        }
+        RateLimiter::hit($rateLimitKey, 60);
 
         $conversation = Conversation::query()
             ->with('participants')
@@ -78,22 +117,80 @@ class GenerateAiChatReplyJob implements ShouldQueue
             $latestPrompt = 'Hello';
         }
 
-        $reply = $geminiChatService->generateReply(
+        $result = $geminiChatService->generateReply(
             $messages,
             $latestPrompt,
-            $triggerMessage->id
+            $triggerMessage->id,
+            $actingUser,
         );
 
-        if ($reply === null || $reply === '') {
+        if ($result->hasProposedAction()) {
+            $action = $aiActionService->createPending(
+                $conversation,
+                $actingUser,
+                $result->proposedAction,
+            );
+
+            if ($action->message) {
+                $this->broadcastMessage($action->message);
+            }
+
             return;
         }
 
+        $replyText = $result->replyText();
+        if ($replyText === null || $replyText === '') {
+            $this->postBotMessage(
+                $conversation->id,
+                $bot->id,
+                '[Lumi AI error] No response was generated.',
+            );
+
+            return;
+        }
+
+        $this->postBotMessage($conversation->id, $bot->id, $replyText);
+    }
+
+    private function postErrorIfPossible(ChatAiUserResolver $botResolver, int $messageId, string $error): void
+    {
+        $bot = $botResolver->botUser();
+        $triggerMessage = Message::query()->find($messageId);
+
+        if ($bot === null || $triggerMessage === null) {
+            return;
+        }
+
+        $this->postBotMessage(
+            $triggerMessage->conversation_id,
+            $bot->id,
+            '[Lumi AI error] '.str($error)->limit(900)->toString(),
+        );
+    }
+
+    private function postBotMessage(int $conversationId, int $botUserId, string $text, string $type = 'text', ?array $meta = null): void
+    {
         $botMessage = Message::create([
-            'conversation_id' => $conversation->id,
-            'sender_id' => $bot->id,
-            'message' => $reply,
+            'conversation_id' => $conversationId,
+            'sender_id' => $botUserId,
+            'message' => $text,
+            'type' => $type,
+            'meta' => $meta,
         ]);
 
-        MessageSent::dispatch($botMessage);
+        $this->broadcastMessage($botMessage);
+    }
+
+    private function broadcastMessage(Message $message): void
+    {
+        try {
+            MessageSent::dispatch($message);
+        } catch (Throwable $e) {
+            Log::warning('Message broadcast failed', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

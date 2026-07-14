@@ -7,8 +7,8 @@ use Modules\Sales\Integrations\Shopify\ProductSyncService;
 use Modules\Sales\Integrations\Shopify\ShopifyConnector;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\ProductVariant;
-use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class ProductSyncServiceInventoryTest extends TestCase
 {
@@ -38,7 +38,7 @@ class ProductSyncServiceInventoryTest extends TestCase
 
         $product = new Product(['price' => 12.5]);
 
-        $method = new ReflectionMethod(ProductSyncService::class, 'buildVariant');
+        $method = new \ReflectionMethod(ProductSyncService::class, 'buildVariant');
         $method->setAccessible(true);
 
         $payload = $method->invoke(
@@ -70,7 +70,7 @@ class ProductSyncServiceInventoryTest extends TestCase
 
         $product = new Product(['price' => 10]);
 
-        $method = new ReflectionMethod(ProductSyncService::class, 'buildVariant');
+        $method = new \ReflectionMethod(ProductSyncService::class, 'buildVariant');
         $method->setAccessible(true);
 
         $payload = $method->invoke(

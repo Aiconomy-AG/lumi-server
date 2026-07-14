@@ -19,6 +19,10 @@ class PushNotificationServiceTest extends TestCase
 
     public function test_it_sends_string_data_to_fcm(): void
     {
+        if (! class_exists(\Kreait\Firebase\Messaging\CloudMessage::class)) {
+            $this->markTestSkipped('Kreait Firebase SDK is not installed.');
+        }
+
         $messaging = Mockery::mock(Messaging::class);
         $messaging
             ->shouldReceive('send')
@@ -43,12 +47,17 @@ class PushNotificationServiceTest extends TestCase
 
     public function test_it_deletes_invalid_or_expired_tokens(): void
     {
+        if (! interface_exists(Messaging::class)) {
+            $this->markTestSkipped('Kreait Firebase SDK is not installed.');
+        }
+
         $user = User::factory()->create(['role' => UserRole::Employee]);
 
         DeviceToken::query()->create([
             'user_id' => $user->id,
             'token' => 'expired-token',
             'platform' => 'android',
+            'device_id' => 'test-device',
         ]);
 
         $messaging = Mockery::mock(Messaging::class);

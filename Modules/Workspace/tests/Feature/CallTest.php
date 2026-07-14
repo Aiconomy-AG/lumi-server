@@ -9,6 +9,7 @@ use Firebase\JWT\Key;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Modules\Workspace\Contracts\MediaRoomTokenProvider;
 use Modules\Workspace\Domain\Calls\CallStatus;
 use Modules\Workspace\Domain\Calls\ParticipantStatus;
 use Modules\Workspace\Events\CallAccepted;
@@ -43,6 +44,13 @@ class CallTest extends TestCase
             $mock->shouldReceive('createRoom')->andReturnNull();
         });
 
+        $this->mock(MediaRoomTokenProvider::class, function ($mock): void {
+            $mock->shouldReceive('connectionFor')->andReturn([
+                'url' => 'wss://test.livekit.cloud',
+                'token' => 'fake-token',
+            ]);
+        });
+
         Queue::fake();
         Event::fake([CallRinging::class, CallIncoming::class, CallUpdated::class, CallAccepted::class]);
     }
@@ -66,6 +74,13 @@ class CallTest extends TestCase
     #[Test]
     public function staff_can_start_a_call_via_primary_api(): void
     {
+        if (! class_exists(JWT::class)) {
+            $this->markTestSkipped('firebase/php-jwt is not installed.');
+        }
+
+        $this->app->forgetInstance(MediaRoomTokenProvider::class);
+        $this->app->instance(MediaRoomTokenProvider::class, app(\Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider::class));
+
         $caller = $this->staffUser();
         $callee = $this->staffUser();
 
@@ -98,6 +113,13 @@ class CallTest extends TestCase
     #[Test]
     public function video_call_token_allows_publish_and_subscribe(): void
     {
+        if (! class_exists(JWT::class)) {
+            $this->markTestSkipped('firebase/php-jwt is not installed.');
+        }
+
+        $this->app->forgetInstance(MediaRoomTokenProvider::class);
+        $this->app->instance(MediaRoomTokenProvider::class, app(\Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider::class));
+
         $caller = $this->staffUser();
         $callee = $this->staffUser();
 
@@ -340,6 +362,10 @@ class CallTest extends TestCase
     #[Test]
     public function webhook_participant_joined_sets_joined_at(): void
     {
+        if (! class_exists(\Livekit\WebhookEvent::class)) {
+            $this->markTestSkipped('LiveKit PHP SDK is not installed.');
+        }
+
         $caller = $this->staffUser();
         $callee = $this->staffUser();
 

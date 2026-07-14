@@ -97,7 +97,7 @@ class ShopifyProxyTest extends TestCase
         ]);
 
         $this->postJson('/api/v1/shopify/proxy/returns?'.$query, [
-            'order_identifier' => '1001',
+            'order_id' => '1001',
             'email' => 'customer@example.com',
             'reason' => 'damaged',
             'notes' => 'Arrived broken',

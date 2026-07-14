@@ -19,6 +19,12 @@ class Message extends Model
         'message_type',
         'call_id',
         'message',
+        'type',
+        'meta',
+    ];
+
+    protected $casts = [
+        'meta' => 'array',
     ];
 
     protected function casts(): array

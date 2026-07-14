@@ -2,8 +2,15 @@
 
 namespace Modules\Workspace\Providers;
 
+use Illuminate\Support\Facades\Gate;
 use Modules\Workspace\Contracts\MediaRoomTokenProvider;
 use Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider;
+use Modules\Workspace\Models\Conversation;
+use Modules\Workspace\Models\Project;
+use Modules\Workspace\Models\Task;
+use Modules\Workspace\Policies\ConversationPolicy;
+use Modules\Workspace\Policies\ProjectPolicy;
+use Modules\Workspace\Policies\TaskPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class WorkspaceServiceProvider extends ModuleServiceProvider
@@ -40,6 +47,15 @@ class WorkspaceServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->bind(MediaRoomTokenProvider::class, LiveKitMediaRoomTokenProvider::class);
+    }
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(Project::class, ProjectPolicy::class);
+        Gate::policy(Conversation::class, ConversationPolicy::class);
     }
 
     /**

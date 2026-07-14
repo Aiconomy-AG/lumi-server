@@ -19,6 +19,40 @@ class SearchControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        \Illuminate\Database\Eloquent\Factories\Factory::guessFactoryNamesUsing(function (string $modelName) {
+            if ($modelName === 'App\\Models\\User') {
+                return 'Database\\Factories\\UserFactory';
+            }
+
+            return 'Modules\\Workspace\\Database\\Factories\\'.class_basename($modelName).'Factory';
+        });
+    }
+
+    private function createProject(array $overrides = []): Project
+    {
+        return Project::create(array_merge([
+            'name' => 'Sleepy Launch',
+            'description' => 'Q3 marketing rollout',
+            'status' => 'in_progress',
+            'deadline' => '2026-08-01',
+        ], $overrides));
+    }
+
+    private function createTask(Project $project, array $overrides = []): Task
+    {
+        return Task::create(array_merge([
+            'title' => 'Sleepy task',
+            'description' => 'Task description',
+            'status' => 'to_do',
+            'due_date' => '2026-07-20',
+            'project_id' => $project->id,
+        ], $overrides));
+    }
+
     public function test_staff_search_returns_matching_entities_including_users(): void
     {
         Sanctum::actingAs(User::factory()->create());
@@ -28,17 +62,14 @@ class SearchControllerTest extends TestCase
             'email' => 'sleepy-staff@example.com',
         ]);
 
-        $project = Project::create([
+        $project = $this->createProject([
             'name' => 'Sleepy Launch',
             'description' => 'Q3 marketing rollout',
-            'status' => 'in_progress',
         ]);
 
-        $task = Task::create([
+        $task = $this->createTask($project, [
             'title' => 'Review Sleepy launch',
             'description' => 'Check packaging',
-            'status' => 'to_do',
-            'project_id' => $project->id,
         ]);
 
         Product::create([
@@ -93,7 +124,8 @@ class SearchControllerTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        Task::create([
+        $project = $this->createProject();
+        $this->createTask($project, [
             'title' => 'Sleepy task only',
             'status' => 'to_do',
         ]);
@@ -117,12 +149,13 @@ class SearchControllerTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        Task::create([
+        $project = $this->createProject();
+        $this->createTask($project, [
             'title' => 'Sleepy completed task',
             'status' => 'complete',
         ]);
 
-        Task::create([
+        $this->createTask($project, [
             'title' => 'Sleepy active task',
             'status' => 'in_progress',
         ]);
@@ -141,7 +174,8 @@ class SearchControllerTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        Task::create([
+        $project = $this->createProject();
+        $this->createTask($project, [
             'title' => 'Sleepy completed task',
             'status' => 'complete',
         ]);
@@ -172,6 +206,8 @@ class SearchControllerTest extends TestCase
             'subtotal' => 10,
             'shipping_cost' => 0,
             'total_amount' => 10,
+            'shipping_address' => '123 Main St',
+            'payment_method' => 'card',
             'payment_status' => 'unshipped',
         ]);
 
@@ -180,6 +216,7 @@ class SearchControllerTest extends TestCase
             'customer_id' => $customer->id,
             'shopify_order_name' => '#SLEEPY-1001',
             'email' => 'sleepy@example.com',
+            'reason' => 'Damaged item',
             'items' => [],
             'status' => ReturnRequest::STATUS_REQUESTED,
         ]);

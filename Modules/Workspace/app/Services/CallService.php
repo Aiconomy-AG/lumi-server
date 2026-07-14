@@ -174,14 +174,26 @@ class CallService
             'callee_ids' => $calleeIds,
         ]);
 
-        AuditLog::record(
-            module: 'workspace',
-            action: 'call_start',
-            entity: $call->conversation,
-            label: 'Call '.$call->id,
-            changes: ['new' => ['call_id' => $call->id, 'callee_ids' => $calleeIds]],
-            actor: $caller,
-        );
+        if ($call->conversation_id === null) {
+            AuditLog::recordSystem(
+                module: 'workspace',
+                action: 'call_start',
+                entityType: 'calls',
+                entityId: 0,
+                label: 'Call '.$call->id,
+                changes: ['new' => ['call_id' => $call->id, 'callee_ids' => $calleeIds]],
+                actorName: $caller->name,
+            );
+        } else {
+            AuditLog::record(
+                module: 'workspace',
+                action: 'call_start',
+                entity: $call->conversation,
+                label: 'Call '.$call->id,
+                changes: ['new' => ['call_id' => $call->id, 'callee_ids' => $calleeIds]],
+                actor: $caller,
+            );
+        }
 
         return $call;
     }
@@ -676,6 +688,20 @@ class CallService
 
     private function auditTerminalOrState(Call $call, string $action, User $actor): void
     {
+        if ($call->conversation_id === null) {
+            AuditLog::recordSystem(
+                module: 'workspace',
+                action: $action,
+                entityType: 'calls',
+                entityId: 0,
+                label: 'Call '.$call->id,
+                changes: ['new' => ['call_id' => $call->id, 'status' => $call->status->value]],
+                actorName: $actor->name,
+            );
+
+            return;
+        }
+
         AuditLog::record(
             module: 'workspace',
             action: $action,
