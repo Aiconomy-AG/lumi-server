@@ -19,7 +19,10 @@ return [
 
     'action_ttl_minutes' => (int) env('CHAT_AI_ACTION_TTL_MINUTES', 15),
 
+    'workspace_timezone' => env('APP_WORKSPACE_TIMEZONE', 'Europe/Bucharest'),
+
     'tools' => [
+        'get_current_time' => \Modules\Workspace\AiTools\Read\GetCurrentTimeTool::class,
         'list_tasks' => \Modules\Workspace\AiTools\Read\ListTasksTool::class,
         'get_task' => \Modules\Workspace\AiTools\Read\GetTaskTool::class,
         'list_projects' => \Modules\Workspace\AiTools\Read\ListProjectsTool::class,
@@ -36,6 +39,7 @@ return [
 
     'tool_roles' => [
         'admin' => [
+            'get_current_time',
             'list_tasks',
             'get_task',
             'list_projects',
@@ -50,6 +54,7 @@ return [
             'update_conversation_participants',
         ],
         'employee' => [
+            'get_current_time',
             'list_tasks',
             'get_task',
             'list_projects',
@@ -63,6 +68,7 @@ return [
             'update_conversation_participants',
         ],
         'client' => [
+            'get_current_time',
             'list_users',
             'create_group_conversation',
             'update_conversation_participants',
