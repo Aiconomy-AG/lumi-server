@@ -8,18 +8,12 @@ use Illuminate\Http\Request;
 use Modules\Sales\Models\Customer;
 use Modules\Sales\Models\Product;
 use Modules\Sales\Models\WishlistItem;
-use Modules\Sales\Services\Shopify\AppProxyVerifier;
 use Modules\Sales\Support\ShopifyId;
 
 class ProxyWishlistController extends Controller
 {
-    public function __construct(
-        private readonly AppProxyVerifier $verifier,
-    ) {}
-
     public function index(Request $request): JsonResponse
     {
-
         $customer = $this->customerFromProxy($request);
 
         if ($customer instanceof JsonResponse) {
@@ -31,11 +25,8 @@ class ProxyWishlistController extends Controller
             ->with('product')
             ->latest()
             ->get()
-            ->map(fn (WishlistItem $item) => [
-                'product_id' => $item->product?->shopify_product_id,
-                'handle' => $item->product?->sku,
-                'title' => $item->product?->name,
-            ])
+            ->map(fn (WishlistItem $item) => $this->wishlistItemPayload($item))
+            ->filter()
             ->values();
 
         return response()->json(['data' => $items]);
@@ -50,10 +41,13 @@ class ProxyWishlistController extends Controller
         }
 
         $validated = $request->validate([
-            'shopify_product_id' => ['required', 'string'],
+            'shopify_product_id' => ['nullable', 'string', 'required_without:product_handle'],
+            'product_handle' => ['nullable', 'string', 'required_without:shopify_product_id'],
         ]);
 
-        $product = $this->findProduct($validated['shopify_product_id']);
+        $product = $this->findProduct(
+            $validated['shopify_product_id'] ?? $validated['product_handle'] ?? ''
+        );
 
         if (! $product) {
             return response()->json([
@@ -61,18 +55,18 @@ class ProxyWishlistController extends Controller
             ], 404);
         }
 
-        WishlistItem::query()->firstOrCreate([
+        $item = WishlistItem::query()->firstOrCreate([
             'customer_id' => $customer->id,
             'product_id' => $product->id,
         ]);
 
         return response()->json([
             'saved' => true,
-            'product_id' => $product->shopify_product_id,
+            'item' => $this->wishlistItemPayload($item->load('product')),
         ], 201);
     }
 
-    public function destroy(Request $request, string $shopifyProductId): JsonResponse
+    public function destroy(Request $request, string $productIdentifier): JsonResponse
     {
         $customer = $this->customerFromProxy($request);
 
@@ -80,7 +74,7 @@ class ProxyWishlistController extends Controller
             return $customer;
         }
 
-        $product = $this->findProduct($shopifyProductId);
+        $product = $this->findProduct($productIdentifier);
 
         if ($product) {
             WishlistItem::query()
@@ -94,10 +88,6 @@ class ProxyWishlistController extends Controller
 
     private function customerFromProxy(Request $request): Customer|JsonResponse
     {
-        if (! $this->verifier->verify($request)) {
-            return response()->json(['message' => 'Invalid Shopify proxy signature.'], 401);
-        }
-
         $shopifyCustomerId = ShopifyId::numeric((string) $request->query('logged_in_customer_id', ''));
 
         if ($shopifyCustomerId === null || $shopifyCustomerId === '') {
@@ -115,13 +105,44 @@ class ProxyWishlistController extends Controller
         );
     }
 
-    private function findProduct(string $shopifyProductId): ?Product
+    private function findProduct(string $productIdentifier): ?Product
     {
-        $gid = ShopifyId::productGid($shopifyProductId);
+        $identifier = urldecode($productIdentifier);
+        $gid = ShopifyId::productGid($identifier);
+        $numeric = ShopifyId::numeric($identifier);
 
         return Product::query()
-            ->where('shopify_product_id', $shopifyProductId)
+            ->where('shopify_product_id', $identifier)
             ->when($gid !== null, fn ($query) => $query->orWhere('shopify_product_id', $gid))
+            ->when($numeric !== null, fn ($query) => $query->orWhere('shopify_product_id', $numeric))
+            ->orWhere('sku', $identifier)
             ->first();
+    }
+
+    private function wishlistItemPayload(WishlistItem $item): ?array
+    {
+        $product = $item->product;
+
+        if (! $product instanceof Product) {
+            return null;
+        }
+
+        $shopifyProductId = $product->shopify_product_id;
+        $numericProductId = ShopifyId::numeric($shopifyProductId);
+        $handle = $product->sku;
+
+        return [
+            'id' => $item->id,
+            'backend_product_id' => $product->id,
+            'shopify_product_id' => $shopifyProductId,
+            'numeric_product_id' => $numericProductId,
+            'handle' => $handle,
+            'title' => $product->name,
+            'description' => $product->description,
+            'image_url' => $product->image_url,
+            'price' => $product->price,
+            'product_url' => $handle ? "/products/{$handle}" : null,
+            'saved_at' => $item->created_at?->toISOString(),
+        ];
     }
 }

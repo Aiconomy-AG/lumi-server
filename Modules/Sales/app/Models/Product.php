@@ -121,6 +121,7 @@ class Product extends Model
             'variants' => $this->variants->map(function (ProductVariant $variant) {
                 return [
                     'id' => (int) $variant->id,
+                    'shopify_variant_id' => $variant->shopify_variant_id,
                     'sku' => $variant->sku,
                     'name' => $variant->name,
                     'price' => (float) $variant->price,
@@ -133,6 +134,8 @@ class Product extends Model
                     'stock_quantity' => (int) $variant->stock_quantity,
                 ];
             })->values()->all(),
+
+            'updated_at' => $this->updated_at?->timestamp,
 
         ];
     }

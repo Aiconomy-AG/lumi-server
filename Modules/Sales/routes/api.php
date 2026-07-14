@@ -46,12 +46,13 @@ Route::prefix('shopify/proxy')
             ->group(function (): void {
                 Route::get('/', 'index');
                 Route::post('/', 'store');
+                Route::post('items', 'store');
 
                 Route::delete(
-                    'items/{shopifyProductId}',
+                    'items/{productIdentifier}',
                     'destroy'
                 )->where(
-                    'shopifyProductId',
+                    'productIdentifier',
                     '.*'
                 );
             });

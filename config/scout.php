@@ -42,10 +42,7 @@ return [
     |
     */
 
-    'queue' => [
-        'connection' => env('QUEUE_CONNECTION', 'database'),
-        'queue' => 'scout',
-    ],
+    'queue' => env('SCOUT_QUEUE', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -150,8 +147,6 @@ return [
                     'sku',
                     'variant_names',
                     'variant_skus',
-                    'description',
-                    'ingredient_names',
                 ],
 
                 'filterableAttributes' => [
@@ -169,6 +164,67 @@ return [
 
                 'sortableAttributes' => [
                     'price',
+                    'updated_at',
+                ],
+            ],
+            'tasks' => [
+                'searchableAttributes' => [
+                    'title',
+                    'description',
+                    'project_name',
+                    'status',
+                ],
+                'filterableAttributes' => [
+                    'status',
+                ],
+                'sortableAttributes' => [
+                    'updated_at',
+                ],
+            ],
+            'projects' => [
+                'searchableAttributes' => [
+                    'name',
+                    'description',
+                    'status',
+                ],
+                'filterableAttributes' => [
+                    'status',
+                ],
+                'sortableAttributes' => [
+                    'updated_at',
+                ],
+            ],
+            'orders' => [
+                'searchableAttributes' => [
+                    'id',
+                    'shopify_order_name',
+                    'customer_email',
+                    'customer_username',
+                    'status',
+                ],
+                'sortableAttributes' => [
+                    'updated_at',
+                ],
+            ],
+            'return_requests' => [
+                'searchableAttributes' => [
+                    'id',
+                    'email',
+                    'shopify_order_name',
+                    'status',
+                ],
+                'sortableAttributes' => [
+                    'updated_at',
+                ],
+            ],
+            'users' => [
+                'searchableAttributes' => [
+                    'name',
+                    'email',
+                    'role',
+                ],
+                'sortableAttributes' => [
+                    'updated_at',
                 ],
             ],
         ],

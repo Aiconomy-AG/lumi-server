@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TokenController;
 use App\Http\Controllers\DeviceTokenController;
+use App\Http\Controllers\Api\SearchController;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
@@ -64,6 +65,7 @@ Route::middleware(['auth:sanctum', 'staff', 'admin'])
 Route::middleware(['auth:sanctum', 'staff'])
     ->group(function (): void {
         Route::get('users', [UserController::class, 'index']);
+        Route::get('search', SearchController::class);
     });
 
 Route::middleware('auth:sanctum')->group(function () {

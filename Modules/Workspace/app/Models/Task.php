@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 // use Modules\Workspace\Database\Factories\TaskFactory;
 use App\Models\User;
+use Laravel\Scout\Searchable;
 
 class Task extends Model
 {
     use HasFactory;
+    use Searchable;
 
     /**
      * The attributes that are mass assignable.
@@ -46,5 +48,25 @@ class Task extends Model
     public function timeEntries()
     {
         return $this->hasMany(TaskTimeEntry::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing('project');
+
+        return [
+            'id' => (int) $this->id,
+            'title' => $this->title,
+            'description' => $this->description,
+            'status' => $this->status,
+            'project_id' => $this->project_id !== null ? (int) $this->project_id : null,
+            'project_name' => $this->project?->name,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
     }
 }

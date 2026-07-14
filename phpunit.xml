@@ -34,5 +34,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="SCOUT_DRIVER" value="collection"/>
+        <env name="SCOUT_QUEUE" value="false"/>
     </php>
 </phpunit>

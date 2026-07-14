@@ -5,10 +5,12 @@ namespace Modules\Sales\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class Order extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $fillable = [
         'customer_id',
@@ -65,5 +67,20 @@ class Order extends Model
                 ->whereNotIn('status', ['expired', 'voided', 'paid', 'partially_paid', 'authorized'])
                 ->whereNotIn('payment_status', ['shipped', 'fulfilled']),
         };
+    }
+
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing('customer');
+
+        return [
+            'id' => (int) $this->id,
+            'shopify_order_name' => $this->shopify_order_name,
+            'customer_email' => $this->customer?->email,
+            'customer_username' => $this->customer?->username,
+            'status' => $this->status,
+            'payment_status' => $this->payment_status,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
     }
 }

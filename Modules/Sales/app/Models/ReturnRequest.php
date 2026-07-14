@@ -5,9 +5,11 @@ namespace Modules\Sales\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Searchable;
 
 class ReturnRequest extends Model
 {
+    use Searchable;
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
@@ -51,5 +53,16 @@ class ReturnRequest extends Model
     public function returnItems(): HasMany
     {
         return $this->hasMany(ReturnItem::class);
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (int) $this->id,
+            'email' => $this->email,
+            'shopify_order_name' => $this->shopify_order_name,
+            'status' => $this->status,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
     }
 }
