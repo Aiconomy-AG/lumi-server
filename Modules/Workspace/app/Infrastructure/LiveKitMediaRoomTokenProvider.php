@@ -32,12 +32,11 @@ class LiveKitMediaRoomTokenProvider implements MediaRoomTokenProvider
             ->setRoomName($call->room_name)
             ->setCanPublish(true)
             ->setCanSubscribe(true)
-            ->setCanPublishData(false)
-            ->setCanPublishSources(
-                $callType === CallType::Video
-                    ? ['microphone', 'camera']
-                    : ['microphone']
-            );
+            ->setCanPublishData(false);
+
+        if ($callType === CallType::Audio) {
+            $videoGrant->setCanPublishSources(['microphone']);
+        }
 
         $tokenOptions = (new AccessTokenOptions())
             ->setIdentity($identity)

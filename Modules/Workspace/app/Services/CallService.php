@@ -31,6 +31,7 @@ class CallService
         private readonly NotificationService $notifications,
         private readonly LiveKitService $liveKit,
         private readonly CallEventLogger $events,
+        private readonly CallConnectionResolver $connections,
     ) {}
 
     public function startWorkspaceCall(Conversation $conversation, User $caller, string $clientInstanceId): Call
@@ -102,7 +103,7 @@ class CallService
 
         $participantIds = [(int) $caller->id, ...$calleeIds];
 
-        $call = DB::transaction(function () use ($caller, $calleeIds, $type, $mode, $conversationId, $participantIds): Call {
+        $call = DB::transaction(function () use ($caller, $calleeIds, $type, $mode, $conversationId, $participantIds, $clientInstanceId): Call {
             User::query()->whereKey($participantIds)->orderBy('id')->lockForUpdate()->get();
 
             $busy = Call::query()
@@ -137,6 +138,7 @@ class CallService
                     'status' => ParticipantStatus::Joined,
                     'joined_at' => $now,
                     'answered_at' => $now,
+                    'client_instance_id' => $clientInstanceId,
                 ],
             ];
 
@@ -247,6 +249,7 @@ class CallService
                 'status' => ParticipantStatus::Joined,
                 'answered_at' => $now,
                 'joined_at' => $now,
+                'client_instance_id' => $clientInstanceId,
             ]);
 
             $call->update([
@@ -260,7 +263,7 @@ class CallService
 
         if ($changed) {
             $this->announceUpdate($call);
-            CallAccepted::dispatch($call);
+            $this->dispatchAccepted($call);
             $this->events->logCall($call, 'accepted', ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_accept', $user);
         }
@@ -604,14 +607,28 @@ class CallService
 
     private function announceUpdate(Call $call): void
     {
-        CallUpdated::dispatch($call);
+        $call->loadMissing(['participants.user']);
+
         foreach ($call->participants as $participant) {
+            $connection = $this->connections->connectionForParticipant($call, $participant);
+            CallUpdated::dispatch($call, (int) $participant->user_id, $connection);
+
             SendCallPushJob::dispatch(
                 (int) $participant->user_id,
                 'Lumi call updated',
                 'Call status: '.$call->status->value,
                 $this->pushPayload($call, 'workspace_call_updated'),
             );
+        }
+    }
+
+    private function dispatchAccepted(Call $call): void
+    {
+        $call->loadMissing(['participants.user']);
+
+        foreach ($call->participants as $participant) {
+            $connection = $this->connections->connectionForParticipant($call, $participant);
+            CallAccepted::dispatch($call, (int) $participant->user_id, $connection);
         }
     }
 

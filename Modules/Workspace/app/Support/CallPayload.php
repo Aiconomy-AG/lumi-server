@@ -6,11 +6,11 @@ use Modules\Workspace\Models\Call;
 
 class CallPayload
 {
-    public static function make(Call $call): array
+    public static function make(Call $call, ?array $connection = null): array
     {
         $call->loadMissing(['participants.user']);
 
-        return [
+        $payload = [
             'id' => $call->id,
             'conversation_id' => $call->conversation_id,
             'initiated_by_user_id' => $call->initiated_by_user_id,
@@ -38,5 +38,11 @@ class CallPayload
             'created_at' => $call->created_at?->toISOString(),
             'updated_at' => $call->updated_at?->toISOString(),
         ];
+
+        if ($connection !== null) {
+            $payload['connection'] = $connection;
+        }
+
+        return $payload;
     }
 }

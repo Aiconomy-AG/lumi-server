@@ -13,15 +13,15 @@ class CallUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(public Call $call) {}
+    public function __construct(
+        public Call $call,
+        public int $recipientUserId,
+        public ?array $connection = null,
+    ) {}
 
     public function broadcastOn(): array
     {
-        $this->call->loadMissing('participants');
-
-        return $this->call->participants
-            ->map(fn ($participant) => new PrivateChannel('users.'.$participant->user_id))
-            ->all();
+        return [new PrivateChannel('users.'.$this->recipientUserId)];
     }
 
     public function broadcastAs(): string
@@ -31,6 +31,6 @@ class CallUpdated implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        return CallPayload::make($this->call);
+        return CallPayload::make($this->call, $this->connection);
     }
 }

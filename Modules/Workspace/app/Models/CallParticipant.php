@@ -13,7 +13,7 @@ class CallParticipant extends Model
     protected $fillable = [
         'call_id', 'user_id', 'role', 'status',
         'invited_at', 'ringing_delivered_at', 'joined_at', 'left_at',
-        'livekit_identity', 'answered_at',
+        'livekit_identity', 'client_instance_id', 'answered_at',
     ];
 
     protected function casts(): array

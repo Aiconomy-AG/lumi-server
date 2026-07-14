@@ -96,7 +96,7 @@ class CallTest extends TestCase
     }
 
     #[Test]
-    public function video_call_token_includes_camera_source(): void
+    public function video_call_token_allows_publish_and_subscribe(): void
     {
         $caller = $this->staffUser();
         $callee = $this->staffUser();
@@ -114,8 +114,39 @@ class CallTest extends TestCase
             $response->json('data.connection.token'),
             new Key(str_repeat('s', 64), 'HS256'),
         );
-        $this->assertContains('camera', $claims->video->canPublishSources);
-        $this->assertContains('microphone', $claims->video->canPublishSources);
+        $this->assertTrue($claims->video->roomJoin);
+        $this->assertTrue($claims->video->canPublish);
+        $this->assertTrue($claims->video->canSubscribe);
+    }
+
+    #[Test]
+    public function accept_broadcasts_connection_to_caller(): void
+    {
+        Event::fake([CallAccepted::class, CallUpdated::class]);
+
+        $caller = $this->staffUser();
+        $callee = $this->staffUser();
+
+        $callId = $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'callee_ids' => [$callee->id],
+                'type' => 'video',
+                'client_instance_id' => 'android-caller',
+            ])->json('data.id');
+
+        $this->actingAs($callee, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", [
+                'client_instance_id' => 'android-callee',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'active')
+            ->assertJsonPath('data.connection.url', 'wss://test.livekit.cloud');
+
+        Event::assertDispatched(CallAccepted::class, function (CallAccepted $event) use ($caller): bool {
+            return $event->recipientUserId === (int) $caller->id
+                && $event->connection !== null
+                && ($event->broadcastWith()['connection']['url'] ?? null) === 'wss://test.livekit.cloud';
+        });
     }
 
     #[Test]
