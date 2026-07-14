@@ -14,10 +14,10 @@ class CallPayload
             'id' => $call->id,
             'conversation_id' => $call->conversation_id,
             'initiated_by_user_id' => $call->initiated_by_user_id,
+            'destination_type' => $call->destination_type,
             'caller' => [
                 'id' => $call->initiated_by_user_id,
                 'name' => $call->caller_name,
-                'phone_number' => $call->caller_phone_number,
             ],
             'participants' => $call->participants->map(fn ($participant): array => [
                 'user_id' => $participant->user_id,

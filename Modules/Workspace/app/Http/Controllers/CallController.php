@@ -21,7 +21,7 @@ class CallController extends Controller
 
     public function store(StartCallRequest $request, int $conversationId): CallResource
     {
-        $call = $this->calls->start(
+        $call = $this->calls->startWorkspaceCall(
             Conversation::query()->findOrFail($conversationId),
             $request->user(),
         );

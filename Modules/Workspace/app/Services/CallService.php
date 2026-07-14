@@ -2,9 +2,9 @@
 
 namespace Modules\Workspace\Services;
 
+use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\User;
-use App\Services\PhoneNumberService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Workspace\Domain\Calls\CallDomainException;
@@ -21,11 +21,10 @@ use Modules\Workspace\Models\Conversation;
 class CallService
 {
     public function __construct(
-        private readonly PhoneNumberService $phoneNumbers,
         private readonly NotificationService $notifications,
     ) {}
 
-    public function start(Conversation $conversation, User $caller): Call
+    public function startWorkspaceCall(Conversation $conversation, User $caller): Call
     {
         $this->ensureEnabled();
         $conversation->loadMissing('participants');
@@ -38,19 +37,18 @@ class CallService
             throw new CallDomainException('You are not a participant in this conversation.', 'FORBIDDEN', 403);
         }
 
-        $phoneNumber = $this->phoneNumbers->normalize($caller->phone_number);
-        if ($phoneNumber === null) {
-            throw new CallDomainException(
-                'Add an international phone number to your profile before starting a call.',
-                'PHONE_NUMBER_REQUIRED',
-                422,
-            );
+        $recipient = $conversation->participants->firstWhere('id', '!=', $caller->id);
+        if (! $recipient instanceof User) {
+            throw new CallDomainException('Direct conversation recipient was not found.', 'DIRECT_CALL_REQUIRED', 422);
         }
 
-        $recipient = $conversation->participants->firstWhere('id', '!=', $caller->id);
+        foreach ([$caller, $recipient] as $participant) {
+            $this->ensureWorkspaceCallUser($participant);
+        }
+
         $participantIds = [(int) $caller->id, (int) $recipient->id];
 
-        $call = DB::transaction(function () use ($conversation, $caller, $phoneNumber, $recipient, $participantIds): Call {
+        $call = DB::transaction(function () use ($conversation, $caller, $recipient, $participantIds): Call {
             User::query()->whereKey($participantIds)->orderBy('id')->lockForUpdate()->get();
 
             $busy = Call::query()
@@ -68,7 +66,7 @@ class CallService
                 'conversation_id' => $conversation->id,
                 'initiated_by_user_id' => $caller->id,
                 'caller_name' => $caller->name,
-                'caller_phone_number' => $phoneNumber,
+                'destination_type' => Call::DESTINATION_WORKSPACE_USER,
                 'media_type' => 'audio',
                 'status' => CallStatus::Ringing,
                 'room_name' => 'lumi-call-'.$id,
@@ -220,7 +218,8 @@ class CallService
                 payload: [
                     'call_id' => $call->id,
                     'caller_name' => $call->caller_name,
-                    'caller_phone_number' => $call->caller_phone_number,
+                    'caller_user_id' => (string) $call->initiated_by_user_id,
+                    'destination_type' => $call->destination_type,
                 ],
             );
             $this->announceUpdate($call);
@@ -328,9 +327,20 @@ class CallService
             'call_id' => $call->id,
             'conversation_id' => (string) $call->conversation_id,
             'status' => $call->status->value,
+            'destination_type' => $call->destination_type,
+            'caller_user_id' => (string) $call->initiated_by_user_id,
             'caller_name' => $call->caller_name,
-            'caller_phone_number' => $call->caller_phone_number,
         ];
+    }
+
+    private function ensureWorkspaceCallUser(User $user): void
+    {
+        $isStaff = in_array($user->role, [UserRole::Employee, UserRole::Admin], true);
+        $isBot = strcasecmp((string) $user->email, (string) config('chat_ai.user_email')) === 0;
+
+        if (! $user->is_active || ! $isStaff || $isBot) {
+            throw new CallDomainException('Workspace calls are only available between active staff users.', 'WORKSPACE_CALL_PARTICIPANT_REQUIRED', 403);
+        }
     }
 
     private function auditTerminalOrState(Call $call, string $action, User $actor): void

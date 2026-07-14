@@ -13,8 +13,10 @@ class Call extends Model
 {
     use HasUuids;
 
+    public const DESTINATION_WORKSPACE_USER = 'workspace_user';
+
     protected $fillable = [
-        'id', 'conversation_id', 'initiated_by_user_id', 'caller_name', 'caller_phone_number',
+        'id', 'conversation_id', 'initiated_by_user_id', 'caller_name', 'destination_type',
         'media_type', 'status', 'room_name', 'answered_client_instance_id',
         'ended_by_user_id', 'end_reason', 'answered_at', 'ended_at',
     ];
