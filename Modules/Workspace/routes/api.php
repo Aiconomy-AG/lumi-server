@@ -57,6 +57,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
             ->group(function (): void {
                 Route::get('messages', [MessageController::class, 'index']);
                 Route::post('messages', [MessageController::class, 'store']);
+                Route::post('messages/{messageId}/reactions', [MessageController::class, 'react']);
+                Route::delete('messages/{messageId}/reactions', [MessageController::class, 'unreact']);
                 Route::post('calls', [CallController::class, 'store'])->middleware(['staff', 'throttle:10,1']);
 
                 Route::post('ai-actions/{actionId}/approve', [AiActionController::class, 'approve'])

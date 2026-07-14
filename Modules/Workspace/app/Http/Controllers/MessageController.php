@@ -4,8 +4,12 @@ namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendPushNotificationJob;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Workspace\Events\MessageReactionUpdated;
 use Modules\Workspace\Events\MessageSent;
+use Modules\Workspace\Http\Requests\StoreMessageReactionRequest;
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
 use Modules\Workspace\Jobs\GenerateAiChatReplyJob;
 use Modules\Workspace\Models\Conversation;
@@ -28,7 +32,7 @@ class MessageController extends Controller
         $afterId = (int) $request->query('after_id', 0);
 
         $query = Message::query()
-            ->with('call')
+            ->with(['call', 'reactions'])
             ->where('conversation_id', $conversationId);
 
         if ($afterId > 0) {
@@ -110,7 +114,7 @@ class MessageController extends Controller
         }
 
         try {
-            MessageSent::dispatch($message);
+            MessageSent::dispatch($message->load('reactions'));
         } catch (\Throwable $e) {
             report($e);
         }
@@ -118,5 +122,58 @@ class MessageController extends Controller
         return (new MessageResource($message))
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function react(StoreMessageReactionRequest $request, int $conversationId, int $messageId): JsonResource|JsonResponse
+    {
+        $message = $this->findConversationMessage($conversationId, $messageId);
+
+        if (! $message) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Message not found.'], 404);
+        }
+
+        $message->reactions()->firstOrCreate([
+            'user_id' => $request->user()->id,
+            'emoji' => $request->validated('emoji'),
+        ]);
+
+        return $this->reactionResponse($message);
+    }
+
+    public function unreact(StoreMessageReactionRequest $request, int $conversationId, int $messageId): JsonResource|JsonResponse
+    {
+        $message = $this->findConversationMessage($conversationId, $messageId);
+
+        if (! $message) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Message not found.'], 404);
+        }
+
+        $message->reactions()
+            ->where('user_id', $request->user()->id)
+            ->where('emoji', $request->validated('emoji'))
+            ->delete();
+
+        return $this->reactionResponse($message);
+    }
+
+    private function findConversationMessage(int $conversationId, int $messageId): ?Message
+    {
+        return Message::query()
+            ->where('conversation_id', $conversationId)
+            ->whereKey($messageId)
+            ->first();
+    }
+
+    private function reactionResponse(Message $message): JsonResource
+    {
+        $message = $message->fresh(['call', 'reactions']);
+
+        try {
+            MessageReactionUpdated::dispatch($message);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return new MessageResource($message);
     }
 }

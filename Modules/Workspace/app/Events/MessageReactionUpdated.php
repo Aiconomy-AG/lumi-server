@@ -9,7 +9,7 @@ use Illuminate\Queue\SerializesModels;
 use Modules\Workspace\Models\Message;
 use Modules\Workspace\Transformers\MessageResource;
 
-class MessageSent implements ShouldBroadcastNow
+class MessageReactionUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, SerializesModels;
 
@@ -24,7 +24,7 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastAs(): string
     {
-        return 'message.sent';
+        return 'message.reaction.updated';
     }
 
     public function broadcastWith(): array

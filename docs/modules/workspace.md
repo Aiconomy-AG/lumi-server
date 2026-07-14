@@ -12,7 +12,7 @@ Time entries belong to a task and user. The controller exposes daily totals, the
 
 ## Conversations and AI replies
 
-Conversations contain participants and messages. `ConversationService` owns creation, retrieval, participant synchronization, and updates. Message access requires conversation membership. `MessageSent` broadcasts new messages.
+Conversations contain participants and messages. `ConversationService` owns creation, retrieval, participant synchronization, and updates. Message access requires conversation membership. `MessageSent` broadcasts new messages, and `MessageReactionUpdated` broadcasts reaction changes for live chat clients.
 
 When AI chat is enabled and a supported mention is detected, `GenerateAiChatReplyJob` gathers bounded history, calls `GeminiChatService`, persists the bot response, and broadcasts it. The AI identity is resolved by `ChatAiUserResolver`; deployments must seed or otherwise provide that user.
 
@@ -23,4 +23,3 @@ When AI chat is enabled and a supported mention is detected, `GenerateAiChatRepl
 ## Workspace resource
 
 The `WorkspaceController` resource methods are currently scaffolded and several methods have no implementation. Treat these routes as incomplete despite being registered; do not build new dependencies on them until ownership, persistence, validation, and response behavior are implemented and tested.
-

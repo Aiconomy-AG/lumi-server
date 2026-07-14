@@ -89,8 +89,29 @@ components:
           type: integer
         sender_id:
           type: integer
+        message_type:
+          type: string
+          enum: [text, system, call]
         message:
           type: string
+        type:
+          type: string
+        meta:
+          type: object
+          nullable: true
+        reactions:
+          type: array
+          items:
+            type: object
+            properties:
+              emoji:
+                type: string
+              count:
+                type: integer
+              user_ids:
+                type: array
+                items:
+                  type: integer
         sent_at:
           type: string
           format: date-time
@@ -1579,6 +1600,89 @@ paths:
       responses:
         '201':
           description: Message successfully sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workspace/conversations/{conversationId}/messages/{messageId}/reactions:
+    post:
+      tags:
+        - Chat
+      summary: Add a reaction to a message
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emoji
+              properties:
+                emoji:
+                  type: string
+                  maxLength: 64
+      responses:
+        '200':
+          description: Message with updated reactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Chat
+      summary: Remove a reaction from a message
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emoji
+              properties:
+                emoji:
+                  type: string
+                  maxLength: 64
+      responses:
+        '200':
+          description: Message with updated reactions
           content:
             application/json:
               schema:

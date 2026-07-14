@@ -36,6 +36,8 @@ Registered API operations: **113**.
 | `PUT` | `/workspace/conversations/{conversationId}` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\ConversationController@update` |
 | `GET` | `/workspace/conversations/{conversationId}/messages` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@index` |
 | `POST` | `/workspace/conversations/{conversationId}/messages` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@store` |
+| `POST` | `/workspace/conversations/{conversationId}/messages/{messageId}/reactions` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@react` |
+| `DELETE` | `/workspace/conversations/{conversationId}/messages/{messageId}/reactions` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@unreact` |
 
 ## Device tokens
 

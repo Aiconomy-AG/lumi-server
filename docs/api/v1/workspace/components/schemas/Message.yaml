@@ -6,8 +6,29 @@ properties:
     type: integer
   sender_id:
     type: integer
+  message_type:
+    type: string
+    enum: [text, system, call]
   message:
     type: string
+  type:
+    type: string
+  meta:
+    type: object
+    nullable: true
+  reactions:
+    type: array
+    items:
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+        user_ids:
+          type: array
+          items:
+            type: integer
   sent_at:
     type: string
     format: date-time

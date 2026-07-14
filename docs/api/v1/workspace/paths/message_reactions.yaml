@@ -1,0 +1,81 @@
+post:
+  tags:
+    - Chat
+  summary: Add a reaction to a message
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: messageId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - emoji
+          properties:
+            emoji:
+              type: string
+              maxLength: 64
+  responses:
+    '200':
+      description: Message with updated reactions
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Message.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
+
+delete:
+  tags:
+    - Chat
+  summary: Remove a reaction from a message
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: messageId
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - emoji
+          properties:
+            emoji:
+              type: string
+              maxLength: 64
+  responses:
+    '200':
+      description: Message with updated reactions
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Message.yaml'
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../components/responses/NotFound.yaml'
