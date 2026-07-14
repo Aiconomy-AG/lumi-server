@@ -147,8 +147,6 @@ return [
                     'sku',
                     'variant_names',
                     'variant_skus',
-                    'description',
-                    'ingredient_names',
                 ],
 
                 'filterableAttributes' => [
