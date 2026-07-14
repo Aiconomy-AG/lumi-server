@@ -214,4 +214,50 @@ class AiActionApprovalTest extends TestCase
 
         $this->assertDatabaseCount('tasks', 1);
     }
+
+    #[Test]
+    public function requester_can_approve_adding_group_members(): void
+    {
+        $this->createBotUser();
+        $requester = User::factory()->create(['role' => UserRole::Admin, 'name' => 'Admin User']);
+        $member = User::factory()->create(['role' => UserRole::Employee, 'name' => 'Test User']);
+        $newMember = User::factory()->create(['role' => UserRole::Employee, 'name' => 'New User']);
+
+        $conversation = Conversation::factory()->create([
+            'type' => 'group',
+            'name' => 'Ops',
+            'created_by' => $requester->id,
+        ]);
+        $conversation->participants()->attach([$requester->id, $member->id]);
+
+        $action = AiAction::query()->create([
+            'conversation_id' => $conversation->id,
+            'requested_by_user_id' => $requester->id,
+            'tool_name' => 'update_conversation_participants',
+            'arguments' => [
+                'conversation_id' => $conversation->id,
+                'add_participants_employee_ids' => [$newMember->id],
+            ],
+            'summary' => 'Add New User in "Ops"',
+            'status' => AiActionStatus::Pending,
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        Sanctum::actingAs($requester);
+
+        $this->postJson("/api/v1/workspace/conversations/{$conversation->id}/ai-actions/{$action->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'executed');
+
+        $this->assertDatabaseHas('conversation_participants', [
+            'conversation_id' => $conversation->id,
+            'user_id' => $newMember->id,
+        ]);
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'message_type' => 'system',
+            'message' => 'Admin User added New User to the group.',
+        ]);
+    }
 }

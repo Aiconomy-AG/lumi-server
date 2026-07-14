@@ -122,6 +122,7 @@ class GenerateAiChatReplyJob implements ShouldQueue
             $latestPrompt,
             $triggerMessage->id,
             $actingUser,
+            $conversation,
         );
 
         if ($result->hasProposedAction()) {

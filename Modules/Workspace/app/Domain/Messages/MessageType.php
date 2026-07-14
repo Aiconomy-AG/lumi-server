@@ -6,4 +6,5 @@ enum MessageType: string
 {
     case Text = 'text';
     case Call = 'call';
+    case System = 'system';
 }

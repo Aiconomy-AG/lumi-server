@@ -58,4 +58,9 @@ class Message extends Model
     {
         return $this->message_type === MessageType::Call;
     }
+
+    public function isSystem(): bool
+    {
+        return $this->message_type === MessageType::System;
+    }
 }

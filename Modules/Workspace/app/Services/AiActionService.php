@@ -344,7 +344,7 @@ class AiActionService
                 .' from '.($result['old_stock_quantity'] ?? '?')
                 .' to '.($result['new_stock_quantity'] ?? '?'),
             'create_group_conversation' => 'Done — created group chat "'.($result['name'] ?? '').'"',
-            'update_conversation_participants' => 'Done — updated participants in conversation #'.($result['conversation_id'] ?? '?'),
+            'update_conversation_participants' => 'Done — '.$action->summary,
             default => 'Done — '.$action->summary,
         };
     }
