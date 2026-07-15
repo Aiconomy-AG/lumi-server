@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Modules\Workspace\Domain\Messages\MessageType;
+use Modules\Workspace\Events\ConversationDeleted;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
@@ -138,6 +139,30 @@ class ConversationService
         }
 
         return $conversation->fresh(['participants', 'latestMessage']);
+    }
+
+    public function leave(Conversation $conversation, int $userId): void
+    {
+        if ($conversation->type !== 'group') {
+            throw new \InvalidArgumentException('Only group conversations can be left.');
+        }
+
+        $name = User::query()->whereKey($userId)->value('name') ?? 'Someone';
+
+        $this->postSystemMessage($conversation, $userId, "{$name} left the group.");
+
+        $conversation->participants()->detach($userId);
+    }
+
+    public function delete(Conversation $conversation): void
+    {
+        if ($conversation->type !== 'group') {
+            throw new \InvalidArgumentException('Only group conversations can be deleted.');
+        }
+
+        $conversation->delete();
+
+        ConversationDeleted::dispatch($conversation->id);
     }
 
     private function findExistingDirectConversation(int $userId, int $otherId): ?Conversation

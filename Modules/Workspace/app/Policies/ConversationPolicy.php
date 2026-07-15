@@ -36,6 +36,22 @@ class ConversationPolicy
             && $conversation->type === 'group';
     }
 
+    public function leave(User $user, Conversation $conversation): bool
+    {
+        return $conversation->type === 'group'
+            && $this->isParticipant($user, $conversation);
+    }
+
+    public function delete(User $user, Conversation $conversation): bool
+    {
+        if ($conversation->type !== 'group') {
+            return false;
+        }
+
+        return $user->isAdmin()
+            || (int) $conversation->created_by === (int) $user->id;
+    }
+
     private function isParticipant(User $user, Conversation $conversation): bool
     {
         if ($conversation->relationLoaded('participants')) {

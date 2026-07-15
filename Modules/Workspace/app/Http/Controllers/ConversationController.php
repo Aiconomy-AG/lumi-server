@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Workspace\Http\Requests\StoreConversationRequest;
 use Modules\Workspace\Http\Requests\UpdateConversationRequest;
@@ -105,5 +106,61 @@ class ConversationController extends Controller
         );
 
         return new ConversationResource($conversation);
+    }
+
+    public function leave(Request $request, int $conversationId): JsonResponse
+    {
+        $conversation = $this->conversationService->getById($conversationId);
+
+        if (! $conversation) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Conversation not found.'], 404);
+        }
+
+        $this->authorize('leave', $conversation);
+
+        try {
+            $this->conversationService->leave($conversation, $request->user()->id);
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json(['code' => 'INVALID', 'message' => $exception->getMessage()], 422);
+        }
+
+        AuditLog::record(
+            module: 'workspace',
+            action: 'conversation_leave',
+            entity: $conversation,
+            label: $conversation->name ?: 'Conversation #'.$conversation->id,
+            description: 'Left the group.',
+        );
+
+        return response()->json(['message' => 'You left the group.']);
+    }
+
+    public function destroy(int $conversationId): Response|JsonResponse
+    {
+        $conversation = $this->conversationService->getById($conversationId);
+
+        if (! $conversation) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Conversation not found.'], 404);
+        }
+
+        $this->authorize('delete', $conversation);
+
+        $label = $conversation->name ?: 'Conversation #'.$conversation->id;
+
+        try {
+            $this->conversationService->delete($conversation);
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json(['code' => 'INVALID', 'message' => $exception->getMessage()], 422);
+        }
+
+        AuditLog::record(
+            module: 'workspace',
+            action: 'conversation_delete',
+            entity: $conversation,
+            label: $label,
+            description: 'Group deleted.',
+        );
+
+        return response()->noContent();
     }
 }

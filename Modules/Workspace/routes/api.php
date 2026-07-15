@@ -51,6 +51,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('conversations/{conversationId}', [ConversationController::class, 'show']);
         Route::put('conversations/{conversationId}', [ConversationController::class, 'update'])
             ->middleware(VerifyConversationParticipant::class);
+        Route::post('conversations/{conversationId}/leave', [ConversationController::class, 'leave'])
+            ->middleware(VerifyConversationParticipant::class);
+        Route::delete('conversations/{conversationId}', [ConversationController::class, 'destroy']);
 
         Route::middleware([VerifyConversationParticipant::class])
             ->prefix('conversations/{conversationId}')
