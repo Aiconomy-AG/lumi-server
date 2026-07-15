@@ -18,7 +18,7 @@ class AvatarController extends Controller
                 'image',
                 'mimes:jpg,jpeg,png,webp',
                 'max:'.config('media.avatar_max_kb'),
-                'dimensions:max_width=4000,max_height=4000',
+                'dimensions:max_width=8000,max_height=8000',
             ],
         ]);
 

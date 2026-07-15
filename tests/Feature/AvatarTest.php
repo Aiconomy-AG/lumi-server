@@ -103,6 +103,22 @@ class AvatarTest extends TestCase
     }
 
     #[Test]
+    public function a_phone_sized_photo_is_accepted(): void
+    {
+        Storage::fake('wasabi');
+
+        $user = User::factory()->create(['avatar_path' => null]);
+
+        $this->actingAs($user, 'sanctum')
+            ->post('/api/v1/auth/me/avatar', [
+                'avatar' => UploadedFile::fake()->image('iphone.jpg', 4032, 3024),
+            ], ['Accept' => 'application/json'])
+            ->assertStatus(200);
+
+        $this->assertNotNull($user->fresh()->avatar_path);
+    }
+
+    #[Test]
     public function an_svg_avatar_is_rejected_with_422(): void
     {
         Storage::fake('wasabi');
