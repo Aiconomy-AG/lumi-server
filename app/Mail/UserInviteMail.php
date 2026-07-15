@@ -13,6 +13,7 @@ class UserInviteMail extends Mailable
 
     public function __construct(
         public User $user,
+        public string $temporaryPassword,
         public string $resetUrl,
     ) {}
 

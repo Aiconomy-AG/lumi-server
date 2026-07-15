@@ -30,6 +30,10 @@ composer run dev
 
 This starts the Laravel server, queue listener, Pail log viewer, and Vite development server. With Sail, start the infrastructure using `./vendor/bin/sail up -d` and run Artisan commands through Sail when the host PHP environment differs.
 
+## Workspace VoIP setup
+
+If you need calling to work locally or in a new environment, read [LiveKit Workspace calls](../integrations/voip.md). That guide covers LiveKit, Reverb, Firebase, APNs VoIP, queue workers, and the call-specific environment variables. For implementation details inside Laravel, use [Workspace VoIP backend architecture](../integrations/voip-backend-architecture.md).
+
 ## Documentation setup
 
 ```bash
