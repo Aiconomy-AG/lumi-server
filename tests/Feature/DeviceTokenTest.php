@@ -87,6 +87,37 @@ class DeviceTokenTest extends TestCase
         ]);
     }
 
+    public function test_user_can_register_voip_ios_token_and_reactivate_same_device(): void
+    {
+        $user = User::factory()->create(['role' => UserRole::Employee]);
+        Sanctum::actingAs($user);
+
+        DeviceToken::query()->create([
+            'user_id' => $user->id,
+            'token' => 'old-voip-token',
+            'platform' => DeviceTokenPlatform::VOIP_IOS,
+            'device_id' => 'ios-device-1',
+            'invalidated_at' => now(),
+        ]);
+
+        $this->postJson('/api/v1/device-tokens', [
+            'token' => 'new-voip-token',
+            'platform' => 'voip_ios',
+            'device_id' => 'ios-device-1',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.platform', DeviceTokenPlatform::VOIP_IOS);
+
+        $this->assertSame(1, DeviceToken::query()->where('user_id', $user->id)->where('platform', DeviceTokenPlatform::VOIP_IOS)->count());
+        $this->assertDatabaseHas('device_tokens', [
+            'user_id' => $user->id,
+            'token' => 'new-voip-token',
+            'platform' => DeviceTokenPlatform::VOIP_IOS,
+            'device_id' => 'ios-device-1',
+            'invalidated_at' => null,
+        ]);
+    }
+
     public function test_user_cannot_delete_another_users_token(): void
     {
         $owner = User::factory()->create(['role' => UserRole::Employee]);

@@ -2,8 +2,7 @@
 
 namespace Modules\Workspace\Jobs;
 
-use App\Services\ApnsVoipService;
-use App\Services\PushNotificationService;
+use App\Services\Push\IncomingCallPushDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Modules\Workspace\Events\CallIncoming;
@@ -25,8 +24,7 @@ class DispatchCallRingJob implements ShouldQueue
     }
 
     public function handle(
-        PushNotificationService $push,
-        ApnsVoipService $apns,
+        IncomingCallPushDispatcher $pushes,
         CallEventLogger $events,
     ): void {
         $call = Call::query()
@@ -47,35 +45,13 @@ class DispatchCallRingJob implements ShouldQueue
             CallIncoming::dispatch($call, $userId);
             CallRinging::dispatch($call, $userId);
 
-            $payload = $this->payload($call);
-            $title = 'Incoming Lumi call';
-            $body = $call->caller_name.' is calling';
-
-            $push->sendCallEventToUser($userId, $title, $body, $payload);
-            $push->sendCallAlertToUser($userId, $title, $body, $payload);
-            $apnsSent = $apns->sendVoipToUser($userId, $payload);
+            $pushes->dispatchIncomingCall($call, $participant->user);
 
             $participant->update(['ringing_delivered_at' => now()]);
-            $events->logCall($call, $apnsSent ? 'push_sent' : 'rung', [
+            $events->logCall($call, 'rung', [
                 'user_id' => $userId,
-                'channels' => ['reverb', 'fcm', 'apns_voip'],
+                'channels' => ['reverb', 'fcm_android', 'voip_ios'],
             ]);
         }
-    }
-
-    private function payload(Call $call): array
-    {
-        return [
-            'type' => 'workspace_call_incoming',
-            'call_id' => $call->id,
-            'room_name' => $call->room_name,
-            'conversation_id' => (string) ($call->conversation_id ?? ''),
-            'status' => $call->status->value,
-            'destination_type' => $call->destination_type,
-            'caller_user_id' => (string) $call->initiated_by_user_id,
-            'caller_name' => $call->caller_name,
-            'call_type' => $call->callTypeValue(),
-            'call_mode' => $call->callModeValue(),
-        ];
     }
 }

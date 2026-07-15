@@ -17,7 +17,8 @@ class DeviceTokenController extends Controller
             'token' => ['required', 'string', 'max:512'],
             'platform' => ['required', 'string', Rule::in([
                 DeviceTokenPlatform::FCM_ANDROID,
-                DeviceTokenPlatform::APNS_VOIP,
+                DeviceTokenPlatform::VOIP_IOS,
+                DeviceTokenPlatform::LEGACY_APNS_VOIP,
                 DeviceTokenPlatform::WEB_PUSH,
                 DeviceTokenPlatform::LEGACY_ANDROID,
                 DeviceTokenPlatform::LEGACY_IOS,
@@ -42,6 +43,7 @@ class DeviceTokenController extends Controller
             ],
             [
                 'token' => $validated['token'],
+                'invalidated_at' => null,
             ],
         );
 
