@@ -24,7 +24,15 @@ return [
 
     'image_enabled' => env('CHAT_AI_IMAGE_ENABLED', false),
 
+    'image_provider' => env('CHAT_AI_IMAGE_PROVIDER', 'gemini'),
+
     'gemini_image_model' => env('GEMINI_IMAGE_MODEL', 'gemini-3.1-flash-image'),
+
+    'cloudflare_account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
+
+    'cloudflare_api_token' => env('CLOUDFLARE_API_TOKEN'),
+
+    'cloudflare_image_model' => env('CLOUDFLARE_IMAGE_MODEL', '@cf/black-forest-labs/flux-1-schnell'),
 
     'image_rate_limit' => (int) env('CHAT_AI_IMAGE_RATE_LIMIT', 3),
 

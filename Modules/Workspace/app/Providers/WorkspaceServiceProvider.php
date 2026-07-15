@@ -11,6 +11,9 @@ use Modules\Workspace\Models\Task;
 use Modules\Workspace\Policies\ConversationPolicy;
 use Modules\Workspace\Policies\ProjectPolicy;
 use Modules\Workspace\Policies\TaskPolicy;
+use Modules\Workspace\Services\AiChat\ImageGenerator;
+use Modules\Workspace\Services\CloudflareImageService;
+use Modules\Workspace\Services\GeminiImageService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class WorkspaceServiceProvider extends ModuleServiceProvider
@@ -47,6 +50,11 @@ class WorkspaceServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->bind(MediaRoomTokenProvider::class, LiveKitMediaRoomTokenProvider::class);
+
+        $this->app->bind(ImageGenerator::class, fn () => match (config('chat_ai.image_provider')) {
+            'cloudflare' => $this->app->make(CloudflareImageService::class),
+            default => $this->app->make(GeminiImageService::class),
+        });
     }
 
     public function boot(): void

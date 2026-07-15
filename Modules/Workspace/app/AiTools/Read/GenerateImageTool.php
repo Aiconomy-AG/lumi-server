@@ -6,12 +6,12 @@ use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Modules\Workspace\AiTools\AbstractAiTool;
 use Modules\Workspace\Services\AiChat\GeneratedImage;
-use Modules\Workspace\Services\GeminiImageService;
+use Modules\Workspace\Services\AiChat\ImageGenerator;
 
 class GenerateImageTool extends AbstractAiTool
 {
     public function __construct(
-        private readonly GeminiImageService $imageService,
+        private readonly ImageGenerator $imageService,
     ) {}
 
     public function name(): string

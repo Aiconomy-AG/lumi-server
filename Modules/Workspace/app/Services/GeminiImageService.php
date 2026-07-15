@@ -4,10 +4,11 @@ namespace Modules\Workspace\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Modules\Workspace\Services\AiChat\BaseImageService;
 use Modules\Workspace\Services\AiChat\GeneratedImage;
 use RuntimeException;
 
-class GeminiImageService
+class GeminiImageService extends BaseImageService
 {
     public function generate(string $prompt, string $aspectRatio = '1:1'): GeneratedImage
     {
@@ -72,30 +73,17 @@ class GeminiImageService
             throw new RuntimeException('Gemini returned invalid base64 image data.');
         }
 
-        $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
-        if (! in_array($mimeType, $allowedMimeTypes, true)) {
-            throw new RuntimeException("Gemini returned unsupported image type: {$mimeType}.");
-        }
-
-        $maxBytes = (int) config('chat_ai.image_max_bytes', 15 * 1024 * 1024);
-        if (strlen($bytes) > $maxBytes) {
-            throw new RuntimeException('Generated image exceeds the configured size limit.');
-        }
-
-        $dimensions = @getimagesizefromstring($bytes);
         $caption = collect($parts)
             ->pluck('text')
             ->filter(fn ($text) => is_string($text) && trim($text) !== '')
             ->map(fn (string $text) => trim($text))
             ->implode("\n");
 
-        return new GeneratedImage(
-            bytes: $bytes,
-            mimeType: $mimeType,
-            width: is_array($dimensions) ? $dimensions[0] : null,
-            height: is_array($dimensions) ? $dimensions[1] : null,
-            caption: $caption !== '' ? $caption : null,
-            model: $model,
+        return $this->makeGeneratedImage(
+            $bytes,
+            $mimeType,
+            $caption !== '' ? $caption : null,
+            (string) $model,
         );
     }
 }
