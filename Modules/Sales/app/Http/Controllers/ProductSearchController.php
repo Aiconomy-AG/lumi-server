@@ -39,6 +39,35 @@ class ProductSearchController
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
+        $search = $this->buildSearch($validated);
+
+        $products = $search->paginate($validated['per_page'] ?? 20);
+
+        $products->setCollection(
+            $products->getCollection()->map(
+                fn (Product $product): array => $this->mapProduct($product)
+            )
+        );
+
+        $facetSearch = $this->buildSearch($validated)
+            ->options([
+                'facets' => $this->facetAttributes(),
+                'limit' => 0,
+            ]);
+
+        $rawFacets = $facetSearch->raw();
+
+        $response = $products->toArray();
+
+        $response['facets'] = $this->normalizeFacets(
+            $rawFacets['facetDistribution'] ?? []
+        );
+
+        return response()->json($response);
+    }
+
+    private function buildSearch(array $validated)
+    {
         $search = Product::search($validated['q'] ?? '')
             ->query(function ($builder): void {
                 $builder->with([
@@ -89,14 +118,18 @@ class ProductSearchController
         }
 
         if (($validated['available'] ?? false) === true) {
-            $search->where('is_available', '=', true);
+            $search->where(
+                'is_available',
+                '=',
+                true
+            );
         }
 
         if (isset($validated['colour'])) {
             $search->where(
                 'variant_colours',
                 '=',
-                $validated['colour']
+                trim($validated['colour'])
             );
         }
 
@@ -138,15 +171,54 @@ class ProductSearchController
             default => null,
         };
 
-        $products = $search->paginate($validated['per_page'] ?? 20);
+        return $search;
+    }
 
-        $products->setCollection(
-            $products->getCollection()->map(
-                fn (Product $product): array => $this->mapProduct($product)
-            )
-        );
+    private function facetAttributes(): array
+    {
+        return [
+            'category_id',
+            'ingredient_ids',
+            'is_vegan',
+            'has_allergens',
+            'is_all_natural',
+            'is_available',
+            'variant_colours',
+            'variant_weights',
+            'variant_weight_units',
+        ];
+    }
 
-        return response()->json($products);
+    private function normalizeFacets(array $facets): array
+    {
+        return [
+            'category_id' => $facets['category_id'] ?? [],
+            'ingredient_ids' => $facets['ingredient_ids'] ?? [],
+
+            'available' => [
+                'true' => $facets['is_available']['true'] ?? 0,
+                'false' => $facets['is_available']['false'] ?? 0,
+            ],
+
+            'is_vegan' => [
+                'true' => $facets['is_vegan']['true'] ?? 0,
+                'false' => $facets['is_vegan']['false'] ?? 0,
+            ],
+
+            'has_allergens' => [
+                'true' => $facets['has_allergens']['true'] ?? 0,
+                'false' => $facets['has_allergens']['false'] ?? 0,
+            ],
+
+            'is_all_natural' => [
+                'true' => $facets['is_all_natural']['true'] ?? 0,
+                'false' => $facets['is_all_natural']['false'] ?? 0,
+            ],
+
+            'variant_colours' => $facets['variant_colours'] ?? [],
+            'variant_weights' => $facets['variant_weights'] ?? [],
+            'variant_weight_units' => $facets['variant_weight_units'] ?? [],
+        ];
     }
 
     private function mapProduct(Product $product): array
