@@ -57,7 +57,12 @@ class ToolRegistry
     private function allowedToolNamesFor(User $user): array
     {
         $role = $user->role?->value ?? UserRole::Client->value;
+        $allowed = config("chat_ai.tool_roles.{$role}", []);
 
-        return config("chat_ai.tool_roles.{$role}", []);
+        if (! config('chat_ai.image_enabled', false)) {
+            $allowed = array_values(array_diff($allowed, ['generate_image']));
+        }
+
+        return $allowed;
     }
 }

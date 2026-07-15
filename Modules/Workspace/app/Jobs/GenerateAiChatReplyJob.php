@@ -7,10 +7,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Modules\Workspace\Domain\Messages\MessageType;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
 use Modules\Workspace\Services\AiActionService;
+use Modules\Workspace\Services\AiChat\GeneratedImage;
 use Modules\Workspace\Services\ChatAiUserResolver;
 use Modules\Workspace\Services\GeminiChatService;
 use Modules\Workspace\Support\ChatMentionDetector;
@@ -139,6 +143,16 @@ class GenerateAiChatReplyJob implements ShouldQueue
             return;
         }
 
+        if ($result->hasGeneratedImage()) {
+            $this->postBotImageMessage(
+                $conversation->id,
+                $bot->id,
+                $result->generatedImage,
+            );
+
+            return;
+        }
+
         $replyText = $result->replyText();
         if ($replyText === null || $replyText === '') {
             $this->postBotMessage(
@@ -177,6 +191,45 @@ class GenerateAiChatReplyJob implements ShouldQueue
             'message' => $text,
             'type' => $type,
             'meta' => $meta,
+        ]);
+
+        $this->broadcastMessage($botMessage);
+    }
+
+    private function postBotImageMessage(
+        int $conversationId,
+        int $botUserId,
+        GeneratedImage $image,
+    ): void {
+        $extension = match ($image->mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/webp' => 'webp',
+            default => 'png',
+        };
+        $path = 'chat/'.$conversationId.'/'.Str::ulid().'.'.$extension;
+        $stored = Storage::disk(config('media.disk'))->put($path, $image->bytes);
+
+        if (! $stored) {
+            throw new \RuntimeException('Failed to store generated chat image for conversation '.$conversationId);
+        }
+
+        $botMessage = Message::create([
+            'conversation_id' => $conversationId,
+            'sender_id' => $botUserId,
+            'message_type' => MessageType::Image,
+            'message' => $image->caption ?? 'Generated image',
+            'type' => 'text',
+            'meta' => [
+                'image' => [
+                    'path' => $path,
+                    'width' => $image->width,
+                    'height' => $image->height,
+                    'size' => strlen($image->bytes),
+                    'mime' => $image->mimeType,
+                ],
+                'generated_by_ai' => true,
+                'model' => $image->model,
+            ],
         ]);
 
         $this->broadcastMessage($botMessage);

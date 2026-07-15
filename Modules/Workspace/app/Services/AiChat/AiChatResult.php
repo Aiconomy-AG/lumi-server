@@ -7,6 +7,7 @@ class AiChatResult
     public function __construct(
         public readonly ?string $text = null,
         public readonly ?ProposedAction $proposedAction = null,
+        public readonly ?GeneratedImage $generatedImage = null,
         public readonly ?string $error = null,
     ) {}
 
@@ -23,6 +24,11 @@ class AiChatResult
     public function hasError(): bool
     {
         return $this->error !== null;
+    }
+
+    public function hasGeneratedImage(): bool
+    {
+        return $this->generatedImage !== null;
     }
 
     public function replyText(): ?string
