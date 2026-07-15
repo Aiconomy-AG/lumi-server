@@ -3,6 +3,7 @@
 namespace Modules\Workspace\Services;
 
 use App\Enums\UserRole;
+use App\Jobs\SendPushNotificationJob;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -33,9 +34,10 @@ class CallService
         private readonly CallEventLogger $events,
         private readonly CallConnectionResolver $connections,
         private readonly CallChatLogService $chatLogs,
+        private readonly CallPresenceService $presence,
     ) {}
 
-    public function startWorkspaceCall(Conversation $conversation, User $caller, string $clientInstanceId): Call
+    public function startWorkspaceCall(Conversation $conversation, User $caller, string $clientInstanceId, CallType $type): Call
     {
         $conversation->loadMissing('participants');
 
@@ -61,7 +63,7 @@ class CallService
         return $this->startCall(
             caller: $caller,
             calleeIds: $calleeIds,
-            type: CallType::Audio,
+            type: $type,
             mode: $mode,
             conversationId: (int) $conversation->id,
             clientInstanceId: $clientInstanceId,
@@ -93,6 +95,8 @@ class CallService
             throw new CallDomainException('1v1 calls require exactly one callee.', 'INVALID_CALL_MODE', 422);
         }
 
+        $this->ensureParticipantLimit($mode, count($calleeIds) + 1);
+
         $users = User::query()->whereIn('id', [$caller->id, ...$calleeIds])->get()->keyBy('id');
         foreach ([$caller->id, ...$calleeIds] as $userId) {
             $user = $users->get($userId);
@@ -104,16 +108,33 @@ class CallService
 
         $participantIds = [(int) $caller->id, ...$calleeIds];
 
-        $call = DB::transaction(function () use ($caller, $calleeIds, $type, $mode, $conversationId, $participantIds, $clientInstanceId): Call {
+        $result = DB::transaction(function () use ($caller, $calleeIds, $type, $mode, $conversationId, $participantIds, $clientInstanceId): Call|array {
             User::query()->whereKey($participantIds)->orderBy('id')->lockForUpdate()->get();
 
-            $busy = Call::query()
+            $busyParticipantIds = Call::query()
                 ->whereIn('status', [CallStatus::Ringing->value, CallStatus::Active->value])
-                ->whereHas('participants', fn ($query) => $query->whereIn('user_id', $participantIds))
-                ->exists();
+                ->whereHas('participants', fn ($query) => $query
+                    ->whereIn('user_id', $participantIds)
+                    ->whereIn('status', $this->busyParticipantStatuses()))
+                ->with(['participants' => fn ($query) => $query
+                    ->select(['id', 'call_id', 'user_id'])
+                    ->whereIn('user_id', $participantIds)
+                    ->whereIn('status', $this->busyParticipantStatuses())])
+                ->get()
+                ->flatMap(fn (Call $call) => $call->participants->pluck('user_id'))
+                ->map(fn ($id) => (int) $id)
+                ->intersect($participantIds)
+                ->unique()
+                ->values()
+                ->all();
 
-            if ($busy) {
-                throw new CallDomainException('One of the participants is already in a call.', 'USER_BUSY', 409);
+            if (in_array((int) $caller->id, $busyParticipantIds, true)) {
+                throw new CallDomainException('You are already in a call.', 'USER_BUSY', 409);
+            }
+
+            $busyCalleeIds = array_values(array_intersect($calleeIds, $busyParticipantIds));
+            if ($busyCalleeIds !== []) {
+                return ['busy_callee_ids' => $busyCalleeIds];
             }
 
             $id = (string) Str::uuid();
@@ -157,12 +178,24 @@ class CallService
             return $call->load(['participants.user', 'conversation']);
         });
 
+        if (is_array($result)) {
+            $this->notifyBusyCallees($caller, $result['busy_callee_ids'], $conversationId, $type);
+
+            throw new CallDomainException('One or more recipients are already in a call.', 'USER_BUSY', 409);
+        }
+
+        $call = $result;
+
         try {
             $this->liveKit->createRoom($call);
         } catch (CallDomainException $exception) {
             $call->update(['status' => CallStatus::Failed, 'end_reason' => 'livekit_error', 'ended_at' => now()]);
+            $this->presence->restoreForCall($call);
+            $this->recordChatLog($call->fresh(['participants.user', 'conversation']));
             throw $exception;
         }
+
+        $this->presence->markParticipantsBusy($call, $participantIds);
 
         DispatchCallRingJob::dispatch($call->id);
         ExpireUnansweredCallJob::dispatch($call->id)
@@ -326,7 +359,10 @@ class CallService
             $this->events->logCall($call, 'declined', ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_declined', $user);
             if ($terminal) {
+                $this->presence->restoreForCall($call);
                 $this->recordChatLog($call);
+            } else {
+                $this->presence->restoreForCall($call, [(int) $user->id]);
             }
         }
 
@@ -385,7 +421,10 @@ class CallService
             }
             $this->events->logCall($call, 'left', ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_leave', $user);
+            $this->presence->restoreForCall($call, [(int) $user->id]);
             if ($ended) {
+                $this->liveKit->deleteRoom($call);
+                $this->presence->restoreForCall($call);
                 $this->recordChatLog($call);
             }
         }
@@ -407,7 +446,7 @@ class CallService
             throw new CallDomainException('At least one invitee is required.', 'INVITEE_REQUIRED', 422);
         }
 
-        [$call, $newInvitees] = DB::transaction(function () use ($callId, $user, $inviteeUserIds): array {
+        [$call, $newInvitees, $busyInviteeIds] = DB::transaction(function () use ($callId, $user, $inviteeUserIds): array {
             $call = $this->lockedCall($callId, (int) $user->id);
 
             if (! $call->isGroup()) {
@@ -425,6 +464,8 @@ class CallService
                 throw new CallDomainException('All users are already participants.', 'ALREADY_INVITED', 422);
             }
 
+            $this->ensureParticipantLimit($call->mode, count($existingUserIds) + count($newInvitees));
+
             $users = User::query()->whereIn('id', $newInvitees)->get();
             if ($users->count() !== count($newInvitees)) {
                 throw new CallDomainException('Invitee not found.', 'PARTICIPANT_NOT_FOUND', 404);
@@ -432,6 +473,27 @@ class CallService
 
             foreach ($users as $invitee) {
                 $this->ensureWorkspaceCallUser($invitee);
+            }
+
+            $busyInviteeIds = Call::query()
+                ->whereIn('status', [CallStatus::Ringing->value, CallStatus::Active->value])
+                ->whereHas('participants', fn ($query) => $query
+                    ->whereIn('user_id', $newInvitees)
+                    ->whereIn('status', $this->busyParticipantStatuses()))
+                ->with(['participants' => fn ($query) => $query
+                    ->select(['id', 'call_id', 'user_id'])
+                    ->whereIn('user_id', $newInvitees)
+                    ->whereIn('status', $this->busyParticipantStatuses())])
+                ->get()
+                ->flatMap(fn (Call $busyCall) => $busyCall->participants->pluck('user_id'))
+                ->map(fn ($id) => (int) $id)
+                ->intersect($newInvitees)
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($busyInviteeIds !== []) {
+                return [$call->fresh(['participants.user', 'conversation']), [], $busyInviteeIds];
             }
 
             $now = now();
@@ -444,8 +506,16 @@ class CallService
                 ]);
             }
 
-            return [$call->fresh(['participants.user', 'conversation']), $newInvitees];
+            return [$call->fresh(['participants.user', 'conversation']), $newInvitees, []];
         });
+
+        if ($newInvitees === [] && $busyInviteeIds !== []) {
+            $this->notifyBusyCallees($user, $busyInviteeIds, $call->conversation_id ? (int) $call->conversation_id : null, $call->type);
+
+            throw new CallDomainException('One or more recipients are already in a call.', 'USER_BUSY', 409);
+        }
+
+        $this->presence->markParticipantsBusy($call, $newInvitees);
 
         DispatchCallRingJob::dispatch($call->id, $newInvitees);
         $this->events->logCall($call, 'invited', ['invitee_ids' => $newInvitees]);
@@ -503,6 +573,7 @@ class CallService
             );
             $this->announceUpdate($call);
             $this->events->logCall($call, 'missed');
+            $this->presence->restoreForCall($call);
             AuditLog::recordSystem(
                 module: 'workspace',
                 action: 'call_missed',
@@ -543,6 +614,10 @@ class CallService
                 throw new CallDomainException($message, 'INVALID_CALL_ACTION', 403);
             }
             if ($status === CallStatus::Ended) {
+                if ($call->isGroup()) {
+                    throw new CallDomainException('Group call participants must leave individually.', 'GROUP_CALL_LEAVE_REQUIRED', 422);
+                }
+
                 if ($call->status !== CallStatus::Active) {
                     throw new CallDomainException('This call is not active.', 'CALL_NOT_ACTIVE');
                 }
@@ -579,6 +654,10 @@ class CallService
             }
             $this->events->logCall($call, $status->value, ['user_id' => $user->id]);
             $this->auditTerminalOrState($call, 'call_'.$status->value, $user);
+            $this->presence->restoreForCall($call);
+            if ($status === CallStatus::Ended) {
+                $this->liveKit->deleteRoom($call);
+            }
             $this->recordChatLog($call);
         }
 
@@ -660,6 +739,45 @@ class CallService
         }
     }
 
+    private function notifyBusyCallees(User $caller, array $calleeIds, ?int $conversationId, CallType $type): void
+    {
+        $attemptId = (string) Str::uuid();
+        $payload = [
+            'attempt_id' => $attemptId,
+            'caller_user_id' => (string) $caller->id,
+            'caller_name' => $caller->name,
+            'conversation_id' => (string) ($conversationId ?? ''),
+            'media_type' => $type->value,
+        ];
+
+        $this->notifications->createForRecipients(
+            type: 'call_attempted_while_busy',
+            source: 'call',
+            recipientUserIds: $calleeIds,
+            actorUserId: (int) $caller->id,
+            conversationId: $conversationId,
+            payload: $payload,
+        );
+
+        foreach ($calleeIds as $calleeId) {
+            SendPushNotificationJob::dispatch(
+                (int) $calleeId,
+                'Missed call attempt',
+                $caller->name.' tried to call while you were busy',
+                ['type' => 'call_attempted_while_busy', ...$payload],
+            );
+        }
+    }
+
+    private function busyParticipantStatuses(): array
+    {
+        return [
+            ParticipantStatus::Invited->value,
+            ParticipantStatus::Joined->value,
+            ParticipantStatus::Ringing->value,
+        ];
+    }
+
     private function pushPayload(Call $call, string $type): array
     {
         return [
@@ -683,6 +801,22 @@ class CallService
 
         if (! $user->is_active || ! $isStaff || $isBot) {
             throw new CallDomainException('Workspace calls are only available between active staff users.', 'WORKSPACE_CALL_PARTICIPANT_REQUIRED', 403);
+        }
+    }
+
+    private function ensureParticipantLimit(CallMode $mode, int $participantCount): void
+    {
+        if ($mode !== CallMode::Group) {
+            return;
+        }
+
+        $maxParticipants = (int) config('voip.livekit.max_participants_group', 10);
+        if ($maxParticipants > 0 && $participantCount > $maxParticipants) {
+            throw new CallDomainException(
+                'Group calls support up to '.$maxParticipants.' participants.',
+                'CALL_PARTICIPANT_LIMIT_EXCEEDED',
+                422,
+            );
         }
     }
 

@@ -44,11 +44,14 @@ class CallController extends Controller
 
     public function store(StartCallRequest $request, int $conversationId): CallResource
     {
-        $clientInstanceId = $request->validated('client_instance_id');
+        $validated = $request->validated();
+        $clientInstanceId = $validated['client_instance_id'];
+        $type = isset($validated['type']) ? CallType::from($validated['type']) : CallType::Audio;
         $call = $this->calls->startWorkspaceCall(
             Conversation::query()->findOrFail($conversationId),
             $request->user(),
             $clientInstanceId,
+            $type,
         );
 
         return $this->resourceWithConnection($call, $request->user(), $clientInstanceId);
