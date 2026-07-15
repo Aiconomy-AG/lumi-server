@@ -100,6 +100,8 @@ nav:
       - Overview: integrations/index.md
       - Shopify: integrations/shopify.md
       - Messaging and AI: integrations/messaging-ai.md
+      - Workspace VoIP setup: integrations/voip.md
+      - Workspace VoIP backend architecture: integrations/voip-backend-architecture.md
   - Operations:
       - Runtime operations: operations/runtime.md
       - Deployment: operations/deployment.md
