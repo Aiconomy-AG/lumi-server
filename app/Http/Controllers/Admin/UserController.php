@@ -217,7 +217,6 @@ class UserController extends Controller
         $resetUrl = $frontendUrl.'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email);
         Mail::to($user->email)->send(new UserInviteMail(
             user: $user,
-            temporaryPassword: $temporaryPassword,
             resetUrl: $resetUrl,
         ));
     }
