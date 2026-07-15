@@ -18,6 +18,8 @@ tags:
   description: Operations for admin - returns.
 - name: Authentication
   description: Operations for authentication.
+- name: Authentication and presence
+  description: Operations for authentication and presence.
 - name: Broadcasting
   description: Operations for broadcasting.
 - name: Cart
@@ -30,8 +32,12 @@ tags:
   description: Operations for checkout.
 - name: Conversations
   description: Operations for conversations.
+- name: Core
+  description: Operations for core.
 - name: Customer
   description: Operations for customer.
+- name: Device tokens
+  description: Operations for device tokens.
 - name: Notifications
   description: Operations for notifications.
 - name: Order administration
@@ -934,6 +940,41 @@ paths:
           $ref: '#/components/responses/Unauthorized'
       operationId: get_app_http_controllers_auth_tokencontroller_me_auth_me
       description: 'Access: **Authenticated user**.'
+  /auth/me/avatar:
+    post:
+      tags:
+      - Authentication and presence
+      summary: Create authentication and presence
+      description: 'Access: **Authenticated user**. Implemented by `App\Http\Controllers\AvatarController@store`.'
+      operationId: post_app_http_controllers_avatarcontroller_store_auth_me_avatar
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+    delete:
+      tags:
+      - Authentication and presence
+      summary: Delete authentication and presence
+      description: 'Access: **Authenticated user**. Implemented by `App\Http\Controllers\AvatarController@destroy`.'
+      operationId: delete_app_http_controllers_avatarcontroller_destroy_auth_me_avatar
+      responses:
+        '204':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
   /auth/me/presence/disconnect:
     post:
       tags:
@@ -1115,6 +1156,251 @@ paths:
           $ref: '#/components/responses/Unauthorized'
       operationId: post_illuminate_broadcasting_broadcastcontroller_authenticate_broadcasting_auth
       description: 'Access: **Authenticated user**.'
+  /calls:
+    post:
+      tags:
+      - Core
+      summary: Create core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@create`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_create_calls
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /calls/active:
+    get:
+      tags:
+      - Core
+      summary: Get active core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@active`.'
+      operationId: get_modules_workspace_http_controllers_callcontroller_active_calls_active
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+  /calls/history:
+    get:
+      tags:
+      - Core
+      summary: History core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@history`.'
+      operationId: get_modules_workspace_http_controllers_callcontroller_history_calls_history
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+  /calls/{callId}:
+    get:
+      tags:
+      - Core
+      summary: Get core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@show`.'
+      operationId: get_modules_workspace_http_controllers_callcontroller_show_calls_callid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /calls/{callId}/accept:
+    post:
+      tags:
+      - Core
+      summary: Accept core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@accept`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_accept_calls_callid_accept
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /calls/{callId}/cancel:
+    post:
+      tags:
+      - Core
+      summary: Cancel core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@cancel`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_cancel_calls_callid_cancel
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /calls/{callId}/decline:
+    post:
+      tags:
+      - Core
+      summary: Decline core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@decline`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_decline_calls_callid_decline
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /calls/{callId}/end:
+    post:
+      tags:
+      - Core
+      summary: End core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@end`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_end_calls_callid_end
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /calls/{callId}/invite:
+    post:
+      tags:
+      - Core
+      summary: Invite core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@invite`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_invite_calls_callid_invite
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /calls/{callId}/leave:
+    post:
+      tags:
+      - Core
+      summary: Leave core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@leave`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_leave_calls_callid_leave
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
   /device-tokens:
     post:
       tags:
@@ -1166,6 +1452,41 @@ paths:
           $ref: '#/components/responses/Unauthorized'
       operationId: delete_app_http_controllers_devicetokencontroller_destroy_device_tokens
       description: 'Access: **Authenticated user**.'
+  /device-tokens/{deviceTokenId}:
+    delete:
+      tags:
+      - Device tokens
+      summary: Destroy by id device tokens
+      description: 'Access: **Authenticated user**. Implemented by `App\Http\Controllers\DeviceTokenController@destroyById`.'
+      operationId: delete_app_http_controllers_devicetokencontroller_destroybyid_device_tokens_devicetokenid
+      responses:
+        '204':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: deviceTokenId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /search:
+    get:
+      tags:
+      - Core
+      summary: App\ http\ controllers\ api\ search controller core
+      description: 'Access: **Active administrator or employee**. Implemented by `App\Http\Controllers\Api\SearchController`.'
+      operationId: get_app_http_controllers_api_searchcontroller_search
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
   /shop/categories:
     get:
       tags:
@@ -2046,13 +2367,36 @@ paths:
               type: object
               description: Request fields are constrained by the controller or Form Request validation rules.
               additionalProperties: true
-  /shopify/proxy/wishlist/items/{shopifyProductId}:
+  /shopify/proxy/wishlist/items:
+    post:
+      tags:
+      - Shopify Proxy
+      summary: Add item to wishlist via Shopify storefront proxy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - shopify_product_id
+              properties:
+                shopify_product_id:
+                  type: string
+      responses:
+        '201':
+          description: Product added to wishlist successfully
+      operationId: post_modules_sales_http_controllers_shopify_proxywishlistcontroller_store_shopify_proxy_wishlist_items
+      description: 'Access: **Shopify signed request**.'
+      security:
+      - shopifyProxySignature: []
+  /shopify/proxy/wishlist/items/{productIdentifier}:
     delete:
       tags:
       - Shopify Proxy
       summary: Remove item from wishlist via Shopify storefront proxy
       parameters:
-      - name: shopifyProductId
+      - name: productIdentifier
         in: path
         required: true
         schema:
@@ -2062,7 +2406,7 @@ paths:
           description: Product removed from wishlist successfully
         '404':
           $ref: '#/components/responses/NotFound'
-      operationId: delete_modules_sales_http_controllers_shopify_proxywishlistcontroller_destroy_shopify_proxy_wishlist_items_shopifyproductid
+      operationId: delete_modules_sales_http_controllers_shopify_proxywishlistcontroller_destroy_shopify_proxy_wishlist_items_productidentifier
       description: 'Access: **Shopify signed request**.'
       security:
       - shopifyProxySignature: []
@@ -2198,6 +2542,250 @@ paths:
           $ref: '#/components/responses/Unauthorized'
       operationId: get_app_http_controllers_admin_usercontroller_index_users
       description: 'Access: **Active administrator or employee**.'
+  /webhooks/livekit:
+    post:
+      tags:
+      - Core
+      summary: Modules\ workspace\ http\ controllers\ live kit webhook controller core
+      description: 'Access: **Public**. Implemented by `Modules\Workspace\Http\Controllers\LiveKitWebhookController`.'
+      operationId: post_modules_workspace_http_controllers_livekitwebhookcontroller_webhooks_livekit
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/calls/active:
+    get:
+      tags:
+      - Core
+      summary: Get active core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@active`.'
+      operationId: get_modules_workspace_http_controllers_callcontroller_active_workspace_calls_active
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+  /workspace/calls/history:
+    get:
+      tags:
+      - Core
+      summary: History core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@history`.'
+      operationId: get_modules_workspace_http_controllers_callcontroller_history_workspace_calls_history
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+  /workspace/calls/{callId}:
+    get:
+      tags:
+      - Core
+      summary: Get core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@show`.'
+      operationId: get_modules_workspace_http_controllers_callcontroller_show_workspace_calls_callid
+      responses:
+        '200':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /workspace/calls/{callId}/accept:
+    post:
+      tags:
+      - Core
+      summary: Accept core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@accept`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_accept_workspace_calls_callid_accept
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/calls/{callId}/cancel:
+    post:
+      tags:
+      - Core
+      summary: Cancel core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@cancel`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_cancel_workspace_calls_callid_cancel
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/calls/{callId}/decline:
+    post:
+      tags:
+      - Core
+      summary: Decline core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@decline`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_decline_workspace_calls_callid_decline
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/calls/{callId}/end:
+    post:
+      tags:
+      - Core
+      summary: End core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@end`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_end_workspace_calls_callid_end
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/calls/{callId}/invite:
+    post:
+      tags:
+      - Core
+      summary: Invite core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@invite`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_invite_workspace_calls_callid_invite
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/calls/{callId}/leave:
+    post:
+      tags:
+      - Core
+      summary: Leave core
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@leave`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_leave_workspace_calls_callid_leave
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
   /workspace/conversations:
     get:
       tags:
@@ -2321,6 +2909,154 @@ paths:
                 remove_participants_employee_ids:
                   type: array
                   items: *id001
+    delete:
+      tags:
+      - Conversations
+      summary: Delete conversations
+      description: 'Access: **Authenticated user**. Implemented by `Modules\Workspace\Http\Controllers\ConversationController@destroy`.'
+      operationId: delete_modules_workspace_http_controllers_conversationcontroller_destroy_workspace_conversations_conversationid
+      responses:
+        '204':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /workspace/conversations/{conversationId}/ai-actions/{actionId}/approve:
+    post:
+      tags:
+      - Conversations
+      summary: Approve conversations
+      description: 'Access: **Authenticated conversation participant**. Implemented by `Modules\Workspace\Http\Controllers\AiActionController@approve`.'
+      operationId: post_modules_workspace_http_controllers_aiactioncontroller_approve_workspace_conversations_conversationid_ai_actions_actionid_approve
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/conversations/{conversationId}/ai-actions/{actionId}/reject:
+    post:
+      tags:
+      - Conversations
+      summary: Reject conversations
+      description: 'Access: **Authenticated conversation participant**. Implemented by `Modules\Workspace\Http\Controllers\AiActionController@reject`.'
+      operationId: post_modules_workspace_http_controllers_aiactioncontroller_reject_workspace_conversations_conversationid_ai_actions_actionid_reject
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/conversations/{conversationId}/calls:
+    post:
+      tags:
+      - Conversations
+      summary: Create conversations
+      description: 'Access: **Active administrator or employee**. Implemented by `Modules\Workspace\Http\Controllers\CallController@store`.'
+      operationId: post_modules_workspace_http_controllers_callcontroller_store_workspace_conversations_conversationid_calls
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
+  /workspace/conversations/{conversationId}/leave:
+    post:
+      tags:
+      - Conversations
+      summary: Leave conversations
+      description: 'Access: **Authenticated conversation participant**. Implemented by `Modules\Workspace\Http\Controllers\ConversationController@leave`.'
+      operationId: post_modules_workspace_http_controllers_conversationcontroller_leave_workspace_conversations_conversationid_leave
+      responses:
+        '201':
+          description: Successful response
+        '422':
+          $ref: '#/components/responses/ValidationError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Request fields are constrained by the controller or Form Request validation rules.
+              additionalProperties: true
   /workspace/conversations/{conversationId}/messages:
     get:
       tags:
@@ -2614,7 +3350,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
       operationId: get_modules_workspace_http_controllers_projectcontroller_index_workspace_projects
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
     post:
       tags:
       - Projects
@@ -2655,7 +3391,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
       operationId: post_modules_workspace_http_controllers_projectcontroller_store_workspace_projects
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/projects/{projectId}:
     get:
       tags:
@@ -2681,7 +3417,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: get_modules_workspace_http_controllers_projectcontroller_show_workspace_projects_projectid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
     put:
       tags:
       - Projects
@@ -2727,7 +3463,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: put_modules_workspace_http_controllers_projectcontroller_update_workspace_projects_projectid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
     delete:
       tags:
       - Projects
@@ -2748,7 +3484,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: delete_modules_workspace_http_controllers_projectcontroller_destroy_workspace_projects_projectid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/returns:
     get:
       tags:
@@ -2858,7 +3594,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
       operationId: get_modules_workspace_http_controllers_taskcontroller_index_workspace_tasks
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
     post:
       tags:
       - Tasks
@@ -2903,7 +3639,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
       operationId: post_modules_workspace_http_controllers_taskcontroller_store_workspace_tasks
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/tasks/{taskId}:
     get:
       tags:
@@ -2929,7 +3665,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: get_modules_workspace_http_controllers_taskcontroller_show_workspace_tasks_taskid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
     put:
       tags:
       - Tasks
@@ -2979,7 +3715,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: put_modules_workspace_http_controllers_taskcontroller_update_workspace_tasks_taskid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
     delete:
       tags:
       - Tasks
@@ -3000,7 +3736,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: delete_modules_workspace_http_controllers_taskcontroller_destroy_workspace_tasks_taskid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/tasks/{taskId}/assignees:
     post:
       tags:
@@ -3039,7 +3775,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: post_modules_workspace_http_controllers_taskcontroller_assignemployees_workspace_tasks_taskid_assignees
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/tasks/{taskId}/assignees/{employeeId}:
     delete:
       tags:
@@ -3070,7 +3806,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: delete_modules_workspace_http_controllers_taskcontroller_removeemployee_workspace_tasks_taskid_assignees_employeeid
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/tasks/{taskId}/time-entries:
     get:
       tags:
@@ -3098,7 +3834,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: get_modules_workspace_http_controllers_timetrackingcontroller_index_workspace_tasks_taskid_time_entries
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/tasks/{taskId}/time-entries/start:
     post:
       tags:
@@ -3124,7 +3860,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: post_modules_workspace_http_controllers_timetrackingcontroller_start_workspace_tasks_taskid_time_entries_start
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/tasks/{taskId}/time-entries/{entryId}/stop:
     post:
       tags:
@@ -3155,7 +3891,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       operationId: post_modules_workspace_http_controllers_timetrackingcontroller_stop_workspace_tasks_taskid_time_entries_entryid_stop
-      description: 'Access: **Authenticated user**.'
+      description: 'Access: **Active administrator or employee**.'
   /workspace/users/{userId}/time-entries/daily-total:
     get:
       tags:
