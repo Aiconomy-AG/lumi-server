@@ -21,6 +21,7 @@ class CreateCallRequest extends FormRequest
             'callee_ids.*' => ['integer', 'exists:users,id'],
             'type' => ['sometimes', 'string', Rule::enum(CallType::class)],
             'mode' => ['sometimes', 'string', Rule::enum(CallMode::class)],
+            'conversation_id' => ['sometimes', 'integer', 'exists:conversations,id'],
             'client_instance_id' => ['required', 'string', 'max:100'],
         ];
     }

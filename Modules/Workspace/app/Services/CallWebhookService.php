@@ -95,16 +95,31 @@ class CallWebhookService
             return;
         }
 
-        DB::transaction(function () use ($call, $participant, $identity): void {
+        $changed = DB::transaction(function () use ($call, $participant, $identity): bool {
             $lockedCall = Call::query()->whereKey($call->id)->lockForUpdate()->first();
-            if (! $lockedCall) {
-                return;
+            if (! $lockedCall || $lockedCall->status->isTerminal()) {
+                return false;
+            }
+
+            $lockedParticipant = CallParticipant::query()
+                ->whereKey($participant->id)
+                ->lockForUpdate()
+                ->first();
+            if (! $lockedParticipant) {
+                return false;
+            }
+
+            $alreadyProcessed = $lockedParticipant->status === ParticipantStatus::Joined
+                && $lockedParticipant->livekit_identity === $identity
+                && $lockedCall->started_at !== null;
+            if ($alreadyProcessed) {
+                return false;
             }
 
             $now = now();
-            $participant->update([
+            $lockedParticipant->update([
                 'status' => ParticipantStatus::Joined,
-                'joined_at' => $participant->joined_at ?? $now,
+                'joined_at' => $lockedParticipant->joined_at ?? $now,
                 'livekit_identity' => $identity,
             ]);
 
@@ -112,10 +127,16 @@ class CallWebhookService
                 $lockedCall->update(['started_at' => $now]);
             }
 
-            if ($lockedCall->status === CallStatus::Ringing && $participant->role === 'callee') {
+            if ($lockedCall->status === CallStatus::Ringing && $lockedParticipant->role === 'callee') {
                 $lockedCall->update(['status' => CallStatus::Active, 'answered_at' => $now]);
             }
+
+            return true;
         });
+
+        if (! $changed) {
+            return;
+        }
 
         $call->refresh()->load(['participants.user', 'conversation']);
         ParticipantJoined::dispatch($call, $participant->fresh());
@@ -136,30 +157,51 @@ class CallWebhookService
             return;
         }
 
-        DB::transaction(function () use ($call, $participant): void {
-            $participant->update([
+        [$changed, $ended] = DB::transaction(function () use ($call, $participant): array {
+            $lockedCall = Call::query()->whereKey($call->id)->lockForUpdate()->first();
+            $lockedParticipant = CallParticipant::query()
+                ->whereKey($participant->id)
+                ->lockForUpdate()
+                ->first();
+            if (! $lockedCall || ! $lockedParticipant || $lockedParticipant->status === ParticipantStatus::Left) {
+                return [false, false];
+            }
+
+            $now = now();
+            $lockedParticipant->update([
                 'status' => ParticipantStatus::Left,
-                'left_at' => now(),
+                'left_at' => $now,
             ]);
 
-            $activeCount = $call->participants()
+            $activeCount = $lockedCall->participants()
                 ->where('status', ParticipantStatus::Joined->value)
                 ->count();
 
-            if ($activeCount === 0 && $call->status === CallStatus::Active) {
-                $call->update([
+            $ended = false;
+            if ($activeCount === 0 && $lockedCall->status === CallStatus::Active) {
+                $lockedCall->participants()
+                    ->whereIn('status', [ParticipantStatus::Ringing->value, ParticipantStatus::Invited->value])
+                    ->update(['status' => ParticipantStatus::Missed->value, 'left_at' => $now]);
+                $lockedCall->update([
                     'status' => CallStatus::Ended,
-                    'ended_at' => now(),
+                    'ended_at' => $now,
                     'end_reason' => 'ended',
                 ]);
+                $ended = true;
             }
+
+            return [true, $ended];
         });
+
+        if (! $changed) {
+            return;
+        }
 
         $call->refresh()->load(['participants.user', 'conversation']);
         ParticipantLeft::dispatch($call, $participant->fresh());
         $this->presence->restoreForCall($call, [(int) $participant->user_id]);
 
-        if ($call->status === CallStatus::Ended) {
+        if ($ended) {
             $this->presence->restoreForCall($call);
             CallEnded::dispatch($call);
             $this->chatLogs->recordTerminalCall($call);
@@ -196,6 +238,12 @@ class CallWebhookService
                     'status' => ParticipantStatus::Left->value,
                     'left_at' => $now,
                 ]);
+            $lockedCall->participants()
+                ->whereIn('status', [ParticipantStatus::Ringing->value, ParticipantStatus::Invited->value])
+                ->update([
+                    'status' => ParticipantStatus::Missed->value,
+                    'left_at' => $now,
+                ]);
 
             $ended = false;
             if (! $lockedCall->status->isTerminal()) {
@@ -212,10 +260,10 @@ class CallWebhookService
 
         if ($ended) {
             CallEnded::dispatch($call);
-            $this->presence->restoreForCall($call);
         }
+        $this->presence->restoreForCall($call);
         $this->events->logCall($call, 'ended', ['source' => 'room_finished']);
-        if ($ended) {
+        if ($call->status->isTerminal()) {
             $this->chatLogs->recordTerminalCall($call);
         }
     }

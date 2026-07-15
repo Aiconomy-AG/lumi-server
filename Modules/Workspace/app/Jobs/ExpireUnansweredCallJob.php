@@ -10,10 +10,13 @@ class ExpireUnansweredCallJob implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public readonly string $callId) {}
+    public function __construct(
+        public readonly string $callId,
+        public readonly array $participantUserIds = [],
+    ) {}
 
     public function handle(CallService $calls): void
     {
-        $calls->markMissed($this->callId);
+        $calls->markMissed($this->callId, $this->participantUserIds);
     }
 }

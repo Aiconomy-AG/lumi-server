@@ -35,9 +35,15 @@ class DispatchCallRingJob implements ShouldQueue
             return;
         }
 
+        if (! in_array($call->status->value, ['ringing', 'active'], true)) {
+            return;
+        }
+
         $invitees = $this->inviteeUserIds !== []
             ? $call->participants->whereIn('user_id', $this->inviteeUserIds)
             : $call->participants->filter(fn ($participant) => $participant->role === 'callee');
+
+        $invitees = $invitees->filter(fn ($participant) => $participant->isPending());
 
         foreach ($invitees as $participant) {
             $userId = (int) $participant->user_id;
