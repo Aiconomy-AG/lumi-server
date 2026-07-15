@@ -6,11 +6,11 @@ use Modules\Workspace\Models\Call;
 
 class CallPayload
 {
-    public static function make(Call $call): array
+    public static function make(Call $call, ?array $connection = null): array
     {
         $call->loadMissing(['participants.user']);
 
-        return [
+        $payload = [
             'id' => $call->id,
             'conversation_id' => $call->conversation_id,
             'initiated_by_user_id' => $call->initiated_by_user_id,
@@ -25,6 +25,11 @@ class CallPayload
                 'name' => $participant->user?->name,
                 'role' => $participant->role,
                 'status' => $participant->status->value,
+                'invited_at' => $participant->invited_at?->toISOString(),
+                'ringing_delivered_at' => $participant->ringing_delivered_at?->toISOString(),
+                'answered_at' => $participant->answered_at?->toISOString(),
+                'joined_at' => $participant->joined_at?->toISOString(),
+                'left_at' => $participant->left_at?->toISOString(),
             ])->values()->all(),
             'mode' => $call->callModeValue(),
             'type' => $call->callTypeValue(),
@@ -38,5 +43,11 @@ class CallPayload
             'created_at' => $call->created_at?->toISOString(),
             'updated_at' => $call->updated_at?->toISOString(),
         ];
+
+        if ($connection !== null) {
+            $payload['connection'] = $connection;
+        }
+
+        return $payload;
     }
 }

@@ -14,6 +14,11 @@ class ProjectSearchProvider extends AbstractSearchProvider
         return 'project';
     }
 
+    protected function supportsCompletedStatusFilter(): bool
+    {
+        return true;
+    }
+
     protected function model(): Model
     {
         return new Project;

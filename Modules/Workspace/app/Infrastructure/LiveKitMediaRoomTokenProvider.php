@@ -27,19 +27,20 @@ class LiveKitMediaRoomTokenProvider implements MediaRoomTokenProvider
         $identity = LiveKitIdentity::forUser((int) $user->id, $clientInstanceId);
         $callType = $call->type ?? CallType::tryFrom((string) $call->media_type) ?? CallType::Audio;
 
-        $videoGrant = (new VideoGrant())
+        $videoGrant = (new VideoGrant)
             ->setRoomJoin()
             ->setRoomName($call->room_name)
             ->setCanPublish(true)
             ->setCanSubscribe(true)
-            ->setCanPublishData(false)
-            ->setCanPublishSources(
-                $callType === CallType::Video
-                    ? ['microphone', 'camera']
-                    : ['microphone']
-            );
+            ->setCanPublishData(false);
 
-        $tokenOptions = (new AccessTokenOptions())
+        $videoGrant->setCanPublishSources(
+            $callType === CallType::Audio
+                ? ['microphone']
+                : ['microphone', 'camera', 'screen_share'],
+        );
+
+        $tokenOptions = (new AccessTokenOptions)
             ->setIdentity($identity)
             ->setName($user->name)
             ->setMetadata(json_encode([

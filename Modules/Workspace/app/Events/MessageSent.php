@@ -7,6 +7,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Modules\Workspace\Models\Message;
+use Modules\Workspace\Transformers\MessageResource;
 
 class MessageSent implements ShouldBroadcastNow
 {
@@ -28,12 +29,8 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        return [
-            'id' => $this->message->id,
-            'conversation_id' => $this->message->conversation_id,
-            'sender_id' => $this->message->sender_id,
-            'message' => $this->message->message,
-            'sent_at' => $this->message->created_at?->toISOString(),
-        ];
+        $this->message->loadMissing(['call', 'reactions']);
+
+        return (new MessageResource($this->message))->resolve();
     }
 }

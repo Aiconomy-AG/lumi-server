@@ -80,6 +80,7 @@ nav:
   - Getting Started:
       - Local setup: getting-started/local-setup.md
       - Configuration: getting-started/configuration.md
+      - Workspace VoIP setup: integrations/voip.md
       - Repository map: getting-started/repository-map.md
   - Architecture:
       - System overview: architecture/overview.md
@@ -91,6 +92,7 @@ nav:
       - Core platform: modules/core.md
       - Sales: modules/sales.md
       - Workspace: modules/workspace.md
+      - Workspace VoIP backend architecture: integrations/voip-backend-architecture.md
       - Significant functions: reference/functions.md
   - API:
       - Usage and conventions: api/index.md
@@ -100,6 +102,8 @@ nav:
       - Overview: integrations/index.md
       - Shopify: integrations/shopify.md
       - Messaging and AI: integrations/messaging-ai.md
+      - Workspace VoIP setup: integrations/voip.md
+      - Workspace VoIP backend architecture: integrations/voip-backend-architecture.md
   - Operations:
       - Runtime operations: operations/runtime.md
       - Deployment: operations/deployment.md

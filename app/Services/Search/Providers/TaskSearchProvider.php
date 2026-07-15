@@ -14,6 +14,11 @@ class TaskSearchProvider extends AbstractSearchProvider
         return 'task';
     }
 
+    protected function supportsCompletedStatusFilter(): bool
+    {
+        return true;
+    }
+
     protected function model(): Model
     {
         return new Task;

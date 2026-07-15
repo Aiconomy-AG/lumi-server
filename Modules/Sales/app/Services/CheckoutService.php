@@ -93,17 +93,25 @@ class CheckoutService
         $itemsData = [];
 
         foreach ($items as $item) {
-            $product = Product::findOrFail($item['product_id']);
-            $price = (float) $product->price;
+            $product = Product::with('variants')->findOrFail($item['product_id']);
+            $variant = $product->variants->first(fn ($candidate) => (float) $candidate->price > 0)
+                ?? $product->variants->first();
 
-            if ($price <= 0.00 && $firstVariant = $product->variants()->first()) {
-                $price = (float) $firstVariant->price;
+            if ($variant === null) {
+                throw new \InvalidArgumentException("Product {$product->id} has no variants.");
+            }
+
+            $price = (float) $variant->price;
+
+            if ($price <= 0.00) {
+                $price = (float) $product->price;
             }
 
             $subtotal += $price * $item['quantity'];
             $itemsData[] = [
-                'product_id' => $item['product_id'],
+                'product_variant_id' => $variant->id,
                 'quantity' => $item['quantity'],
+                'unit_price' => $price,
             ];
         }
 

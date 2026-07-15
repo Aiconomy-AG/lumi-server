@@ -44,5 +44,15 @@ Configuration is read from `.env` through Laravel configuration files. Never com
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini authentication and model selection |
 | `CHAT_AI_USER_EMAIL`, `CHAT_AI_USER_NAME`, `CHAT_AI_HISTORY_LIMIT` | AI user identity and conversation context limit |
 
-After changing environment values in a deployed system, clear or rebuild Laravel's configuration cache and restart long-running workers so they load the new configuration.
+## Workspace VoIP configuration
 
+Workspace calling has enough moving parts that it should be treated as its own setup track. Use [LiveKit Workspace calls](../integrations/voip.md) for the operational configuration and deployment checklist, including:
+
+- `VOIP_*`
+- `LIVEKIT_*`
+- `APNS_*`
+- queue worker expectations for `calls,default`
+
+When you need the internal code map behind those variables and services, use [Workspace VoIP backend architecture](../integrations/voip-backend-architecture.md).
+
+After changing environment values in a deployed system, clear or rebuild Laravel's configuration cache and restart long-running workers so they load the new configuration.

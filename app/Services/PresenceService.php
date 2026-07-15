@@ -4,10 +4,15 @@ namespace App\Services;
 
 use App\Events\UserStatusUpdated;
 use App\Models\User;
+use Modules\Workspace\Services\CallPresenceService;
 use Throwable;
 
 class PresenceService
 {
+    public function __construct(
+        private readonly CallPresenceService $callPresence,
+    ) {}
+
     public function markAlive(User $user, string $fallbackStatus = 'available'): User
     {
         $updates = ['last_seen_at' => now()];
@@ -44,6 +49,17 @@ class PresenceService
 
     public function setManualStatus(User $user, string $status): User
     {
+        if ($user->call_status_restore_call_id !== null) {
+            $previousStatus = $user->status;
+            $this->callPresence->updateManualStatus($user, $status);
+
+            if ($previousStatus !== $user->status) {
+                $this->broadcastStatusUpdate((int) $user->id, $user->status);
+            }
+
+            return $user;
+        }
+
         $user->fill([
             'status' => $status,
             'last_seen_at' => now(),

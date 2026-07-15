@@ -12,7 +12,15 @@ class StoreMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => ['required', 'string', 'max:5000'],
+            'message' => ['required_without:image', 'nullable', 'string', 'max:5000'],
+            'image' => [
+                'required_without:message',
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'max:'.config('media.image_max_kb'),
+                'dimensions:max_width=8000,max_height=8000',
+            ],
         ];
     }
 

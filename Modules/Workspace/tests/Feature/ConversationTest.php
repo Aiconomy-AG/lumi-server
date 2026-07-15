@@ -70,6 +70,34 @@ class ConversationTest extends TestCase
     }
 
     #[Test]
+    public function creating_a_group_posts_a_system_message(): void
+    {
+        $user = User::factory()->create(['name' => 'Admin User']);
+        $other = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/workspace/conversations', [
+                'type' => 'group',
+                'name' => 'Team Ops',
+                'participants_employee_ids' => [$other->id],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.name', 'Team Ops')
+            ->assertJsonPath('data.last_message.message', 'Admin User created the group "Team Ops".')
+            ->assertJsonPath('data.last_message.message_type', 'system');
+
+        $conversationId = $response->json('data.id');
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversationId,
+            'sender_id' => $user->id,
+            'message_type' => 'system',
+            'message' => 'Admin User created the group "Team Ops".',
+        ]);
+    }
+
+    #[Test]
     public function conversation_without_messages_has_null_last_message(): void
     {
         $user = User::factory()->create();
@@ -135,6 +163,32 @@ class ConversationTest extends TestCase
         $this->assertDatabaseHas('conversation_participants', [
             'conversation_id' => $conversation->id,
             'user_id' => $newMember->id,
+        ]);
+    }
+
+    #[Test]
+    public function adding_group_members_posts_a_system_message(): void
+    {
+        $user = User::factory()->create(['name' => 'Admin User']);
+        $other = User::factory()->create();
+        $newMember = User::factory()->create(['name' => 'New User']);
+        $conversation = Conversation::factory()->create([
+            'type' => 'group',
+            'name' => 'Team Ops',
+            'created_by' => $user->id,
+        ]);
+        $conversation->participants()->attach([$user->id, $other->id]);
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson("/api/v1/workspace/conversations/{$conversation->id}", [
+                'add_participants_employee_ids' => [$newMember->id],
+            ])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'message_type' => 'system',
+            'message' => 'Admin User added New User to the group.',
         ]);
     }
 

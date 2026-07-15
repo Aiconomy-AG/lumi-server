@@ -10,7 +10,7 @@ class CallResource extends JsonResource
 {
     private ?array $connection = null;
 
-    public function withConnection(array $connection): self
+    public function withConnection(?array $connection): self
     {
         $this->connection = $connection;
 
@@ -19,9 +19,6 @@ class CallResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        return [
-            ...CallPayload::make($this->resource),
-            'connection' => $this->when($this->connection !== null, $this->connection),
-        ];
+        return CallPayload::make($this->resource, $this->connection);
     }
 }

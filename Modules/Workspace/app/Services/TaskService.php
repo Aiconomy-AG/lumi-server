@@ -127,6 +127,12 @@ class TaskService
 
     public function delete(Task $task): void
     {
+        $task->loadMissing('subtasks');
+
+        foreach ($task->subtasks as $subtask) {
+            $this->delete($subtask);
+        }
+
         $task->delete();
     }
 

@@ -4,8 +4,17 @@ namespace Modules\Workspace\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendPushNotificationJob;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Modules\Workspace\Domain\Messages\MessageType;
+use Modules\Workspace\Events\MessageReactionUpdated;
 use Modules\Workspace\Events\MessageSent;
+use Modules\Workspace\Http\Requests\StoreMessageReactionRequest;
 use Modules\Workspace\Http\Requests\StoreMessageRequest;
 use Modules\Workspace\Jobs\GenerateAiChatReplyJob;
 use Modules\Workspace\Models\Conversation;
@@ -28,6 +37,7 @@ class MessageController extends Controller
         $afterId = (int) $request->query('after_id', 0);
 
         $query = Message::query()
+            ->with(['call', 'reactions'])
             ->where('conversation_id', $conversationId);
 
         if ($afterId > 0) {
@@ -61,11 +71,31 @@ class MessageController extends Controller
             ->with('participants')
             ->findOrFail($conversationId);
 
-        $message = Message::create([
-            'conversation_id' => $conversationId,
-            'sender_id' => $request->user()->id,
-            'message' => $request->validated('message'),
-        ]);
+        $imagePath = null;
+
+        try {
+            $attributes = [
+                'conversation_id' => $conversationId,
+                'sender_id' => $request->user()->id,
+                'message' => $request->validated('message'),
+            ];
+
+            if ($request->hasFile('image')) {
+                $image = $this->storeImage($request->file('image'), $conversationId);
+                $imagePath = $image['path'];
+
+                $attributes['message_type'] = MessageType::Image;
+                $attributes['meta'] = ['image' => $image];
+            }
+
+            $message = Message::create($attributes);
+        } catch (\Throwable $e) {
+            if ($imagePath !== null) {
+                Storage::disk(config('media.disk'))->delete($imagePath);
+            }
+
+            throw $e;
+        }
 
         $recipientIds = $conversation->participants
             ->pluck('id')
@@ -83,7 +113,9 @@ class MessageController extends Controller
             payload: [
                 'conversation_name' => $conversation->name,
                 'conversation_type' => $conversation->type,
-                'message_preview' => str($message->message)->limit(120)->toString(),
+                'message_preview' => $message->message_type === MessageType::Image
+                    ? '📷 Photo'
+                    : str($message->message)->limit(120)->toString(),
             ],
         );
 
@@ -100,18 +132,112 @@ class MessageController extends Controller
             );
         }
 
-        MessageSent::dispatch($message);
-
         if (
             $this->chatAiUserResolver->isEnabled()
             && ! $this->chatAiUserResolver->isBotUser((int) $request->user()->id)
+            && $message->message !== null
             && ChatMentionDetector::isMentioned($message->message)
         ) {
             GenerateAiChatReplyJob::dispatch($message->id);
         }
 
+        try {
+            MessageSent::dispatch($message->load('reactions'));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return (new MessageResource($message))
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function react(StoreMessageReactionRequest $request, int $conversationId, int $messageId): JsonResource|JsonResponse
+    {
+        $message = $this->findConversationMessage($conversationId, $messageId);
+
+        if (! $message) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Message not found.'], 404);
+        }
+
+        DB::transaction(function () use ($message, $request): void {
+            $emoji = $request->validated('emoji');
+
+            $message->reactions()
+                ->where('user_id', $request->user()->id)
+                ->where('emoji', '!=', $emoji)
+                ->delete();
+
+            $message->reactions()->firstOrCreate([
+                'user_id' => $request->user()->id,
+                'emoji' => $emoji,
+            ]);
+        });
+
+        return $this->reactionResponse($message);
+    }
+
+    public function unreact(StoreMessageReactionRequest $request, int $conversationId, int $messageId): JsonResource|JsonResponse
+    {
+        $message = $this->findConversationMessage($conversationId, $messageId);
+
+        if (! $message) {
+            return response()->json(['code' => 'NOT_FOUND', 'message' => 'Message not found.'], 404);
+        }
+
+        $message->reactions()
+            ->where('user_id', $request->user()->id)
+            ->delete();
+
+        return $this->reactionResponse($message);
+    }
+
+    /**
+     * @return array{path: string, width: int|null, height: int|null, size: int, mime: string|null}
+     */
+    private function storeImage(UploadedFile $file, int $conversationId): array
+    {
+        $dimensions = @getimagesize($file->getRealPath());
+        $size = $file->getSize();
+        $mime = $file->getMimeType();
+
+        $path = Storage::disk(config('media.disk'))->putFileAs(
+            'chat/'.$conversationId,
+            $file,
+            Str::ulid().'.'.$file->extension(),
+        );
+
+        if ($path === false) {
+            throw new \RuntimeException('Failed to store chat image for conversation '.$conversationId);
+        }
+
+        return [
+            'path' => $path,
+            'width' => $dimensions[0] ?? null,
+            'height' => $dimensions[1] ?? null,
+            'size' => $size,
+            'mime' => $mime,
+        ];
+    }
+
+    private function findConversationMessage(int $conversationId, int $messageId): ?Message
+    {
+        return Message::query()
+            ->where('conversation_id', $conversationId)
+            ->whereKey($messageId)
+            ->first();
+    }
+
+    private function reactionResponse(Message $message): JsonResource
+    {
+        $message = $message->fresh(['call', 'reactions']);
+
+        try {
+            MessageReactionUpdated::dispatch($message);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return new MessageResource($message);
     }
 }

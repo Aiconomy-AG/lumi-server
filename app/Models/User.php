@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Support\CdnUrl;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,9 +20,12 @@ use Laravel\Scout\Searchable;
     'password',
     'role',
     'status',
+    'call_status_restore_status',
+    'call_status_restore_call_id',
     'last_seen_at',
     'phone_number',
     'language_flag',
+    'avatar_path',
     'is_active',
     'must_change_password',
 ])]
@@ -46,10 +51,16 @@ class User extends Authenticatable
         ];
     }
 
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::get(fn (): ?string => CdnUrl::thumb($this->avatar_path, 256));
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
     }
+
     public function isEmployee(): bool
     {
         return $this->role === UserRole::Employee;

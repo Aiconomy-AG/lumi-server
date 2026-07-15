@@ -32,6 +32,7 @@ class ShopifyProxyTest extends TestCase
     {
         Product::query()->create([
             'name' => 'Bath Bomb',
+            'sku' => 'bath-bomb',
             'price' => 10,
             'shopify_product_id' => 'gid://shopify/Product/999',
         ]);
@@ -44,7 +45,11 @@ class ShopifyProxyTest extends TestCase
 
         $this->postJson('/api/v1/shopify/proxy/wishlist/items?'.$query, [
             'shopify_product_id' => '999',
-        ])->assertCreated()->assertJsonPath('saved', true);
+        ])
+            ->assertCreated()
+            ->assertJsonPath('saved', true)
+            ->assertJsonPath('item.numeric_product_id', '999')
+            ->assertJsonPath('item.handle', 'bath-bomb');
 
         $this->assertDatabaseHas('customers', ['shopify_customer_id' => '123']);
         $this->assertDatabaseCount('wishlist_items', 1);
@@ -56,6 +61,33 @@ class ShopifyProxyTest extends TestCase
         $this->assertDatabaseCount('wishlist_items', 0);
     }
 
+    public function test_wishlist_proxy_saves_products_by_handle(): void
+    {
+        Product::query()->create([
+            'name' => 'Dream Cream',
+            'sku' => 'dream-cream',
+            'price' => 20,
+            'shopify_product_id' => 'gid://shopify/Product/1000',
+        ]);
+
+        $query = $this->signedProxyQuery([
+            'shop' => 'test.myshopify.com',
+            'logged_in_customer_id' => '123',
+            'timestamp' => '1234567890',
+        ]);
+
+        $this->postJson('/api/v1/shopify/proxy/wishlist/items?'.$query, [
+            'product_handle' => 'dream-cream',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('saved', true)
+            ->assertJsonPath('item.handle', 'dream-cream');
+
+        $this->assertDatabaseHas('wishlist_items', [
+            'customer_id' => Customer::query()->where('shopify_customer_id', '123')->value('id'),
+        ]);
+    }
+
     public function test_return_proxy_creates_return_request(): void
     {
         $query = $this->signedProxyQuery([
@@ -65,7 +97,7 @@ class ShopifyProxyTest extends TestCase
         ]);
 
         $this->postJson('/api/v1/shopify/proxy/returns?'.$query, [
-            'order_identifier' => '1001',
+            'order_id' => '1001',
             'email' => 'customer@example.com',
             'reason' => 'damaged',
             'notes' => 'Arrived broken',

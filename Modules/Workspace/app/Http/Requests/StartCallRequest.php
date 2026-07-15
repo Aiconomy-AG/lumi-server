@@ -13,6 +13,9 @@ class StartCallRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['client_instance_id' => ['required', 'string', 'max:100']];
+        return [
+            'client_instance_id' => ['required', 'string', 'max:100'],
+            'type' => ['sometimes', 'string', 'in:audio,video'],
+        ];
     }
 }

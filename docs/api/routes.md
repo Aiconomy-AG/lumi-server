@@ -2,7 +2,7 @@
 
 This page is generated from `php artisan route:list --json`. The canonical OpenAPI document contains request and response details.
 
-Registered API operations: **113**.
+Registered API operations: **145**.
 
 ## Audit logs
 
@@ -17,6 +17,8 @@ Registered API operations: **113**.
 | `POST` | `/auth/login` | Public | `App\Http\Controllers\Auth\TokenController@store` |
 | `DELETE` | `/auth/logout` | Authenticated user | `App\Http\Controllers\Auth\TokenController@destroy` |
 | `GET` | `/auth/me` | Authenticated user | `App\Http\Controllers\Auth\TokenController@me` |
+| `DELETE` | `/auth/me/avatar` | Authenticated user | `App\Http\Controllers\AvatarController@destroy` |
+| `POST` | `/auth/me/avatar` | Authenticated user | `App\Http\Controllers\AvatarController@store` |
 | `POST` | `/auth/me/presence/disconnect` | Public | `App\Http\Controllers\Auth\TokenController@disconnect` |
 | `POST` | `/auth/me/presence/ping` | Authenticated user | `App\Http\Controllers\Auth\TokenController@ping` |
 | `PATCH` | `/auth/me/status` | Authenticated user | `App\Http\Controllers\Auth\TokenController@updateStatus` |
@@ -32,44 +34,51 @@ Registered API operations: **113**.
 |---|---|---|---|
 | `GET` | `/workspace/conversations` | Authenticated user | `Modules\Workspace\Http\Controllers\ConversationController@index` |
 | `POST` | `/workspace/conversations` | Authenticated user | `Modules\Workspace\Http\Controllers\ConversationController@store` |
+| `DELETE` | `/workspace/conversations/{conversationId}` | Authenticated user | `Modules\Workspace\Http\Controllers\ConversationController@destroy` |
 | `GET` | `/workspace/conversations/{conversationId}` | Authenticated user | `Modules\Workspace\Http\Controllers\ConversationController@show` |
 | `PUT` | `/workspace/conversations/{conversationId}` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\ConversationController@update` |
+| `POST` | `/workspace/conversations/{conversationId}/ai-actions/{actionId}/approve` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\AiActionController@approve` |
+| `POST` | `/workspace/conversations/{conversationId}/ai-actions/{actionId}/reject` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\AiActionController@reject` |
+| `POST` | `/workspace/conversations/{conversationId}/calls` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@store` |
+| `POST` | `/workspace/conversations/{conversationId}/leave` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\ConversationController@leave` |
 | `GET` | `/workspace/conversations/{conversationId}/messages` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@index` |
 | `POST` | `/workspace/conversations/{conversationId}/messages` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@store` |
+| `DELETE` | `/workspace/conversations/{conversationId}/messages/{messageId}/reactions` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@unreact` |
+| `POST` | `/workspace/conversations/{conversationId}/messages/{messageId}/reactions` | Authenticated conversation participant | `Modules\Workspace\Http\Controllers\MessageController@react` |
+
+## Core
+
+| Method | Path | Access | Handler |
+|---|---|---|---|
+| `POST` | `/calls` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@create` |
+| `GET` | `/calls/active` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@active` |
+| `GET` | `/calls/history` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@history` |
+| `GET` | `/calls/{callId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@show` |
+| `POST` | `/calls/{callId}/accept` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@accept` |
+| `POST` | `/calls/{callId}/cancel` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@cancel` |
+| `POST` | `/calls/{callId}/decline` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@decline` |
+| `POST` | `/calls/{callId}/end` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@end` |
+| `POST` | `/calls/{callId}/invite` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@invite` |
+| `POST` | `/calls/{callId}/leave` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@leave` |
+| `GET` | `/search` | Active administrator or employee | `App\Http\Controllers\Api\SearchController` |
+| `POST` | `/webhooks/livekit` | Public | `Modules\Workspace\Http\Controllers\LiveKitWebhookController` |
+| `GET` | `/workspace/calls/active` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@active` |
+| `GET` | `/workspace/calls/history` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@history` |
+| `GET` | `/workspace/calls/{callId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@show` |
+| `POST` | `/workspace/calls/{callId}/accept` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@accept` |
+| `POST` | `/workspace/calls/{callId}/cancel` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@cancel` |
+| `POST` | `/workspace/calls/{callId}/decline` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@decline` |
+| `POST` | `/workspace/calls/{callId}/end` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@end` |
+| `POST` | `/workspace/calls/{callId}/invite` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@invite` |
+| `POST` | `/workspace/calls/{callId}/leave` | Active administrator or employee | `Modules\Workspace\Http\Controllers\CallController@leave` |
 
 ## Device tokens
 
 | Method | Path | Access | Handler |
 |---|---|---|---|
 | `DELETE` | `/device-tokens` | Authenticated user | `App\Http\Controllers\DeviceTokenController@destroy` |
-| `DELETE` | `/device-tokens/{deviceTokenId}` | Authenticated user (owner) | `App\Http\Controllers\DeviceTokenController@destroyById` |
 | `POST` | `/device-tokens` | Authenticated user | `App\Http\Controllers\DeviceTokenController@store` |
-
-## VoIP calls
-
-| Method | Path | Access | Handler |
-|---|---|---|---|
-| `POST` | `/calls` | Staff | `Modules\Workspace\Http\Controllers\CallController@create` |
-| `GET` | `/calls/active` | Staff | `Modules\Workspace\Http\Controllers\CallController@active` |
-| `GET` | `/calls/history` | Staff | `Modules\Workspace\Http\Controllers\CallController@history` |
-| `GET` | `/calls/{callId}` | Staff | `Modules\Workspace\Http\Controllers\CallController@show` |
-| `POST` | `/calls/{callId}/accept` | Staff | `Modules\Workspace\Http\Controllers\CallController@accept` |
-| `POST` | `/calls/{callId}/decline` | Staff | `Modules\Workspace\Http\Controllers\CallController@decline` |
-| `POST` | `/calls/{callId}/cancel` | Staff | `Modules\Workspace\Http\Controllers\CallController@cancel` |
-| `POST` | `/calls/{callId}/leave` | Staff | `Modules\Workspace\Http\Controllers\CallController@leave` |
-| `POST` | `/calls/{callId}/invite` | Staff | `Modules\Workspace\Http\Controllers\CallController@invite` |
-| `POST` | `/calls/{callId}/end` | Staff | `Modules\Workspace\Http\Controllers\CallController@end` |
-| `POST` | `/webhooks/livekit` | Public (signed) | `Modules\Workspace\Http\Controllers\LiveKitWebhookController` |
-| `POST` | `/workspace/conversations/{conversationId}/calls` | Staff conversation participant | `Modules\Workspace\Http\Controllers\CallController@store` |
-| `GET` | `/workspace/calls/active` | Staff | `Modules\Workspace\Http\Controllers\CallController@active` |
-| `GET` | `/workspace/calls/history` | Staff | `Modules\Workspace\Http\Controllers\CallController@history` |
-| `GET` | `/workspace/calls/{callId}` | Staff | `Modules\Workspace\Http\Controllers\CallController@show` |
-| `POST` | `/workspace/calls/{callId}/accept` | Staff | `Modules\Workspace\Http\Controllers\CallController@accept` |
-| `POST` | `/workspace/calls/{callId}/decline` | Staff | `Modules\Workspace\Http\Controllers\CallController@decline` |
-| `POST` | `/workspace/calls/{callId}/cancel` | Staff | `Modules\Workspace\Http\Controllers\CallController@cancel` |
-| `POST` | `/workspace/calls/{callId}/leave` | Staff | `Modules\Workspace\Http\Controllers\CallController@leave` |
-| `POST` | `/workspace/calls/{callId}/invite` | Staff | `Modules\Workspace\Http\Controllers\CallController@invite` |
-| `POST` | `/workspace/calls/{callId}/end` | Staff | `Modules\Workspace\Http\Controllers\CallController@end` |
+| `DELETE` | `/device-tokens/{deviceTokenId}` | Authenticated user | `App\Http\Controllers\DeviceTokenController@destroyById` |
 
 ## Notifications
 
@@ -104,11 +113,11 @@ Registered API operations: **113**.
 
 | Method | Path | Access | Handler |
 |---|---|---|---|
-| `GET` | `/workspace/projects` | Authenticated user | `Modules\Workspace\Http\Controllers\ProjectController@index` |
-| `POST` | `/workspace/projects` | Authenticated user | `Modules\Workspace\Http\Controllers\ProjectController@store` |
-| `DELETE` | `/workspace/projects/{projectId}` | Authenticated user | `Modules\Workspace\Http\Controllers\ProjectController@destroy` |
-| `GET` | `/workspace/projects/{projectId}` | Authenticated user | `Modules\Workspace\Http\Controllers\ProjectController@show` |
-| `PUT` | `/workspace/projects/{projectId}` | Authenticated user | `Modules\Workspace\Http\Controllers\ProjectController@update` |
+| `GET` | `/workspace/projects` | Active administrator or employee | `Modules\Workspace\Http\Controllers\ProjectController@index` |
+| `POST` | `/workspace/projects` | Active administrator or employee | `Modules\Workspace\Http\Controllers\ProjectController@store` |
+| `DELETE` | `/workspace/projects/{projectId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\ProjectController@destroy` |
+| `GET` | `/workspace/projects/{projectId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\ProjectController@show` |
+| `PUT` | `/workspace/projects/{projectId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\ProjectController@update` |
 
 ## Return administration
 
@@ -140,7 +149,8 @@ Registered API operations: **113**.
 |---|---|---|---|
 | `GET` | `/shopify/proxy/wishlist` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@index` |
 | `POST` | `/shopify/proxy/wishlist` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@store` |
-| `DELETE` | `/shopify/proxy/wishlist/items/{shopifyProductId}` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@destroy` |
+| `POST` | `/shopify/proxy/wishlist/items` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@store` |
+| `DELETE` | `/shopify/proxy/wishlist/items/{productIdentifier}` | Shopify signed request | `Modules\Sales\Http\Controllers\Shopify\ProxyWishlistController@destroy` |
 
 ## Shopify returns
 
@@ -193,16 +203,16 @@ Registered API operations: **113**.
 | Method | Path | Access | Handler |
 |---|---|---|---|
 | `GET` | `/workspace/me/active-time-entry` | Authenticated user | `Modules\Workspace\Http\Controllers\TimeTrackingController@active` |
-| `GET` | `/workspace/tasks` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@index` |
-| `POST` | `/workspace/tasks` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@store` |
-| `DELETE` | `/workspace/tasks/{taskId}` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@destroy` |
-| `GET` | `/workspace/tasks/{taskId}` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@show` |
-| `PUT` | `/workspace/tasks/{taskId}` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@update` |
-| `POST` | `/workspace/tasks/{taskId}/assignees` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@assignEmployees` |
-| `DELETE` | `/workspace/tasks/{taskId}/assignees/{employeeId}` | Authenticated user | `Modules\Workspace\Http\Controllers\TaskController@removeEmployee` |
-| `GET` | `/workspace/tasks/{taskId}/time-entries` | Authenticated user | `Modules\Workspace\Http\Controllers\TimeTrackingController@index` |
-| `POST` | `/workspace/tasks/{taskId}/time-entries/start` | Authenticated user | `Modules\Workspace\Http\Controllers\TimeTrackingController@start` |
-| `POST` | `/workspace/tasks/{taskId}/time-entries/{entryId}/stop` | Authenticated user | `Modules\Workspace\Http\Controllers\TimeTrackingController@stop` |
+| `GET` | `/workspace/tasks` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@index` |
+| `POST` | `/workspace/tasks` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@store` |
+| `DELETE` | `/workspace/tasks/{taskId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@destroy` |
+| `GET` | `/workspace/tasks/{taskId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@show` |
+| `PUT` | `/workspace/tasks/{taskId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@update` |
+| `POST` | `/workspace/tasks/{taskId}/assignees` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@assignEmployees` |
+| `DELETE` | `/workspace/tasks/{taskId}/assignees/{employeeId}` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TaskController@removeEmployee` |
+| `GET` | `/workspace/tasks/{taskId}/time-entries` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TimeTrackingController@index` |
+| `POST` | `/workspace/tasks/{taskId}/time-entries/start` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TimeTrackingController@start` |
+| `POST` | `/workspace/tasks/{taskId}/time-entries/{entryId}/stop` | Active administrator or employee | `Modules\Workspace\Http\Controllers\TimeTrackingController@stop` |
 | `GET` | `/workspace/users/{userId}/time-entries/daily-total` | Authenticated user | `Modules\Workspace\Http\Controllers\TimeTrackingController@dailyTotal` |
 
 ## User administration

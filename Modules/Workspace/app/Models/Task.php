@@ -4,6 +4,7 @@ namespace Modules\Workspace\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 // use Modules\Workspace\Database\Factories\TaskFactory;
 use App\Models\User;
 use Laravel\Scout\Searchable;
@@ -12,6 +13,7 @@ class Task extends Model
 {
     use HasFactory;
     use Searchable;
+    use SoftDeletes;
 
     /**
      * The attributes that are mass assignable.

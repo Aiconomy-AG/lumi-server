@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TokenController;
+use App\Http\Controllers\AvatarController;
 use App\Http\Controllers\DeviceTokenController;
 use App\Http\Controllers\Api\SearchController;
 use Illuminate\Support\Facades\Broadcast;
@@ -27,6 +28,8 @@ Route::prefix('auth')->group(function () {
         Route::patch('me/status', [TokenController::class, 'updateStatus']);
         Route::post('me/presence/ping', [TokenController::class, 'ping']);
 
+        Route::post('me/avatar', [AvatarController::class, 'store'])->middleware('throttle:10,1');
+        Route::delete('me/avatar', [AvatarController::class, 'destroy']);
     });
 });
 

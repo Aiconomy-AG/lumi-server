@@ -1,8 +1,14 @@
 # Integration overview
 
+Workspace calling has two companion references:
+
+- [LiveKit Workspace calls](voip.md) for environment setup, external services, routing, and deployment.
+- [Workspace VoIP backend architecture](voip-backend-architecture.md) for the Laravel call stack, lifecycle rules, and extension points.
+
 | Integration | Direction | Failure impact |
 |---|---|---|
 | [LiveKit Workspace calls](voip.md) | Bidirectional | New calls cannot establish audio; call history and profile data remain available |
+| [Workspace VoIP backend architecture](voip-backend-architecture.md) | Internal reference | Coding agents may miss call lifecycle, webhook, and chat-log invariants |
 | Shopify Admin GraphQL | Outbound | Product, inventory, and collection synchronization delayed or failed |
 | Shopify proxy and webhooks | Inbound | Storefront mutations or synchronization rejected when signatures fail |
 | Meilisearch | Outbound | Product search unavailable; database catalog reads remain separate |

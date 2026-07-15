@@ -3,6 +3,7 @@
 return [
     'client_id' => env('SHOPIFY_ADMIN_ID'),
     'client_secret' => env('SHOPIFY_ADMIN_SECRET'),
+    'wishlist_secret' => env('SHOPIFY_WISHLIST_PROXY_SECRET', env('SHOPIFY_ADMIN_SECRET')),
     'webhook_secret' => env('SHOPIFY_WEBHOOK_SECRET'),
     'shop' => env('SHOPIFY_SHOP'),
     'app_url' => env('SHOPIFY_APP_URL'),

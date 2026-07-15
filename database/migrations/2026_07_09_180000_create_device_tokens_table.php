@@ -11,10 +11,12 @@ return new class extends Migration
         Schema::create('device_tokens', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('token')->unique();
-            $table->enum('platform', ['android', 'ios']);
+            $table->string('token');
+            $table->string('platform', 32);
+            $table->string('device_id');
             $table->timestamps();
 
+            $table->unique(['user_id', 'platform', 'device_id']);
             $table->index(['user_id', 'platform']);
         });
     }

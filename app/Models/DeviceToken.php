@@ -11,9 +11,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'token',
     'platform',
     'device_id',
+    'invalidated_at',
 ])]
 class DeviceToken extends Model
 {
+    protected function casts(): array
+    {
+        return [
+            'invalidated_at' => 'datetime',
+        ];
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

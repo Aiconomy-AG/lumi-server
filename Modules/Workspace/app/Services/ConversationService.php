@@ -2,8 +2,14 @@
 
 namespace Modules\Workspace\Services;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
+use Modules\Workspace\Domain\Messages\MessageType;
+use Modules\Workspace\Events\ConversationDeleted;
+use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Models\Conversation;
+use Modules\Workspace\Models\Message;
 
 class ConversationService
 {
@@ -17,7 +23,7 @@ class ConversationService
             ->whereHas('participants', fn ($q) => $q->where('users.id', $userId))
             ->with(['participants', 'latestMessage'])
             ->withMax('messages', 'created_at')
-            ->orderByDesc('messages_max_created_at')
+            ->orderByRaw('COALESCE(messages_max_created_at, conversations.created_at) DESC')
             ->get();
     }
 
@@ -48,7 +54,21 @@ class ConversationService
         $allParticipantIds = array_unique([...$participantIds, $creatorId]);
         $conversation->participants()->attach($allParticipantIds);
 
-        $conversation = $conversation->load(['participants', 'latestMessage']);
+        if ($data['type'] === 'group') {
+            $creator = User::query()->find($creatorId);
+            $creatorName = $creator?->name ?? 'Someone';
+            $groupName = trim((string) ($conversation->name ?? ''));
+
+            $this->postSystemMessage(
+                $conversation,
+                $creatorId,
+                $groupName !== ''
+                    ? "{$creatorName} created the group \"{$groupName}\"."
+                    : "{$creatorName} created the group.",
+            );
+        }
+
+        $conversation = $conversation->fresh(['participants', 'latestMessage']);
 
         $this->notificationService->createForRecipients(
             type: 'chat_added_to_conversation',
@@ -97,6 +117,8 @@ class ConversationService
                         'conversation_type' => $conversation->type,
                     ],
                 );
+
+                $this->postParticipantChangeMessage($conversation, $actorUserId, $toAttach, added: true);
             }
         }
 
@@ -111,11 +133,36 @@ class ConversationService
                     throw new \InvalidArgumentException('A group must keep at least two participants.');
                 }
 
+                $this->postParticipantChangeMessage($conversation, $actorUserId, $toDetach, added: false);
                 $conversation->participants()->detach($toDetach);
             }
         }
 
         return $conversation->fresh(['participants', 'latestMessage']);
+    }
+
+    public function leave(Conversation $conversation, int $userId): void
+    {
+        if ($conversation->type !== 'group') {
+            throw new \InvalidArgumentException('Only group conversations can be left.');
+        }
+
+        $name = User::query()->whereKey($userId)->value('name') ?? 'Someone';
+
+        $this->postSystemMessage($conversation, $userId, "{$name} left the group.");
+
+        $conversation->participants()->detach($userId);
+    }
+
+    public function delete(Conversation $conversation): void
+    {
+        if ($conversation->type !== 'group') {
+            throw new \InvalidArgumentException('Only group conversations can be deleted.');
+        }
+
+        $conversation->delete();
+
+        ConversationDeleted::dispatch($conversation->id);
     }
 
     private function findExistingDirectConversation(int $userId, int $otherId): ?Conversation
@@ -127,5 +174,52 @@ class ConversationService
             ->with(['participants', 'latestMessage'])
             ->get()
             ->first(fn ($c) => $c->participants->count() === 2);
+    }
+
+    private function postSystemMessage(Conversation $conversation, int $senderId, string $text): Message
+    {
+        $message = Message::query()->create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $senderId,
+            'message_type' => MessageType::System,
+            'message' => $text,
+            'type' => 'text',
+        ]);
+
+        try {
+            MessageSent::dispatch($message);
+        } catch (\Throwable $e) {
+            Log::warning('System message broadcast failed', [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $message;
+    }
+
+    /** @param  array<int, int>  $userIds */
+    private function postParticipantChangeMessage(
+        Conversation $conversation,
+        int $actorUserId,
+        array $userIds,
+        bool $added,
+    ): void {
+        if ($userIds === []) {
+            return;
+        }
+
+        $actorName = User::query()->whereKey($actorUserId)->value('name') ?? 'Someone';
+        $names = User::query()->whereIn('id', $userIds)->pluck('name')->all();
+        $targetNames = $names !== [] ? implode(', ', $names) : implode(', ', $userIds);
+        $verb = $added ? 'added' : 'removed';
+        $preposition = $added ? 'to' : 'from';
+
+        $this->postSystemMessage(
+            $conversation,
+            $actorUserId,
+            "{$actorName} {$verb} {$targetNames} {$preposition} the group.",
+        );
     }
 }
