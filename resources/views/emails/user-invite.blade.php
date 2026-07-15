@@ -53,16 +53,6 @@
                                                     {{ $user->email }}
                                                 </td>
                                             </tr>
-                                            <tr>
-                                                <td style="border-top:1px solid #e4e4e7; padding:14px 20px 6px 20px; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#71717a; text-transform:uppercase; letter-spacing:0.5px;">
-                                                    Temporary password
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding:0 20px 16px 20px; font-family:'Courier New', Courier, monospace; font-size:14px; color:#18181b; font-weight:bold;">
-                                                    {{ $temporaryPassword }}
-                                                </td>
-                                            </tr>
                                         </table>
                                     </td>
                                 </tr>
