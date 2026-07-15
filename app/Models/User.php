@@ -18,6 +18,8 @@ use Laravel\Scout\Searchable;
     'password',
     'role',
     'status',
+    'call_status_restore_status',
+    'call_status_restore_call_id',
     'last_seen_at',
     'phone_number',
     'language_flag',

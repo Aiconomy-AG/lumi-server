@@ -31,6 +31,23 @@ class LiveKitService
         (new RoomServiceClient($url, $apiKey, $apiSecret))->createRoom($options);
     }
 
+    public function deleteRoom(Call $call): void
+    {
+        $url = $this->httpUrl();
+        $apiKey = (string) config('voip.livekit.api_key');
+        $apiSecret = (string) config('voip.livekit.api_secret');
+
+        if ($url === '' || $apiKey === '' || strlen($apiSecret) < 32 || $call->room_name === null) {
+            return;
+        }
+
+        try {
+            (new RoomServiceClient($url, $apiKey, $apiSecret))->deleteRoom($call->room_name);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
     private function httpUrl(): string
     {
         $url = (string) config('voip.livekit.url');
