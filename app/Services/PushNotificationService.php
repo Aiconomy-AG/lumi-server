@@ -22,6 +22,13 @@ class PushNotificationService
     {
         $tokens = DeviceToken::query()
             ->where('user_id', $userId)
+            ->whereNull('invalidated_at')
+            ->whereIn('platform', [
+                DeviceTokenPlatform::FCM_ANDROID,
+                DeviceTokenPlatform::LEGACY_ANDROID,
+                DeviceTokenPlatform::LEGACY_IOS,
+                DeviceTokenPlatform::WEB_PUSH,
+            ])
             ->pluck('token');
 
         if ($tokens->isEmpty()) {
@@ -45,12 +52,26 @@ class PushNotificationService
         $this->sendMessage($message, $token);
     }
 
+    public function sendCallEventToToken(string $token, string $title, string $body, array $data): void
+    {
+        $payload = ['title' => $title, 'body' => $body, ...$data];
+
+        $message = CloudMessage::new()
+            ->withToken($token)
+            ->withData($this->stringifyData($payload))
+            ->withHighestPossiblePriority()
+            ->withDefaultSounds();
+
+        $this->sendMessage($message, $token);
+    }
+
     public function sendCallEventToUser(int $userId, string $title, string $body, array $data): void
     {
         $payload = ['title' => $title, 'body' => $body, ...$data];
 
         DeviceToken::query()
             ->where('user_id', $userId)
+            ->whereNull('invalidated_at')
             ->whereIn('platform', DeviceTokenPlatform::fcmPlatforms())
             ->get(['token', 'platform'])
             ->each(function (DeviceToken $deviceToken) use ($title, $body, $payload): void {
@@ -70,6 +91,7 @@ class PushNotificationService
 
         DeviceToken::query()
             ->where('user_id', $userId)
+            ->whereNull('invalidated_at')
             ->where('platform', DeviceTokenPlatform::LEGACY_IOS)
             ->get(['token'])
             ->each(function (DeviceToken $deviceToken) use ($title, $body, $payload): void {
@@ -92,12 +114,12 @@ class PushNotificationService
             $this->deleteToken($token);
 
             Log::warning('Push notification token was invalid or expired and has been deleted.', [
-                'token' => $token,
+                'token' => $this->tokenFingerprint($token),
                 'error' => $exception->getMessage(),
             ]);
         } catch (MessagingException|FirebaseException $exception) {
             Log::warning('Push notification failed.', [
-                'token' => $token,
+                'token' => $this->tokenFingerprint($token),
                 'error' => $exception->getMessage(),
             ]);
         }
@@ -115,5 +137,14 @@ class PushNotificationService
         DeviceToken::query()
             ->where('token', $token)
             ->delete();
+    }
+
+    private function tokenFingerprint(string $token): string
+    {
+        if (strlen($token) <= 12) {
+            return hash('sha256', $token);
+        }
+
+        return substr($token, 0, 6).'...'.substr($token, -6);
     }
 }

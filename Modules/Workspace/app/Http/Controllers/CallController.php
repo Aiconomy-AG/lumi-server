@@ -31,13 +31,22 @@ class CallController extends Controller
             ? CallMode::from($validated['mode'])
             : (count($validated['callee_ids']) > 1 ? CallMode::Group : CallMode::OneToOne);
 
-        $call = $this->calls->startCall(
-            caller: $request->user(),
-            calleeIds: $validated['callee_ids'],
-            type: $type,
-            mode: $mode,
-            clientInstanceId: $validated['client_instance_id'],
-        );
+        $call = isset($validated['conversation_id'])
+            ? $this->calls->startConversationCall(
+                conversation: Conversation::query()->findOrFail($validated['conversation_id']),
+                caller: $request->user(),
+                calleeIds: $validated['callee_ids'],
+                type: $type,
+                requestedMode: isset($validated['mode']) ? $mode : null,
+                clientInstanceId: $validated['client_instance_id'],
+            )
+            : $this->calls->startCall(
+                caller: $request->user(),
+                calleeIds: $validated['callee_ids'],
+                type: $type,
+                mode: $mode,
+                clientInstanceId: $validated['client_instance_id'],
+            );
 
         return $this->resourceWithConnection($call, $request->user(), $validated['client_instance_id']);
     }

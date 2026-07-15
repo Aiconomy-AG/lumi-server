@@ -3,22 +3,19 @@
 namespace App\Services;
 
 use App\Models\DeviceToken;
+use App\Services\Push\ApnsVoipPushService;
 use App\Support\DeviceTokenPlatform;
 use Illuminate\Support\Facades\Log;
-use Pushok\AuthProvider;
-use Pushok\Client;
-use Pushok\Notification;
-use Pushok\Payload;
 
 class ApnsVoipService
 {
+    public function __construct(
+        private readonly ApnsVoipPushService $apns,
+    ) {}
+
     public function isConfigured(): bool
     {
-        return (string) config('voip.apns.key_id') !== ''
-            && (string) config('voip.apns.team_id') !== ''
-            && (string) config('voip.apns.bundle_id') !== ''
-            && (string) config('voip.apns.key_path') !== ''
-            && is_readable((string) config('voip.apns.key_path'));
+        return $this->apns->isConfigured();
     }
 
     public function sendVoipToUser(int $userId, array $data): bool
@@ -33,8 +30,9 @@ class ApnsVoipService
 
         $tokens = DeviceToken::query()
             ->where('user_id', $userId)
-            ->where('platform', DeviceTokenPlatform::APNS_VOIP)
-            ->pluck('token');
+            ->where('platform', DeviceTokenPlatform::VOIP_IOS)
+            ->whereNull('invalidated_at')
+            ->get(['id', 'token']);
 
         if ($tokens->isEmpty()) {
             return false;
@@ -42,7 +40,7 @@ class ApnsVoipService
 
         $sent = false;
         foreach ($tokens as $token) {
-            if ($this->sendVoipToken($token, $data)) {
+            if ($this->sendVoipToken($token->token, $data)) {
                 $sent = true;
             }
         }
@@ -52,48 +50,18 @@ class ApnsVoipService
 
     public function sendVoipToken(string $token, array $data): bool
     {
-        if (! $this->isConfigured()) {
-            return false;
-        }
-
         try {
-            $authProvider = AuthProvider\Token::create([
-                'key_id' => config('voip.apns.key_id'),
-                'team_id' => config('voip.apns.team_id'),
-                'app_bundle_id' => config('voip.apns.bundle_id'),
-                'private_key_path' => config('voip.apns.key_path'),
-                'private_key_secret' => null,
-            ]);
-
-            $client = new Client($authProvider, (bool) config('voip.apns.production', false));
-            $payload = Payload::create()->setCustomValue('lumi', $data);
-            $notification = new Notification($payload, $token);
-            $notification->setPushType('voip');
-            $notification->setPriority(10);
-
-            $client->addNotification($notification);
-            $responses = $client->push();
-
-            foreach ($responses as $response) {
-                if ($response->getStatusCode() >= 400) {
-                    if (in_array($response->getStatusCode(), [400, 410], true)) {
-                        DeviceToken::query()->where('token', $token)->delete();
-                    }
-
-                    Log::warning('APNs VoIP push failed.', [
-                        'token' => $token,
-                        'status' => $response->getStatusCode(),
-                        'reason' => $response->getReasonPhrase(),
-                    ]);
-
-                    return false;
-                }
+            $result = $this->apns->sendIncomingCall($token, $data, $data['call_id'] ?? null);
+            if ($result->shouldInvalidateToken) {
+                DeviceToken::query()
+                    ->where('token', $token)
+                    ->update(['invalidated_at' => now()]);
             }
 
-            return true;
+            return $result->success;
         } catch (\Throwable $exception) {
             Log::warning('APNs VoIP push failed.', [
-                'token' => $token,
+                'token' => $this->apns->tokenFingerprint($token),
                 'error' => $exception->getMessage(),
             ]);
 

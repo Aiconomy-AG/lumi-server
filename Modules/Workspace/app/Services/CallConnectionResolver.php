@@ -60,9 +60,17 @@ class CallConnectionResolver
             return false;
         }
 
-        return $participant->role === 'caller'
-            || ($call->status === CallStatus::Active
-                && ($call->isGroup() || $call->answered_client_instance_id === $clientInstanceId));
+        if ($participant->role === 'caller') {
+            return true;
+        }
+
+        if ($call->status !== CallStatus::Active || $participant->status !== ParticipantStatus::Joined) {
+            return false;
+        }
+
+        return $call->isGroup()
+            ? $participant->client_instance_id === $clientInstanceId
+            : $call->answered_client_instance_id === $clientInstanceId;
     }
 
     private function shouldIncludeConnection(Call $call, CallParticipant $participant): bool

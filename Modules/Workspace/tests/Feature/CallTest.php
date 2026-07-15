@@ -11,6 +11,10 @@ use Firebase\JWT\Key;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
+use Livekit\ParticipantInfo;
+use Livekit\Room;
+use Livekit\WebhookEvent;
 use Modules\Workspace\Contracts\MediaRoomTokenProvider;
 use Modules\Workspace\Domain\Calls\CallStatus;
 use Modules\Workspace\Domain\Calls\ParticipantStatus;
@@ -18,6 +22,7 @@ use Modules\Workspace\Events\CallAccepted;
 use Modules\Workspace\Events\CallIncoming;
 use Modules\Workspace\Events\CallRinging;
 use Modules\Workspace\Events\CallUpdated;
+use Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider;
 use Modules\Workspace\Jobs\DispatchCallRingJob;
 use Modules\Workspace\Jobs\ExpireUnansweredCallJob;
 use Modules\Workspace\Models\Call;
@@ -105,11 +110,11 @@ class CallTest extends TestCase
 
     private function invokeWebhookParticipantLeft(string $callId, int $userId, string $clientInstanceId): void
     {
-        $event = new \Livekit\WebhookEvent([
+        $event = new WebhookEvent([
             'event' => 'participant_left',
             'id' => 'evt-left-'.$userId,
-            'room' => new \Livekit\Room(['name' => 'call_'.$callId]),
-            'participant' => new \Livekit\ParticipantInfo([
+            'room' => new Room(['name' => 'call_'.$callId]),
+            'participant' => new ParticipantInfo([
                 'identity' => 'user:'.$userId.':client:'.$clientInstanceId,
             ]),
         ]);
@@ -129,7 +134,7 @@ class CallTest extends TestCase
         }
 
         $this->app->forgetInstance(MediaRoomTokenProvider::class);
-        $this->app->instance(MediaRoomTokenProvider::class, app(\Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider::class));
+        $this->app->instance(MediaRoomTokenProvider::class, app(LiveKitMediaRoomTokenProvider::class));
 
         $caller = $this->staffUser();
         $callee = $this->staffUser();
@@ -154,7 +159,7 @@ class CallTest extends TestCase
             new Key(str_repeat('s', 64), 'HS256'),
         );
         $this->assertSame('call_'.$callId, $claims->video->room);
-        $this->assertSame(['microphone', 'screen_share'], $claims->video->canPublishSources);
+        $this->assertSame(['microphone'], $claims->video->canPublishSources);
 
         Queue::assertPushed(DispatchCallRingJob::class);
         Queue::assertPushed(ExpireUnansweredCallJob::class);
@@ -168,7 +173,7 @@ class CallTest extends TestCase
         }
 
         $this->app->forgetInstance(MediaRoomTokenProvider::class);
-        $this->app->instance(MediaRoomTokenProvider::class, app(\Modules\Workspace\Infrastructure\LiveKitMediaRoomTokenProvider::class));
+        $this->app->instance(MediaRoomTokenProvider::class, app(LiveKitMediaRoomTokenProvider::class));
 
         $caller = $this->staffUser();
         $callee = $this->staffUser();
@@ -254,6 +259,73 @@ class CallTest extends TestCase
             ->assertJsonPath('data.status', 'ringing')
             ->assertJsonPath('data.type', 'video')
             ->assertJsonPath('data.conversation_id', $conversation->id);
+    }
+
+    #[Test]
+    public function primary_api_starts_video_call_linked_to_group_conversation_for_selected_members(): void
+    {
+        $caller = $this->staffUser();
+        $calleeOne = $this->staffUser();
+        $calleeTwo = $this->staffUser();
+        $conversation = $this->groupConversation([$caller, $calleeOne, $calleeTwo]);
+
+        $response = $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'conversation_id' => $conversation->id,
+                'callee_ids' => [$calleeOne->id],
+                'type' => 'video',
+                'client_instance_id' => 'web-caller',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.conversation_id', $conversation->id)
+            ->assertJsonPath('data.mode', 'group')
+            ->assertJsonPath('data.type', 'video')
+            ->assertJsonCount(2, 'data.participants');
+
+        $this->assertDatabaseHas('messages', [
+            'call_id' => $response->json('data.id'),
+            'conversation_id' => $conversation->id,
+            'message_type' => 'call',
+            'message' => 'Video call',
+        ]);
+    }
+
+    #[Test]
+    public function linked_call_rejects_non_members_and_conflicting_mode(): void
+    {
+        $caller = $this->staffUser();
+        $member = $this->staffUser();
+        $nonMember = $this->staffUser();
+        $conversation = $this->groupConversation([$caller, $member]);
+
+        $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'conversation_id' => $conversation->id,
+                'callee_ids' => [$nonMember->id],
+                'client_instance_id' => 'web-caller',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'CONVERSATION_PARTICIPANT_REQUIRED');
+
+        $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'conversation_id' => $conversation->id,
+                'callee_ids' => [$member->id],
+                'mode' => '1v1',
+                'client_instance_id' => 'web-caller',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'INVALID_CALL_MODE');
+
+        $outsider = $this->staffUser();
+        $this->actingAs($outsider, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'conversation_id' => $conversation->id,
+                'callee_ids' => [$member->id],
+                'client_instance_id' => 'web-caller',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'FORBIDDEN');
     }
 
     #[Test]
@@ -436,6 +508,72 @@ class CallTest extends TestCase
     }
 
     #[Test]
+    public function later_group_recipient_can_accept_active_call_and_device_is_locked(): void
+    {
+        $caller = $this->staffUser();
+        $calleeOne = $this->staffUser();
+        $calleeTwo = $this->staffUser();
+
+        $callId = $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'callee_ids' => [$calleeOne->id, $calleeTwo->id],
+                'mode' => 'group',
+                'client_instance_id' => 'web-caller',
+            ])->json('data.id');
+
+        $this->actingAs($calleeOne, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'android-one'])
+            ->assertOk();
+
+        $this->actingAs($calleeTwo, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'ios-two'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'active')
+            ->assertJsonPath('data.connection.url', 'wss://test.livekit.cloud');
+
+        $this->assertDatabaseHas('call_participants', [
+            'call_id' => $callId,
+            'user_id' => $calleeTwo->id,
+            'status' => ParticipantStatus::Joined->value,
+            'client_instance_id' => 'ios-two',
+        ]);
+
+        $this->actingAs($calleeTwo, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'web-two'])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'ANSWERED_ELSEWHERE');
+    }
+
+    #[Test]
+    public function pending_group_recipient_can_decline_active_call_and_has_no_active_call(): void
+    {
+        $caller = $this->staffUser();
+        $calleeOne = $this->staffUser();
+        $calleeTwo = $this->staffUser();
+
+        $callId = $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'callee_ids' => [$calleeOne->id, $calleeTwo->id],
+                'mode' => 'group',
+                'client_instance_id' => 'web-caller',
+            ])->json('data.id');
+
+        $this->actingAs($calleeOne, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'android-one'])
+            ->assertOk();
+
+        $this->actingAs($calleeTwo, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/decline")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'active');
+
+        $this->actingAs($calleeTwo, 'sanctum')
+            ->getJson('/api/v1/calls/active')
+            ->assertOk()
+            ->assertJsonPath('data', null);
+    }
+
+    #[Test]
     public function leave_ends_call_when_last_active_participant_leaves(): void
     {
         $caller = $this->staffUser();
@@ -580,6 +718,80 @@ class CallTest extends TestCase
     }
 
     #[Test]
+    public function linked_group_call_invites_only_conversation_members_and_expires_invite_batch(): void
+    {
+        $caller = $this->staffUser();
+        $callee = $this->staffUser();
+        $memberInvitee = $this->staffUser();
+        $nonMember = $this->staffUser();
+        $conversation = $this->groupConversation([$caller, $callee, $memberInvitee]);
+
+        $callId = $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'conversation_id' => $conversation->id,
+                'callee_ids' => [$callee->id],
+                'type' => 'video',
+                'client_instance_id' => 'web-caller',
+            ])->json('data.id');
+
+        $this->actingAs($callee, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'android'])
+            ->assertOk();
+
+        $this->actingAs($caller, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/invite", ['user_ids' => [$nonMember->id]])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'CONVERSATION_PARTICIPANT_REQUIRED');
+
+        $this->actingAs($caller, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/invite", ['user_ids' => [$memberInvitee->id]])
+            ->assertOk();
+
+        Queue::assertPushed(ExpireUnansweredCallJob::class, function (ExpireUnansweredCallJob $job) use ($memberInvitee): bool {
+            return $job->participantUserIds === [(int) $memberInvitee->id];
+        });
+
+        app(CallService::class)->markMissed($callId, [$memberInvitee->id]);
+
+        $this->assertDatabaseHas('calls', ['id' => $callId, 'status' => CallStatus::Active->value]);
+        $this->assertDatabaseHas('call_participants', [
+            'call_id' => $callId,
+            'user_id' => $memberInvitee->id,
+            'status' => ParticipantStatus::Missed->value,
+        ]);
+    }
+
+    #[Test]
+    public function pending_group_recipient_cannot_leave_or_invite(): void
+    {
+        $caller = $this->staffUser();
+        $calleeOne = $this->staffUser();
+        $calleeTwo = $this->staffUser();
+        $invitee = $this->staffUser();
+
+        $callId = $this->actingAs($caller, 'sanctum')
+            ->postJson('/api/v1/calls', [
+                'callee_ids' => [$calleeOne->id, $calleeTwo->id],
+                'mode' => 'group',
+                'client_instance_id' => 'web-caller',
+            ])->json('data.id');
+
+        $this->actingAs($calleeOne, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'android'])
+            ->assertOk();
+
+        $this->actingAs($calleeTwo, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/leave")
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'INVALID_CALL_ACTION');
+
+        $this->actingAs($calleeTwo, 'sanctum')
+            ->postJson("/api/v1/calls/{$callId}/invite", ['user_ids' => [$invitee->id]])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'INVALID_CALL_ACTION');
+    }
+
+    #[Test]
     public function call_history_returns_terminal_calls(): void
     {
         $caller = $this->staffUser();
@@ -622,7 +834,7 @@ class CallTest extends TestCase
     #[Test]
     public function webhook_participant_joined_sets_joined_at(): void
     {
-        if (! class_exists(\Livekit\WebhookEvent::class)) {
+        if (! class_exists(WebhookEvent::class)) {
             $this->markTestSkipped('LiveKit PHP SDK is not installed.');
         }
 
@@ -630,7 +842,7 @@ class CallTest extends TestCase
         $callee = $this->staffUser();
 
         $call = Call::query()->create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'initiated_by_user_id' => $caller->id,
             'caller_name' => $caller->name,
             'destination_type' => Call::DESTINATION_WORKSPACE_USER,
@@ -649,11 +861,11 @@ class CallTest extends TestCase
         ]);
 
         $identity = 'user:'.$callee->id.':client:android';
-        $event = new \Livekit\WebhookEvent([
+        $event = new WebhookEvent([
             'event' => 'participant_joined',
             'id' => 'evt-1',
-            'room' => new \Livekit\Room(['name' => 'call_test_room']),
-            'participant' => new \Livekit\ParticipantInfo(['identity' => $identity]),
+            'room' => new Room(['name' => 'call_test_room']),
+            'participant' => new ParticipantInfo(['identity' => $identity]),
         ]);
 
         $service = app(CallWebhookService::class);
@@ -698,7 +910,7 @@ class CallTest extends TestCase
     #[Test]
     public function livekit_webhook_accepts_unknown_room_without_logging_invalid_call_event(): void
     {
-        if (! class_exists(\Livekit\WebhookEvent::class)) {
+        if (! class_exists(WebhookEvent::class)) {
             $this->markTestSkipped('LiveKit PHP SDK is not installed.');
         }
 
@@ -727,7 +939,7 @@ class CallTest extends TestCase
     #[Test]
     public function group_webhook_participant_left_keeps_call_active_while_others_are_joined(): void
     {
-        if (! class_exists(\Livekit\WebhookEvent::class)) {
+        if (! class_exists(WebhookEvent::class)) {
             $this->markTestSkipped('LiveKit PHP SDK is not installed.');
         }
 
@@ -762,7 +974,7 @@ class CallTest extends TestCase
     #[Test]
     public function group_webhook_participant_left_ends_call_when_last_joined_participant_leaves(): void
     {
-        if (! class_exists(\Livekit\WebhookEvent::class)) {
+        if (! class_exists(WebhookEvent::class)) {
             $this->markTestSkipped('LiveKit PHP SDK is not installed.');
         }
 
@@ -789,7 +1001,7 @@ class CallTest extends TestCase
     #[Test]
     public function room_finished_ends_group_call_and_marks_joined_participants_left(): void
     {
-        if (! class_exists(\Livekit\WebhookEvent::class)) {
+        if (! class_exists(WebhookEvent::class)) {
             $this->markTestSkipped('LiveKit PHP SDK is not installed.');
         }
 
@@ -806,14 +1018,11 @@ class CallTest extends TestCase
         $this->actingAs($calleeOne, 'sanctum')
             ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'android-one'])
             ->assertOk();
-        $this->actingAs($calleeTwo, 'sanctum')
-            ->postJson("/api/v1/calls/{$callId}/accept", ['client_instance_id' => 'android-two'])
-            ->assertOk();
 
-        $event = new \Livekit\WebhookEvent([
+        $event = new WebhookEvent([
             'event' => 'room_finished',
             'id' => 'evt-room-finished',
-            'room' => new \Livekit\Room(['name' => 'call_'.$callId]),
+            'room' => new Room(['name' => 'call_'.$callId]),
         ]);
 
         $service = app(CallWebhookService::class);
@@ -821,12 +1030,18 @@ class CallTest extends TestCase
         $method = $reflection->getMethod('roomFinished');
         $method->setAccessible(true);
         $method->invoke($service, $event);
+        $method->invoke($service, $event);
 
         $this->assertDatabaseHas('calls', ['id' => $callId, 'status' => CallStatus::Ended->value]);
         $this->assertSame(0, CallParticipant::query()
             ->where('call_id', $callId)
             ->where('status', ParticipantStatus::Joined->value)
             ->count());
+        $this->assertDatabaseHas('call_participants', [
+            'call_id' => $callId,
+            'user_id' => $calleeTwo->id,
+            'status' => ParticipantStatus::Missed->value,
+        ]);
         $this->assertSame(1, Message::query()->where('call_id', $callId)->count());
     }
 
@@ -843,6 +1058,13 @@ class CallTest extends TestCase
             ])
             ->assertCreated()
             ->json('data.id');
+
+        $this->assertDatabaseHas('messages', [
+            'call_id' => $callId,
+            'conversation_id' => $conversation->id,
+            'message_type' => 'call',
+            'message' => 'Call',
+        ]);
 
         $this->actingAs($caller, 'sanctum')
             ->postJson("/api/v1/calls/{$callId}/cancel")
