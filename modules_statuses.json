@@ -2,5 +2,6 @@
     "Sales": true,
     "Team": true,
     "Workplace": true,
-    "Workspace": true
+    "Workspace": true,
+    "Analytic": true
 }
