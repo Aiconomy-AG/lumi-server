@@ -16,6 +16,12 @@ Conversations contain participants and messages. `ConversationService` owns crea
 
 When AI chat is enabled and a supported mention is detected, `GenerateAiChatReplyJob` gathers bounded history, calls `GeminiChatService`, persists the bot response, and broadcasts it. The AI identity is resolved by `ChatAiUserResolver`; deployments must seed or otherwise provide that user.
 
+## Calls and VoIP
+
+Workspace calling supports 1-to-1 and group audio/video calls, conversation-linked call history, LiveKit media rooms, Reverb realtime updates, Firebase Android delivery, and APNs VoIP delivery for iOS. Start with [LiveKit Workspace calls](../integrations/voip.md) when you need setup and deployment guidance.
+
+For the backend code map itself, use [Workspace VoIP backend architecture](../integrations/voip-backend-architecture.md). That document traces the call stack through `CallController`, `CallService`, webhook reconciliation, push delivery, chat call rows, and lifecycle invariants.
+
 ## Notifications
 
 `NotificationService` creates one event with per-recipient deliveries, lists a user's deliveries, marks individual or all notifications read, and dismisses deliveries. Delivery and dismissal events support realtime client updates.
