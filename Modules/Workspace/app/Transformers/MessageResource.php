@@ -2,6 +2,7 @@
 
 namespace Modules\Workspace\Transformers;
 
+use App\Support\CdnUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Workspace\Domain\Messages\MessageType;
@@ -33,6 +34,17 @@ class MessageResource extends JsonResource
             'type' => $this->type ?? 'text',
             'meta' => $this->meta,
             'reactions' => $reactions,
+            'image' => $this->when(
+                $messageType === MessageType::Image->value && isset($this->meta['image']['path']),
+                fn (): array => [
+                    'url' => CdnUrl::for($this->meta['image']['path']),
+                    'thumb_url' => CdnUrl::thumb($this->meta['image']['path'], 600),
+                    'width' => $this->meta['image']['width'] ?? null,
+                    'height' => $this->meta['image']['height'] ?? null,
+                    'size' => $this->meta['image']['size'] ?? null,
+                    'mime' => $this->meta['image']['mime'] ?? null,
+                ],
+            ),
             'sent_at' => $this->created_at?->toISOString(),
             'call' => $this->when(
                 $messageType === MessageType::Call->value && $this->relationLoaded('call') && $this->call,

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Modules\Workspace\AiTools\ToolContract;
 use Modules\Workspace\AiTools\ToolRegistry;
+use Modules\Workspace\Domain\Messages\MessageType;
 use Modules\Workspace\Models\Conversation;
 use Modules\Workspace\Models\Message;
 use Modules\Workspace\Services\AiChat\AiChatResult;
@@ -212,7 +213,11 @@ class GeminiChatService
             return "[Proposed action: {$summary} — status: {$status}]";
         }
 
-        if ($message->message === '') {
+        if ($message->message_type === MessageType::Image) {
+            return '[Shared an image]';
+        }
+
+        if (blank($message->message)) {
             return '';
         }
 

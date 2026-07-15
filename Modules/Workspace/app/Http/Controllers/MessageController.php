@@ -7,7 +7,11 @@ use App\Jobs\SendPushNotificationJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Modules\Workspace\Domain\Messages\MessageType;
 use Modules\Workspace\Events\MessageReactionUpdated;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Http\Requests\StoreMessageReactionRequest;
@@ -67,11 +71,31 @@ class MessageController extends Controller
             ->with('participants')
             ->findOrFail($conversationId);
 
-        $message = Message::create([
-            'conversation_id' => $conversationId,
-            'sender_id' => $request->user()->id,
-            'message' => $request->validated('message'),
-        ]);
+        $imagePath = null;
+
+        try {
+            $attributes = [
+                'conversation_id' => $conversationId,
+                'sender_id' => $request->user()->id,
+                'message' => $request->validated('message'),
+            ];
+
+            if ($request->hasFile('image')) {
+                $image = $this->storeImage($request->file('image'), $conversationId);
+                $imagePath = $image['path'];
+
+                $attributes['message_type'] = MessageType::Image;
+                $attributes['meta'] = ['image' => $image];
+            }
+
+            $message = Message::create($attributes);
+        } catch (\Throwable $e) {
+            if ($imagePath !== null) {
+                Storage::disk(config('media.disk'))->delete($imagePath);
+            }
+
+            throw $e;
+        }
 
         $recipientIds = $conversation->participants
             ->pluck('id')
@@ -89,7 +113,9 @@ class MessageController extends Controller
             payload: [
                 'conversation_name' => $conversation->name,
                 'conversation_type' => $conversation->type,
-                'message_preview' => str($message->message)->limit(120)->toString(),
+                'message_preview' => $message->message_type === MessageType::Image
+                    ? '📷 Photo'
+                    : str($message->message)->limit(120)->toString(),
             ],
         );
 
@@ -109,6 +135,7 @@ class MessageController extends Controller
         if (
             $this->chatAiUserResolver->isEnabled()
             && ! $this->chatAiUserResolver->isBotUser((int) $request->user()->id)
+            && $message->message !== null
             && ChatMentionDetector::isMentioned($message->message)
         ) {
             GenerateAiChatReplyJob::dispatch($message->id);
@@ -163,6 +190,34 @@ class MessageController extends Controller
             ->delete();
 
         return $this->reactionResponse($message);
+    }
+
+    /**
+     * @return array{path: string, width: int|null, height: int|null, size: int, mime: string|null}
+     */
+    private function storeImage(UploadedFile $file, int $conversationId): array
+    {
+        $dimensions = @getimagesize($file->getRealPath());
+        $size = $file->getSize();
+        $mime = $file->getMimeType();
+
+        $path = Storage::disk(config('media.disk'))->putFileAs(
+            'chat/'.$conversationId,
+            $file,
+            Str::ulid().'.'.$file->extension(),
+        );
+
+        if ($path === false) {
+            throw new \RuntimeException('Failed to store chat image for conversation '.$conversationId);
+        }
+
+        return [
+            'path' => $path,
+            'width' => $dimensions[0] ?? null,
+            'height' => $dimensions[1] ?? null,
+            'size' => $size,
+            'mime' => $mime,
+        ];
     }
 
     private function findConversationMessage(int $conversationId, int $messageId): ?Message

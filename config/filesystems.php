@@ -59,6 +59,18 @@ return [
             'throw' => false,
             'report' => false,
         ],
+        'wasabi' => [
+            'driver' => 's3',
+            'key' => env('PUBLIC_DISK_WASABI_KEY'),
+            'secret' => env('PUBLIC_DISK_WASABI_SECRET'),
+            'region' => env('PUBLIC_DISK_WASABI_REGION'),
+            'bucket' => env('PUBLIC_DISK_WASABI_BUCKET'),
+            'url' => env('PUBLIC_DISK_WASABI_BUNNY_URL'),
+            'endpoint' => env('PUBLIC_DISK_WASABI_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
 
     ],
 
