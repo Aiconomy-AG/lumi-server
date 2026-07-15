@@ -252,6 +252,48 @@ class MessageTest extends TestCase
     }
 
     #[Test]
+    public function reacting_with_a_different_emoji_replaces_the_participants_previous_reaction(): void
+    {
+        Event::fake([MessageReactionUpdated::class]);
+
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $conversation = $this->conversationWith($user, $other);
+        $message = Message::factory()->create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $other->id,
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/v1/workspace/conversations/{$conversation->id}/messages/{$message->id}/reactions", [
+                'emoji' => '👍',
+            ])
+            ->assertStatus(200);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/v1/workspace/conversations/{$conversation->id}/messages/{$message->id}/reactions", [
+                'emoji' => '🔥',
+            ])
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data.reactions')
+            ->assertJsonPath('data.reactions.0.emoji', '🔥')
+            ->assertJsonPath('data.reactions.0.count', 1)
+            ->assertJsonPath('data.reactions.0.user_ids.0', $user->id);
+
+        $this->assertDatabaseCount('message_reactions', 1);
+        $this->assertDatabaseMissing('message_reactions', [
+            'message_id' => $message->id,
+            'user_id' => $user->id,
+            'emoji' => '👍',
+        ]);
+        $this->assertDatabaseHas('message_reactions', [
+            'message_id' => $message->id,
+            'user_id' => $user->id,
+            'emoji' => '🔥',
+        ]);
+    }
+
+    #[Test]
     public function a_participant_can_remove_their_reaction(): void
     {
         Event::fake([MessageReactionUpdated::class]);

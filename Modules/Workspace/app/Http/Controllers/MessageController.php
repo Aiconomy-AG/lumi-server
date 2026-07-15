@@ -7,6 +7,7 @@ use App\Jobs\SendPushNotificationJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 use Modules\Workspace\Events\MessageReactionUpdated;
 use Modules\Workspace\Events\MessageSent;
 use Modules\Workspace\Http\Requests\StoreMessageReactionRequest;
@@ -132,10 +133,19 @@ class MessageController extends Controller
             return response()->json(['code' => 'NOT_FOUND', 'message' => 'Message not found.'], 404);
         }
 
-        $message->reactions()->firstOrCreate([
-            'user_id' => $request->user()->id,
-            'emoji' => $request->validated('emoji'),
-        ]);
+        DB::transaction(function () use ($message, $request): void {
+            $emoji = $request->validated('emoji');
+
+            $message->reactions()
+                ->where('user_id', $request->user()->id)
+                ->where('emoji', '!=', $emoji)
+                ->delete();
+
+            $message->reactions()->firstOrCreate([
+                'user_id' => $request->user()->id,
+                'emoji' => $emoji,
+            ]);
+        });
 
         return $this->reactionResponse($message);
     }
@@ -150,7 +160,6 @@ class MessageController extends Controller
 
         $message->reactions()
             ->where('user_id', $request->user()->id)
-            ->where('emoji', $request->validated('emoji'))
             ->delete();
 
         return $this->reactionResponse($message);
